@@ -20,6 +20,7 @@ import { useUniverAPI } from '../use-univer';
  */
 
 export type HAlign = 'left' | 'center' | 'right' | 'unset';
+export type VAlign = 'top' | 'middle' | 'bottom' | 'unset';
 
 export type ActiveCellState = {
   ready: boolean;
@@ -32,7 +33,13 @@ export type ActiveCellState = {
   isBold: boolean;
   isItalic: boolean;
   isUnderline: boolean;
+  isWrapped: boolean;
+  fontFamily: string;
+  fontSize: number;
+  fontColor: string;
+  fillColor: string;
   align: HAlign;
+  vAlign: VAlign;
   numberFormat: string;
   /** True when the current selection exactly matches a merged range. */
   isMerged: boolean;
@@ -50,7 +57,13 @@ const EMPTY: ActiveCellState = {
   isBold: false,
   isItalic: false,
   isUnderline: false,
+  isWrapped: false,
+  fontFamily: '',
+  fontSize: 11,
+  fontColor: '',
+  fillColor: '',
   align: 'unset',
+  vAlign: 'unset',
   numberFormat: '',
   isMerged: false,
   isMultiCell: false,
@@ -145,8 +158,15 @@ export function useActiveCellState(): ActiveCellState {
         isBold: style?.bl === 1,
         isItalic: style?.it === 1,
         isUnderline: !!style?.ul && (style.ul.s ?? 0) === 1,
+        isWrapped: cell.getWrap(),
+        fontFamily: style?.ff ?? '',
+        fontSize: style?.fs ?? 11,
+        fontColor: (style?.cl && typeof style.cl === 'object' && 'rgb' in style.cl ? style.cl.rgb : '') ?? '',
+        fillColor: (style?.bg && typeof style.bg === 'object' && 'rgb' in style.bg ? style.bg.rgb : '') ?? '',
         align:
           style?.ht === 1 ? 'left' : style?.ht === 2 ? 'center' : style?.ht === 3 ? 'right' : 'unset',
+        vAlign:
+          style?.vt === 1 ? 'top' : style?.vt === 2 ? 'middle' : style?.vt === 3 ? 'bottom' : 'unset',
         numberFormat: style?.n?.pattern ?? '',
         isMerged,
         isMultiCell,

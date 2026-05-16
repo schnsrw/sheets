@@ -314,6 +314,20 @@ button {
   gap: var(--space-1);
 }
 
+.ribbon__group-body--rows {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+}
+
+.ribbon__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 26px;
+}
+
 .ribbon__group-label {
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
@@ -375,6 +389,108 @@ button {
   background: var(--color-selected);
   border-color: rgba(33, 115, 70, 0.30);
   color: var(--color-accent);
+}
+
+/* Ribbon select (font family, font size) */
+.ribbon__select {
+  height: 24px;
+  padding: 0 var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+
+.ribbon__select:hover:not(:disabled) { border-color: var(--color-text-secondary); }
+.ribbon__select:focus { outline: none; border-color: var(--color-focus-ring); }
+.ribbon__select:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+
+/* Generic split button (icon + caret with popover) */
+.btn-split {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-sm);
+}
+
+.btn-split__icon {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.btn-split__caret {
+  width: 16px;
+  min-width: 16px;
+  padding: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--color-text-secondary);
+}
+
+.btn-split__caret .icon {
+  font-size: 16px;
+}
+
+/* Split color button: icon (apply last chosen) + caret (open picker) */
+.btn-color {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-sm);
+}
+
+.btn-color__icon {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.btn-color__icon .icon {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.btn-color__swatch {
+  position: absolute;
+  bottom: 2px;
+  left: 4px;
+  right: 4px;
+  height: 3px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.btn-color__picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 26px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+
+.btn-color__picker:hover { background: var(--color-hover); }
+
+.btn-color__picker input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 /* Formula bar */

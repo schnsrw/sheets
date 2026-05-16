@@ -1,3 +1,4 @@
+import { BorderStyleTypes, BorderType } from '@univerjs/core';
 import type { FUniver } from '@univerjs/core/facade';
 
 /**
@@ -49,6 +50,63 @@ export const NUMBER_FORMATS = {
   currency: '"$"#,##0.00',
   percent: '0.00%',
 } as const;
+
+/**
+ * Vertical alignment — `setVerticalAlignment` accepts 'top' | 'middle' | 'bottom'.
+ */
+export function setVerticalAlignment(api: FUniver, alignment: 'top' | 'middle' | 'bottom') {
+  activeRange(api)?.setVerticalAlignment(alignment);
+}
+
+export function setFontFamily(api: FUniver, family: string) {
+  activeRange(api)?.setFontFamily(family || null);
+}
+
+export function setFontSize(api: FUniver, size: number) {
+  if (!Number.isFinite(size) || size <= 0) return;
+  activeRange(api)?.setFontSize(size);
+}
+
+export function setFontColor(api: FUniver, color: string) {
+  activeRange(api)?.setFontColor(color || null);
+}
+
+export function setFillColor(api: FUniver, color: string) {
+  activeRange(api)?.setBackground(color);
+}
+
+export function toggleWrap(api: FUniver, currentlyWrapped: boolean) {
+  activeRange(api)?.setWrap(!currentlyWrapped);
+}
+
+/**
+ * Apply borders to the active selection. Color defaults to the standard
+ * neutral grid color so borders blend with Excel-style sheets.
+ */
+export type BorderChoice = 'all' | 'outside' | 'top' | 'bottom' | 'left' | 'right' | 'none';
+
+const BORDER_COLOR = '#666666';
+
+export function setBorders(api: FUniver, choice: BorderChoice) {
+  const range = activeRange(api);
+  if (!range) return;
+  const type =
+    choice === 'all'
+      ? BorderType.ALL
+      : choice === 'outside'
+        ? BorderType.OUTSIDE
+        : choice === 'top'
+          ? BorderType.TOP
+          : choice === 'bottom'
+            ? BorderType.BOTTOM
+            : choice === 'left'
+              ? BorderType.LEFT
+              : choice === 'right'
+                ? BorderType.RIGHT
+                : BorderType.NONE;
+  const style = choice === 'none' ? BorderStyleTypes.NONE : BorderStyleTypes.THIN;
+  range.setBorder(type, style, BORDER_COLOR);
+}
 
 /**
  * Toggle merge on the current selection. If the selection is a single

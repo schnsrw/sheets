@@ -31,3 +31,23 @@ export async function readCell(page: Page, a1: string) {
     return ws.getRange(cell).getCellData();
   }, a1);
 }
+
+/**
+ * Reads the resolved IStyleData for a cell — handles both inline styles
+ * (cellData.s is the object) and interned styles (cellData.s is an id into
+ * the workbook's style table).
+ */
+export async function readStyle(page: Page, a1: string) {
+  return page.evaluate((cell) => {
+    const api = window.__univerAPI!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wb: any = api.getActiveWorkbook()!;
+    const ws = wb.getActiveSheet();
+    const data = ws.getRange(cell).getCellData();
+    if (!data) return null;
+    if (typeof data.s === 'string') {
+      return wb.getWorkbook().getStyles().get(data.s) ?? null;
+    }
+    return data.s ?? null;
+  }, a1);
+}

@@ -13,6 +13,10 @@ import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
 import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
 import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt';
+import { UniverSheetsSortPlugin } from '@univerjs/sheets-sort';
+import { UniverSheetsSortUIPlugin } from '@univerjs/sheets-sort-ui';
+import { UniverSheetsFilterPlugin } from '@univerjs/sheets-filter';
+import { UniverSheetsFilterUIPlugin } from '@univerjs/sheets-filter-ui';
 
 // Per-plugin CSS — Univer ships its own design tokens & layout primitives;
 // each plugin's `lib/index.css` must be imported once.
@@ -21,12 +25,16 @@ import '@univerjs/ui/lib/index.css';
 import '@univerjs/docs-ui/lib/index.css';
 import '@univerjs/sheets-ui/lib/index.css';
 import '@univerjs/sheets-formula-ui/lib/index.css';
+import '@univerjs/sheets-sort-ui/lib/index.css';
+import '@univerjs/sheets-filter-ui/lib/index.css';
 
 // Facade extensions — side-effect imports that attach methods to FUniver.
 import '@univerjs/sheets/facade';
 import '@univerjs/sheets-ui/facade';
 import '@univerjs/sheets-formula/facade';
 import '@univerjs/sheets-numfmt/facade';
+import '@univerjs/sheets-sort/facade';
+import '@univerjs/sheets-filter/facade';
 import '@univerjs/docs-ui/facade';
 import '@univerjs/ui/facade';
 import '@univerjs/engine-formula/facade';
@@ -73,6 +81,10 @@ export function UniverSheet({ snapshot }: Props) {
     univer.registerPlugin(UniverSheetsFormulaPlugin);
     univer.registerPlugin(UniverSheetsFormulaUIPlugin);
     univer.registerPlugin(UniverSheetsNumfmtPlugin);
+    univer.registerPlugin(UniverSheetsSortPlugin);
+    univer.registerPlugin(UniverSheetsSortUIPlugin);
+    univer.registerPlugin(UniverSheetsFilterPlugin);
+    univer.registerPlugin(UniverSheetsFilterUIPlugin);
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, snapshot);
 

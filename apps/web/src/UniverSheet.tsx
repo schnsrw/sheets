@@ -34,6 +34,10 @@ import { UniverSheetsThreadCommentPlugin } from '@univerjs/sheets-thread-comment
 import { UniverSheetsThreadCommentUIPlugin } from '@univerjs/sheets-thread-comment-ui';
 import { UniverThreadCommentPlugin } from '@univerjs/thread-comment';
 import { UniverThreadCommentUIPlugin } from '@univerjs/thread-comment-ui';
+import { UniverDrawingPlugin } from '@univerjs/drawing';
+import { UniverDrawingUIPlugin } from '@univerjs/drawing-ui';
+import { UniverSheetsDrawingPlugin } from '@univerjs/sheets-drawing';
+import { UniverSheetsDrawingUIPlugin } from '@univerjs/sheets-drawing-ui';
 
 // Per-plugin CSS — Univer ships its own design tokens & layout primitives;
 // each plugin's `lib/index.css` must be imported once.
@@ -53,6 +57,8 @@ import '@univerjs/sheets-note-ui/lib/index.css';
 import '@univerjs/sheets-table-ui/lib/index.css';
 import '@univerjs/sheets-thread-comment-ui/lib/index.css';
 import '@univerjs/thread-comment-ui/lib/index.css';
+import '@univerjs/drawing-ui/lib/index.css';
+import '@univerjs/sheets-drawing-ui/lib/index.css';
 
 // Facade extensions — side-effect imports that attach methods to FUniver.
 import '@univerjs/sheets/facade';
@@ -129,6 +135,10 @@ export function UniverSheet({ snapshot }: Props) {
     univer.registerPlugin(UniverThreadCommentUIPlugin);
     univer.registerPlugin(UniverSheetsThreadCommentPlugin);
     univer.registerPlugin(UniverSheetsThreadCommentUIPlugin);
+    univer.registerPlugin(UniverDrawingPlugin);
+    univer.registerPlugin(UniverDrawingUIPlugin);
+    univer.registerPlugin(UniverSheetsDrawingPlugin);
+    univer.registerPlugin(UniverSheetsDrawingUIPlugin);
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, snapshot);
 

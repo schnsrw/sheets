@@ -62,6 +62,26 @@ export function insertNewSheet(api: FUniver) {
   wb.insertSheet();
 }
 
+export function hideSelectedRows(api: FUniver) {
+  api.executeCommand('sheet.command.set-rows-hidden');
+}
+
+export function unhideSelectedRows(api: FUniver) {
+  api.executeCommand('sheet.command.set-selected-rows-visible');
+}
+
+export function hideSelectedColumns(api: FUniver) {
+  api.executeCommand('sheet.command.set-col-hidden');
+}
+
+export function unhideSelectedColumns(api: FUniver) {
+  api.executeCommand('sheet.command.set-selected-cols-visible');
+}
+
+export function insertImage(api: FUniver) {
+  api.executeCommand('sheet.command.insert-float-image');
+}
+
 /* ── Auto-fit ───────────────────────────────────────────────────────────── */
 
 export function autoFitColumns(api: FUniver) {

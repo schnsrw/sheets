@@ -30,7 +30,7 @@ export function FileMenu({
   }, [anchorRef]);
 
   useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
+    const onDocPointerDown = (e: PointerEvent) => {
       if (showProperties) return;
       if (!menuRef.current?.contains(e.target as Node) && !anchorRef.current?.contains(e.target as Node)) {
         onClose();
@@ -39,10 +39,11 @@ export function FileMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !showProperties) onClose();
     };
-    document.addEventListener('mousedown', onDocClick);
+    // Capture phase so Univer's canvas can't swallow mousedown before us.
+    document.addEventListener('pointerdown', onDocPointerDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('pointerdown', onDocPointerDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose, anchorRef, showProperties]);

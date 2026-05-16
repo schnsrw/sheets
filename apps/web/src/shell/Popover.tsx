@@ -30,7 +30,7 @@ export function Popover({ anchorRef, onClose, className, children, ...rest }: Pr
   }, [anchorRef]);
 
   useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
+    const onDocPointerDown = (e: PointerEvent) => {
       if (
         !ref.current?.contains(e.target as Node) &&
         !anchorRef.current?.contains(e.target as Node)
@@ -41,10 +41,14 @@ export function Popover({ anchorRef, onClose, className, children, ...rest }: Pr
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('mousedown', onDocClick);
+    // Capture phase + pointerdown — Univer's canvas calls stopPropagation
+    // on mousedown, so a bubble-phase document listener never fires for grid
+    // clicks. Capturing pointerdown gives us the event before any handler
+    // can swallow it.
+    document.addEventListener('pointerdown', onDocPointerDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('pointerdown', onDocPointerDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose, anchorRef]);

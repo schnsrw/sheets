@@ -153,7 +153,12 @@ export function ToolbarDropdown({
         aria-label={label}
         title={label}
         disabled={disabled}
-        onClick={() => onDefault?.()}
+        onClick={() => {
+          onDefault?.();
+          // Office pattern: applying the icon's default also dismisses the
+          // popover if it happens to be open.
+          if (open) setOpen(false);
+        }}
       >
         <Icon name={icon} size="sm" />
       </button>

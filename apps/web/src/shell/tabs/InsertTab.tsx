@@ -5,16 +5,21 @@ import {
   autoFitRows,
   deleteSelectedColumn,
   deleteSelectedRow,
+  hideSelectedColumns,
+  hideSelectedRows,
   insertColumnLeft,
   insertColumnRight,
   insertComment,
   insertHyperlink,
+  insertImage,
   insertNewSheet,
   insertRowAbove,
   insertRowBelow,
   insertTable,
+  unhideSelectedColumns,
+  unhideSelectedRows,
 } from '../tab-actions';
-import { RibbonGroup, ToolbarButton } from '../RibbonControls';
+import { RibbonGroup, RibbonRow, ToolbarButton } from '../RibbonControls';
 
 export function InsertTab() {
   const api = useUniverAPI();
@@ -23,52 +28,88 @@ export function InsertTab() {
 
   return (
     <>
-      <RibbonGroup label="Rows">
-        <ToolbarButton
-          id="insert-row-above"
-          label="Insert row above"
-          icon="vertical_align_top"
-          disabled={!enabled}
-          onClick={() => api && insertRowAbove(api)}
-        />
-        <ToolbarButton
-          id="insert-row-below"
-          label="Insert row below"
-          icon="vertical_align_bottom"
-          disabled={!enabled}
-          onClick={() => api && insertRowBelow(api)}
-        />
-        <ToolbarButton
-          id="delete-row"
-          label="Delete row"
-          icon="delete_sweep"
-          disabled={!enabled}
-          onClick={() => api && deleteSelectedRow(api)}
-        />
+      <RibbonGroup label="Rows" rows>
+        <RibbonRow>
+          <ToolbarButton
+            id="insert-row-above"
+            label="Insert row above"
+            icon="vertical_align_top"
+            disabled={!enabled}
+            onClick={() => api && insertRowAbove(api)}
+          />
+          <ToolbarButton
+            id="insert-row-below"
+            label="Insert row below"
+            icon="vertical_align_bottom"
+            disabled={!enabled}
+            onClick={() => api && insertRowBelow(api)}
+          />
+          <ToolbarButton
+            id="delete-row"
+            label="Delete row"
+            icon="delete_sweep"
+            disabled={!enabled}
+            onClick={() => api && deleteSelectedRow(api)}
+          />
+        </RibbonRow>
+        <RibbonRow>
+          <ToolbarButton
+            id="hide-row"
+            label="Hide row"
+            icon="visibility_off"
+            disabled={!enabled}
+            onClick={() => api && hideSelectedRows(api)}
+          />
+          <ToolbarButton
+            id="unhide-row"
+            label="Unhide row"
+            icon="visibility"
+            disabled={!enabled}
+            onClick={() => api && unhideSelectedRows(api)}
+          />
+        </RibbonRow>
       </RibbonGroup>
 
-      <RibbonGroup label="Columns">
-        <ToolbarButton
-          id="insert-col-left"
-          label="Insert column left"
-          icon="keyboard_tab_rtl"
-          disabled={!enabled}
-          onClick={() => api && insertColumnLeft(api)}
-        />
-        <ToolbarButton
-          id="insert-col-right"
-          label="Insert column right"
-          icon="keyboard_tab"
-          disabled={!enabled}
-          onClick={() => api && insertColumnRight(api)}
-        />
-        <ToolbarButton
-          id="delete-col"
-          label="Delete column"
-          icon="folder_delete"
-          disabled={!enabled}
-          onClick={() => api && deleteSelectedColumn(api)}
-        />
+      <RibbonGroup label="Columns" rows>
+        <RibbonRow>
+          <ToolbarButton
+            id="insert-col-left"
+            label="Insert column left"
+            icon="keyboard_tab_rtl"
+            disabled={!enabled}
+            onClick={() => api && insertColumnLeft(api)}
+          />
+          <ToolbarButton
+            id="insert-col-right"
+            label="Insert column right"
+            icon="keyboard_tab"
+            disabled={!enabled}
+            onClick={() => api && insertColumnRight(api)}
+          />
+          <ToolbarButton
+            id="delete-col"
+            label="Delete column"
+            icon="folder_delete"
+            disabled={!enabled}
+            onClick={() => api && deleteSelectedColumn(api)}
+          />
+        </RibbonRow>
+        <RibbonRow>
+          <ToolbarButton
+            id="hide-col"
+            label="Hide column"
+            icon="visibility_off"
+            disabled={!enabled}
+            onClick={() => api && hideSelectedColumns(api)}
+          />
+          <ToolbarButton
+            id="unhide-col"
+            label="Unhide column"
+            icon="visibility"
+            disabled={!enabled}
+            onClick={() => api && unhideSelectedColumns(api)}
+          />
+        </RibbonRow>
       </RibbonGroup>
 
       <RibbonGroup label="Sheet">
@@ -105,6 +146,13 @@ export function InsertTab() {
           icon="table_rows"
           disabled={!enabled}
           onClick={() => api && insertTable(api)}
+        />
+        <ToolbarButton
+          id="insert-image"
+          label="Insert image"
+          icon="image"
+          disabled={!enabled}
+          onClick={() => api && insertImage(api)}
         />
         <ToolbarButton
           id="insert-comment"

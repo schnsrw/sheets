@@ -148,6 +148,18 @@ test.describe('Wave B — Status bar zoom + undo/redo moved to tabs strip', () =
     expect(fired).toBe(true);
   });
 
+  test('Borders popover closes on outside click (canvas + titlebar)', async ({ page }) => {
+    await page.getByTestId('ribbon-dropdown-borders-caret').click();
+    await expect(page.getByTestId('ribbon-dropdown-borders-popover')).toBeVisible();
+    // Click somewhere on the canvas grid.
+    const grid = page.locator('#univer-sheet-main-canvas_workbook-1');
+    const box = await grid.boundingBox();
+    if (box) {
+      await page.mouse.click(box.x + 300, box.y + 200);
+    }
+    await expect(page.getByTestId('ribbon-dropdown-borders-popover')).toHaveCount(0);
+  });
+
   test('Undo / Redo are in the sheet-tabs strip (not the titlebar)', async ({ page }) => {
     // Buttons live under sheet-tabs now.
     await expect(page.getByTestId('sheet-tabs').getByTestId('qat-undo')).toBeVisible();

@@ -13,10 +13,13 @@ import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
 import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
 import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt';
+import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 import { UniverSheetsSortPlugin } from '@univerjs/sheets-sort';
 import { UniverSheetsSortUIPlugin } from '@univerjs/sheets-sort-ui';
 import { UniverSheetsFilterPlugin } from '@univerjs/sheets-filter';
 import { UniverSheetsFilterUIPlugin } from '@univerjs/sheets-filter-ui';
+import { UniverFindReplacePlugin } from '@univerjs/find-replace';
+import { UniverSheetsFindReplacePlugin } from '@univerjs/sheets-find-replace';
 
 // Per-plugin CSS — Univer ships its own design tokens & layout primitives;
 // each plugin's `lib/index.css` must be imported once.
@@ -27,6 +30,8 @@ import '@univerjs/sheets-ui/lib/index.css';
 import '@univerjs/sheets-formula-ui/lib/index.css';
 import '@univerjs/sheets-sort-ui/lib/index.css';
 import '@univerjs/sheets-filter-ui/lib/index.css';
+import '@univerjs/sheets-numfmt-ui/lib/index.css';
+import '@univerjs/find-replace/lib/index.css';
 
 // Facade extensions — side-effect imports that attach methods to FUniver.
 import '@univerjs/sheets/facade';
@@ -82,10 +87,13 @@ export function UniverSheet({ snapshot }: Props) {
     univer.registerPlugin(UniverSheetsFormulaPlugin);
     univer.registerPlugin(UniverSheetsFormulaUIPlugin);
     univer.registerPlugin(UniverSheetsNumfmtPlugin);
+    univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
     univer.registerPlugin(UniverSheetsSortPlugin);
     univer.registerPlugin(UniverSheetsSortUIPlugin);
     univer.registerPlugin(UniverSheetsFilterPlugin);
     univer.registerPlugin(UniverSheetsFilterUIPlugin);
+    univer.registerPlugin(UniverFindReplacePlugin);
+    univer.registerPlugin(UniverSheetsFindReplacePlugin);
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, snapshot);
 

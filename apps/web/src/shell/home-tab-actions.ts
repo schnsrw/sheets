@@ -80,6 +80,83 @@ export function toggleWrap(api: FUniver, currentlyWrapped: boolean) {
 }
 
 /**
+ * Strikethrough goes through the Facade's `setFontLine` since the dedicated
+ * setter is private — passing 'line-through' enables it.
+ */
+export function toggleStrikethrough(api: FUniver, currentlyStrike: boolean) {
+  // 'line-through' / 'none' for strike; the same facade method also handles
+  // underline ('underline' / 'none'). Existing underline state is preserved
+  // by the underlying SetStyleCommand because we only mutate the 'st' style key.
+  activeRange(api)?.setFontLine(currentlyStrike ? 'none' : 'line-through');
+}
+
+/* ── Undo / Redo / Clipboard ────────────────────────────────────────────── */
+
+export function undo(api: FUniver) {
+  api.executeCommand('univer.command.undo');
+}
+
+export function redo(api: FUniver) {
+  api.executeCommand('univer.command.redo');
+}
+
+export function copy(api: FUniver) {
+  api.executeCommand('univer.command.copy');
+}
+
+export function cut(api: FUniver) {
+  api.executeCommand('univer.command.cut');
+}
+
+export function paste(api: FUniver) {
+  api.executeCommand('univer.command.paste');
+}
+
+/* ── Number format helpers ──────────────────────────────────────────────── */
+
+export const NUMBER_FORMAT_PATTERNS = {
+  general: '',
+  number: '#,##0.00',
+  integer: '#,##0',
+  currency: '"$"#,##0.00',
+  accounting: '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)',
+  percent: '0.00%',
+  date: 'yyyy-mm-dd',
+  time: 'hh:mm:ss',
+  scientific: '0.00E+00',
+  text: '@',
+} as const;
+
+export type NumberFormatKey = keyof typeof NUMBER_FORMAT_PATTERNS;
+
+export function setNumberFormatByKey(api: FUniver, key: NumberFormatKey) {
+  setNumberFormat(api, NUMBER_FORMAT_PATTERNS[key]);
+}
+
+export function increaseDecimal(api: FUniver) {
+  api.executeCommand('sheet.command.numfmt.add.decimal.command');
+}
+
+export function decreaseDecimal(api: FUniver) {
+  api.executeCommand('sheet.command.numfmt.subtract.decimal.command');
+}
+
+/* ── Format Painter ─────────────────────────────────────────────────────── */
+
+/** One-shot painter: capture current style, next selection click applies it. */
+export function startFormatPainter(api: FUniver) {
+  api.executeCommand('sheet.command.set-once-format-painter');
+}
+
+/* ── Find & Replace ─────────────────────────────────────────────────────── */
+
+export function openFindReplace(api: FUniver) {
+  // Operation id from @univerjs/find-replace
+  // (find-replace.operation.ts:23 in the vendored source).
+  api.executeCommand('ui.operation.open-find-dialog');
+}
+
+/**
  * Apply borders to the active selection. Color defaults to the standard
  * neutral grid color so borders blend with Excel-style sheets.
  */

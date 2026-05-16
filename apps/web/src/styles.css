@@ -214,6 +214,41 @@ button {
   letter-spacing: 0;
 }
 
+/* Quick Access Toolbar inside the title bar */
+.titlebar__qat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.titlebar__qat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+
+.titlebar__qat-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.titlebar__qat-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.titlebar__qat-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .titlebar__spacer {
   flex: 1;
 }

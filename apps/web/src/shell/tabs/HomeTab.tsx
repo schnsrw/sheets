@@ -2,6 +2,13 @@ import { useUniverAPI } from '../../use-univer';
 import { useActiveCellState, type HAlign, type VAlign } from '../../hooks/useActiveCellState';
 import {
   NUMBER_FORMATS,
+  NUMBER_FORMAT_PATTERNS,
+  copy,
+  cut,
+  decreaseDecimal,
+  increaseDecimal,
+  openFindReplace,
+  paste,
   setAlignment,
   setBorders,
   setFillColor,
@@ -9,12 +16,16 @@ import {
   setFontFamily,
   setFontSize,
   setNumberFormat,
+  setNumberFormatByKey,
   setVerticalAlignment,
+  startFormatPainter,
   toggleBold,
   toggleItalic,
   toggleMerge,
+  toggleStrikethrough,
   toggleUnderline,
   toggleWrap,
+  type NumberFormatKey,
 } from '../home-tab-actions';
 import {
   RibbonGroup,
@@ -40,6 +51,26 @@ const FONT_FAMILIES = [
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
 
+const NUMBER_FORMAT_OPTIONS: { value: NumberFormatKey; label: string }[] = [
+  { value: 'general', label: 'General' },
+  { value: 'integer', label: 'Number (no decimals)' },
+  { value: 'number', label: 'Number (2 decimals)' },
+  { value: 'currency', label: 'Currency' },
+  { value: 'accounting', label: 'Accounting' },
+  { value: 'percent', label: 'Percent' },
+  { value: 'date', label: 'Date (yyyy-mm-dd)' },
+  { value: 'time', label: 'Time (hh:mm:ss)' },
+  { value: 'scientific', label: 'Scientific' },
+  { value: 'text', label: 'Text' },
+];
+
+function detectFormatKey(pattern: string): NumberFormatKey {
+  for (const k of Object.keys(NUMBER_FORMAT_PATTERNS) as NumberFormatKey[]) {
+    if (NUMBER_FORMAT_PATTERNS[k] === pattern) return k;
+  }
+  return 'general';
+}
+
 export function HomeTab() {
   const api = useUniverAPI();
   const state = useActiveCellState();
@@ -48,9 +79,34 @@ export function HomeTab() {
   return (
     <>
       <RibbonGroup label="Clipboard">
-        <ToolbarButton id="paste" label="Paste" icon="content_paste" disabled />
-        <ToolbarButton id="cut" label="Cut" icon="content_cut" disabled />
-        <ToolbarButton id="copy" label="Copy" icon="content_copy" disabled />
+        <ToolbarButton
+          id="paste"
+          label="Paste (Ctrl+V)"
+          icon="content_paste"
+          disabled={!ready}
+          onClick={() => api && paste(api)}
+        />
+        <ToolbarButton
+          id="cut"
+          label="Cut (Ctrl+X)"
+          icon="content_cut"
+          disabled={!ready}
+          onClick={() => api && cut(api)}
+        />
+        <ToolbarButton
+          id="copy"
+          label="Copy (Ctrl+C)"
+          icon="content_copy"
+          disabled={!ready}
+          onClick={() => api && copy(api)}
+        />
+        <ToolbarButton
+          id="format-painter"
+          label="Format Painter"
+          icon="format_paint"
+          disabled={!ready}
+          onClick={() => api && startFormatPainter(api)}
+        />
       </RibbonGroup>
 
       <RibbonGroup label="Font" rows>
@@ -98,6 +154,14 @@ export function HomeTab() {
             pressed={state.isUnderline}
             disabled={!ready}
             onClick={() => api && toggleUnderline(api, state.isUnderline)}
+          />
+          <ToolbarButton
+            id="strikethrough"
+            label="Strikethrough"
+            icon="format_strikethrough"
+            pressed={state.isStrike}
+            disabled={!ready}
+            onClick={() => api && toggleStrikethrough(api, state.isStrike)}
           />
           <ToolbarColorButton
             id="font-color"
@@ -211,22 +275,59 @@ export function HomeTab() {
         </RibbonRow>
       </RibbonGroup>
 
-      <RibbonGroup label="Number">
+      <RibbonGroup label="Number" rows>
+        <RibbonRow>
+          <ToolbarSelect
+            id="num-format"
+            label="Number format"
+            value={detectFormatKey(state.numberFormat)}
+            options={NUMBER_FORMAT_OPTIONS}
+            width={150}
+            disabled={!ready}
+            onChange={(v) => api && setNumberFormatByKey(api, v as NumberFormatKey)}
+          />
+        </RibbonRow>
+        <RibbonRow>
+          <ToolbarButton
+            id="numfmt-currency"
+            label="Currency"
+            icon="attach_money"
+            pressed={state.numberFormat === NUMBER_FORMATS.currency}
+            disabled={!ready}
+            onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.currency)}
+          />
+          <ToolbarButton
+            id="numfmt-percent"
+            label="Percent"
+            icon="percent"
+            pressed={state.numberFormat === NUMBER_FORMATS.percent}
+            disabled={!ready}
+            onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.percent)}
+          />
+          <ToolbarButton
+            id="num-decimal-up"
+            label="Increase decimals"
+            icon="add"
+            disabled={!ready}
+            onClick={() => api && increaseDecimal(api)}
+          />
+          <ToolbarButton
+            id="num-decimal-down"
+            label="Decrease decimals"
+            icon="remove"
+            disabled={!ready}
+            onClick={() => api && decreaseDecimal(api)}
+          />
+        </RibbonRow>
+      </RibbonGroup>
+
+      <RibbonGroup label="Editing">
         <ToolbarButton
-          id="numfmt-currency"
-          label="Currency"
-          icon="attach_money"
-          pressed={state.numberFormat === NUMBER_FORMATS.currency}
+          id="find-replace"
+          label="Find & Replace (Ctrl+F)"
+          icon="search"
           disabled={!ready}
-          onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.currency)}
-        />
-        <ToolbarButton
-          id="numfmt-percent"
-          label="Percent"
-          icon="percent"
-          pressed={state.numberFormat === NUMBER_FORMATS.percent}
-          disabled={!ready}
-          onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.percent)}
+          onClick={() => api && openFindReplace(api)}
         />
       </RibbonGroup>
     </>

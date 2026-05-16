@@ -33,6 +33,7 @@ export type ActiveCellState = {
   isBold: boolean;
   isItalic: boolean;
   isUnderline: boolean;
+  isStrike: boolean;
   isWrapped: boolean;
   fontFamily: string;
   fontSize: number;
@@ -57,6 +58,7 @@ const EMPTY: ActiveCellState = {
   isBold: false,
   isItalic: false,
   isUnderline: false,
+  isStrike: false,
   isWrapped: false,
   fontFamily: '',
   fontSize: 11,
@@ -158,6 +160,7 @@ export function useActiveCellState(): ActiveCellState {
         isBold: style?.bl === 1,
         isItalic: style?.it === 1,
         isUnderline: !!style?.ul && (style.ul.s ?? 0) === 1,
+        isStrike: !!style?.st && (style.st.s ?? 0) === 1,
         isWrapped: cell.getWrap(),
         fontFamily: style?.ff ?? '',
         fontSize: style?.fs ?? 11,

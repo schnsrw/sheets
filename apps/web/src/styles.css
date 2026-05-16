@@ -175,6 +175,15 @@ button {
   background: var(--color-bg);
 }
 
+.app--no-formula-bar {
+  grid-template-rows:
+    var(--titlebar-h)
+    var(--ribbon-h)
+    minmax(0, 1fr)
+    var(--sheet-tabs-h)
+    var(--statusbar-h);
+}
+
 /* Title bar */
 .titlebar {
   display: flex;
@@ -571,6 +580,55 @@ button {
 .formula-bar__input:disabled {
   color: var(--color-text-disabled);
   background: var(--color-surface-alt);
+}
+
+/* Formula autocomplete popover */
+.formula-suggestions {
+  position: fixed;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  z-index: 1100;
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: var(--font-sans);
+}
+
+.formula-suggestions__item {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  user-select: none;
+}
+
+.formula-suggestions__item:hover {
+  background: var(--color-hover);
+}
+
+.formula-suggestions__item--selected {
+  background: var(--color-selected);
+  color: var(--color-accent);
+}
+
+.formula-suggestions__name {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+}
+
+.formula-suggestions__desc {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.35;
 }
 
 /* Grid host — only this region "scrolls" (Univer canvas handles internally) */

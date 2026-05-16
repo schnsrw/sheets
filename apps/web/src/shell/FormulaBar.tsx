@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -10,17 +11,15 @@ import { useUniverAPI } from '../use-univer';
 import { useActiveCellState } from '../hooks/useActiveCellState';
 import { commitToActiveCell } from './cell-actions';
 import { Icon } from './Icon';
+import {
+  extractFunctionFragment,
+  suggestFunctions,
+  type FormulaFn,
+} from './formula-functions';
 
 /**
  * Office-style formula bar: [ NameBox ] [ × ✓ fx ] [ formula input ]
- *
- * Editing model:
- *   - When not editing, input mirrors the active cell's formula/value.
- *   - First keystroke starts a draft; Enter (or ✓) commits, Escape (or ×)
- *     reverts. Blur commits any pending draft so the user doesn't silently
- *     lose typing when clicking the grid.
- *   - Selection changes while editing commit the draft first (don't lose work),
- *     then mirror the newly-active cell.
+ * Now with function autocomplete — type `=SU` to see SUM / SUMIF / etc.
  */
 export function FormulaBar() {
   const api = useUniverAPI();
@@ -30,18 +29,17 @@ export function FormulaBar() {
   const editing = draft !== null;
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Track the cell whose value the current draft belongs to. If the active
-  // cell changes mid-edit, commit the draft to the *original* cell, then
-  // re-mirror.
+  const [suggestions, setSuggestions] = useState<FormulaFn[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [suggestionsAnchor, setSuggestionsAnchor] = useState<DOMRect | null>(null);
+
   const draftCellRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!editing) return;
     if (draftCellRef.current && draftCellRef.current !== a1 && api) {
-      // Selection moved while editing — commit draft to the original cell.
       const original = draftCellRef.current;
       const text = draft ?? '';
-      // Re-select original briefly to commit there, then restore current.
       const wb = api.getActiveWorkbook();
       const sheet = wb?.getActiveSheet();
       if (wb && sheet) {
@@ -59,26 +57,83 @@ export function FormulaBar() {
 
   const value = editing ? (draft ?? '') : displayValue;
 
+  // Recompute suggestions whenever the value or caret changes during editing.
+  useLayoutEffect(() => {
+    if (!editing || !inputRef.current) {
+      setSuggestions([]);
+      return;
+    }
+    const caret = inputRef.current.selectionStart ?? value.length;
+    const frag = extractFunctionFragment(value, caret);
+    const next = frag ? suggestFunctions(frag) : [];
+    setSuggestions(next);
+    setSelectedIdx(0);
+    if (next.length > 0) {
+      setSuggestionsAnchor(inputRef.current.getBoundingClientRect());
+    }
+  }, [value, editing]);
+
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (!editing) draftCellRef.current = a1;
     setDraft(e.target.value);
   };
 
+  const insertSuggestion = (fn: FormulaFn) => {
+    if (!inputRef.current) return;
+    const caret = inputRef.current.selectionStart ?? value.length;
+    const frag = extractFunctionFragment(value, caret) ?? '';
+    const before = value.slice(0, caret - frag.length);
+    const after = value.slice(caret);
+    const insertion = `${fn.name}(`;
+    const next = `${before}${insertion}${after}`;
+    const nextCaret = before.length + insertion.length;
+
+    flushSync(() => setDraft(next));
+    setSuggestions([]);
+    requestAnimationFrame(() => {
+      inputRef.current?.setSelectionRange(nextCaret, nextCaret);
+      inputRef.current?.focus();
+    });
+  };
+
   const commit = () => {
     if (!api || !editing) return;
     commitToActiveCell(api, draft ?? '');
-    // flushSync ensures `editing` reads false in any onBlur that fires next
-    // (e.g. when we call inputRef.current?.blur() right after).
     flushSync(() => setDraft(null));
+    setSuggestions([]);
     draftCellRef.current = null;
   };
 
   const revert = () => {
     flushSync(() => setDraft(null));
+    setSuggestions([]);
     draftCellRef.current = null;
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIdx((i) => (i + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIdx((i) => (i - 1 + suggestions.length) % suggestions.length);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        insertSuggestion(suggestions[selectedIdx]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSuggestions([]);
+        return;
+      }
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       commit();
@@ -110,7 +165,7 @@ export function FormulaBar() {
           aria-label="Cancel"
           title="Cancel (Esc)"
           disabled={!editing}
-          onMouseDown={(e) => e.preventDefault()} // keep focus on input
+          onMouseDown={(e) => e.preventDefault()}
           onClick={revert}
         >
           <Icon name="close" size="sm" />
@@ -151,10 +206,52 @@ export function FormulaBar() {
         disabled={!ready}
         onChange={onChange}
         onKeyDown={onKeyDown}
-        onBlur={() => {
+        onSelect={() => {
+          // Recompute suggestions when the user moves the caret with arrows.
+          if (!editing || !inputRef.current) return;
+          const caret = inputRef.current.selectionStart ?? value.length;
+          const frag = extractFunctionFragment(value, caret);
+          setSuggestions(frag ? suggestFunctions(frag) : []);
+        }}
+        onBlur={(e) => {
+          // Don't dismiss when the user clicks a suggestion (focus moves
+          // briefly into the popover). Re-focus heuristic: check if the
+          // relatedTarget is the suggestion list.
+          if ((e.relatedTarget as HTMLElement | null)?.closest('[data-testid="formula-suggestions"]')) return;
           if (editing) commit();
         }}
       />
+
+      {editing && suggestions.length > 0 && suggestionsAnchor && (
+        <ul
+          className="formula-suggestions"
+          data-testid="formula-suggestions"
+          role="listbox"
+          style={{
+            top: suggestionsAnchor.bottom + 2,
+            left: suggestionsAnchor.left,
+            width: Math.max(280, suggestionsAnchor.width / 2),
+          }}
+        >
+          {suggestions.map((fn, i) => (
+            <li
+              key={fn.name}
+              role="option"
+              aria-selected={i === selectedIdx}
+              className={`formula-suggestions__item${i === selectedIdx ? ' formula-suggestions__item--selected' : ''}`}
+              data-testid={`formula-suggestion-${fn.name}`}
+              onMouseDown={(e) => {
+                // mousedown not click — so the input doesn't blur first.
+                e.preventDefault();
+                insertSuggestion(fn);
+              }}
+            >
+              <span className="formula-suggestions__name">{fn.name}</span>
+              <span className="formula-suggestions__desc">{fn.description}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

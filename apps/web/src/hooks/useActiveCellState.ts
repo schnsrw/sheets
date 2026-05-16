@@ -46,6 +46,8 @@ export type ActiveCellState = {
   isMerged: boolean;
   /** True when the current selection spans more than one cell. */
   isMultiCell: boolean;
+  /** True while the Format Painter is armed (one-shot or infinite). */
+  isFormatPainterActive: boolean;
   /** Selection-level numeric aggregates (excludes single-cell selection). */
   stats: { count: number; sum: number; avg: number | null } | null;
 };
@@ -69,12 +71,17 @@ const EMPTY: ActiveCellState = {
   numberFormat: '',
   isMerged: false,
   isMultiCell: false,
+  isFormatPainterActive: false,
   stats: null,
 };
 
 const SET_SELECTIONS_OP_ID = 'sheet.operation.set-selections';
+const FORMAT_PAINTER_OP_ID = 'sheet.operation.set-format-painter';
 const shouldRecompute = (id: string | undefined) =>
-  !!id && (id.startsWith('sheet.mutation.') || id === SET_SELECTIONS_OP_ID);
+  !!id &&
+  (id.startsWith('sheet.mutation.') ||
+    id === SET_SELECTIONS_OP_ID ||
+    id === FORMAT_PAINTER_OP_ID);
 
 export function useActiveCellState(): ActiveCellState {
   const api = useUniverAPI();
@@ -128,6 +135,19 @@ export function useActiveCellState(): ActiveCellState {
       });
       const isMultiCell = selW * selH > 1;
 
+      // Format Painter armed state — Univer exposes it on a service we can
+      // read via the injector. Status 0 = off, 1 = one-shot armed, 2 = infinite.
+      let isFormatPainterActive = false;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const injector = (api as any)._univer?.__getInjector?.();
+        const svc = injector?.get?.({ name: 'IFormatPainterService' });
+        const status = svc?.getStatus?.();
+        isFormatPainterActive = status !== undefined && status !== 0;
+      } catch {
+        // service may not exist; leave as false
+      }
+
       // Selection stats (multi-cell only).
       let stats: ActiveCellState['stats'] = null;
       const cellsX = selW;
@@ -173,6 +193,7 @@ export function useActiveCellState(): ActiveCellState {
         numberFormat: style?.n?.pattern ?? '',
         isMerged,
         isMultiCell,
+        isFormatPainterActive,
         stats,
       };
     };

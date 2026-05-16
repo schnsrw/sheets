@@ -157,7 +157,8 @@ test.describe('Formulas tab — AutoSum', () => {
     await selectRange(page, 'A1:A3');
 
     await page.getByTestId('ribbon-tab-formulas').click();
-    await page.getByTestId('ribbon-btn-auto-sum').click();
+    // AutoSum is now a split-dropdown; the icon applies the default (SUM).
+    await page.getByTestId('ribbon-dropdown-auto-sum-apply').click();
 
     const a4 = await readCell(page, 'A4');
     expect(a4?.f).toBe('=SUM(A1:A3)');

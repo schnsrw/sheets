@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUniverAPI } from '../../use-univer';
 import { useActiveCellState } from '../../hooks/useActiveCellState';
+import { useUI } from '../../use-ui';
 import {
   freezeAtSelection,
   freezeFirstColumn,
@@ -14,6 +15,7 @@ import { RibbonGroup, ToolbarButton } from '../RibbonControls';
 export function ViewTab() {
   const api = useUniverAPI();
   const { ready } = useActiveCellState();
+  const ui = useUI();
   const enabled = Boolean(api) && ready;
 
   // Read the current showGridlines flag off the snapshot.
@@ -77,6 +79,13 @@ export function ViewTab() {
           pressed={gridlinesShown}
           disabled={!enabled}
           onClick={() => api && toggleGridlines(api, gridlinesShown)}
+        />
+        <ToolbarButton
+          id="toggle-formula-bar"
+          label="Formula bar"
+          icon="functions"
+          pressed={ui.formulaBarVisible}
+          onClick={ui.toggleFormulaBar}
         />
       </RibbonGroup>
 

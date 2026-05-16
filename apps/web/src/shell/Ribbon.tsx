@@ -5,6 +5,7 @@ import { InsertTab } from './tabs/InsertTab';
 import { FormulasTab } from './tabs/FormulasTab';
 import { DataTab } from './tabs/DataTab';
 import { ViewTab } from './tabs/ViewTab';
+import { ReviewTab } from './tabs/ReviewTab';
 
 const TABS = ['Home', 'Insert', 'Formulas', 'Data', 'Review', 'View'] as const;
 type Tab = (typeof TABS)[number];
@@ -56,11 +57,7 @@ export function Ribbon() {
         {active === 'Formulas' && <FormulasTab />}
         {active === 'Data' && <DataTab />}
         {active === 'View' && <ViewTab />}
-        {active === 'Review' && (
-          <span className="ribbon__empty" data-testid="ribbon-empty">
-            {active} tab — coming soon
-          </span>
-        )}
+        {active === 'Review' && <ReviewTab />}
       </div>
     </nav>
   );

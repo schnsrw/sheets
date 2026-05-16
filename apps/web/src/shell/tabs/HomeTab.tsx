@@ -102,8 +102,9 @@ export function HomeTab() {
         />
         <ToolbarButton
           id="format-painter"
-          label="Format Painter"
+          label={state.isFormatPainterActive ? 'Format Painter (armed — click target)' : 'Format Painter'}
           icon="format_paint"
+          pressed={state.isFormatPainterActive}
           disabled={!ready}
           onClick={() => api && startFormatPainter(api)}
         />

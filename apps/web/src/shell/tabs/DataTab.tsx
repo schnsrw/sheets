@@ -3,7 +3,9 @@ import { useActiveCellState } from '../../hooks/useActiveCellState';
 import {
   openConditionalFormatting,
   openDataValidation,
+  removeDuplicates,
   sortRange,
+  splitTextToColumns,
   toggleFilter,
 } from '../tab-actions';
 import { RibbonGroup, ToolbarButton } from '../RibbonControls';
@@ -56,6 +58,23 @@ export function DataTab() {
           icon="palette"
           disabled={!enabled}
           onClick={() => api && openConditionalFormatting(api)}
+        />
+      </RibbonGroup>
+
+      <RibbonGroup label="Data tools">
+        <ToolbarButton
+          id="text-to-columns"
+          label="Text to Columns"
+          icon="splitscreen"
+          disabled={!enabled || !isMultiCell}
+          onClick={() => api && splitTextToColumns(api)}
+        />
+        <ToolbarButton
+          id="remove-duplicates"
+          label="Remove Duplicates"
+          icon="filter_list_off"
+          disabled={!enabled || !isMultiCell}
+          onClick={() => api && removeDuplicates(api)}
         />
       </RibbonGroup>
     </>

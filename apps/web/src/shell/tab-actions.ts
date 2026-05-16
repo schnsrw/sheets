@@ -82,6 +82,90 @@ export function insertImage(api: FUniver) {
   api.executeCommand('sheet.command.insert-float-image');
 }
 
+/* ── Formulas — function inserts ────────────────────────────────────────── */
+
+/**
+ * Insert a function template at the active cell:
+ *   - If selection is multi-cell, write `=FN(<selection>)` in the cell after
+ *     (Excel AutoSum semantics).
+ *   - If single-cell, write `=FN()` so the user can complete arguments.
+ *
+ * This is the same path as `applyAutoFunction` but generalized to any name.
+ */
+export function insertFunction(api: FUniver, name: string) {
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!sheet || !range) return;
+
+  const isMulti = range.getWidth() * range.getHeight() > 1;
+  if (isMulti) {
+    const targetRow = range.getRow() + range.getHeight();
+    const targetCol = range.getColumn();
+    const target = sheet.getRange(targetRow, targetCol);
+    target.setValue({ f: `=${name}(${range.getA1Notation()})` });
+    target.activate();
+  } else {
+    const cell = sheet.getRange(range.getRow(), range.getColumn());
+    cell.setValue({ f: `=${name}()` });
+  }
+}
+
+/* ── Data — Remove Duplicates / Text to Columns ─────────────────────────── */
+
+/**
+ * Remove duplicate rows in the active selection. Two rows are duplicates if
+ * all their values (left→right) compare equal. The first occurrence is kept.
+ * Cleared rows are blanked in place (Excel typically deletes; doing so via
+ * the sheet ops is a bigger commit-undo dance and beyond MVP scope).
+ */
+export function removeDuplicates(api: FUniver) {
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!sheet || !range) return;
+
+  const startRow = range.getRow();
+  const startCol = range.getColumn();
+  const height = range.getHeight();
+  const width = range.getWidth();
+  const values = range.getValues();
+
+  const seen = new Set<string>();
+  for (let r = 0; r < height; r++) {
+    const row = values[r] ?? [];
+    const key = row.map((v) => stringify(v)).join('|');
+    if (seen.has(key)) {
+      // Wipe this row's values inside the selection.
+      for (let c = 0; c < width; c++) {
+        sheet.getRange(startRow + r, startCol + c).setValue({ v: null });
+      }
+    } else {
+      seen.add(key);
+    }
+  }
+}
+
+function stringify(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object' && 'v' in (v as Record<string, unknown>)) {
+    return String((v as { v: unknown }).v ?? '');
+  }
+  return String(v);
+}
+
+export function splitTextToColumns(api: FUniver) {
+  api.executeCommand('sheet.command.split-text-to-columns');
+}
+
+/* ── Review — comments ──────────────────────────────────────────────────── */
+
+export function toggleCommentPanel(api: FUniver) {
+  api.executeCommand('sheet.operation.toggle-comment-panel');
+}
+
+export function showCommentModal(api: FUniver) {
+  api.executeCommand('sheet.operation.show-comment-modal');
+}
+
 /* ── Auto-fit ───────────────────────────────────────────────────────────── */
 
 export function autoFitColumns(api: FUniver) {

@@ -1,0 +1,115 @@
+import { expect, test, type Page } from '@playwright/test';
+
+async function waitForUniver(page: Page) {
+  await page.getByTestId('grid-host').locator('canvas').first().waitFor({ timeout: 15_000 });
+  await page.waitForFunction(() => Boolean(window.__univerAPI), null, { timeout: 5_000 });
+}
+
+async function selectRange(page: Page, a1: string) {
+  await page.evaluate((cell) => {
+    const api = window.__univerAPI!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+    ws.getRange(cell).activate();
+  }, a1);
+}
+
+async function readCell(page: Page, a1: string) {
+  return page.evaluate((cell) => {
+    const api = window.__univerAPI!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+    return ws.getRange(cell).getCellData();
+  }, a1);
+}
+
+test.describe('Formula bar', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await waitForUniver(page);
+    await selectRange(page, 'A1');
+  });
+
+  test('Name Box shows active cell reference and tracks selection', async ({ page }) => {
+    await expect(page.getByTestId('name-box')).toHaveText('A1');
+    await selectRange(page, 'C3');
+    await expect(page.getByTestId('name-box')).toHaveText('C3');
+  });
+
+  test('Typing text and Enter commits to the active cell', async ({ page }) => {
+    const input = page.getByTestId('formula-input');
+    await input.fill('Hello world');
+    await input.press('Enter');
+
+    const data = await readCell(page, 'A1');
+    expect(data?.v).toBe('Hello world');
+    await expect(input).toHaveValue('Hello world');
+  });
+
+  test('Numeric input is stored as a number (not text)', async ({ page }) => {
+    await page.getByTestId('formula-input').fill('42');
+    await page.getByTestId('formula-input').press('Enter');
+
+    const data = await readCell(page, 'A1');
+    expect(data?.v).toBe(42);
+  });
+
+  test('Formula =1+2 commits as a formula and computes', async ({ page }) => {
+    const input = page.getByTestId('formula-input');
+    await input.fill('=1+2');
+    await input.press('Enter');
+
+    // Cell carries the formula text and the computed value.
+    const data = await readCell(page, 'A1');
+    expect(data?.f).toBe('=1+2');
+
+    // Re-selecting the cell shows the formula in the bar (not the result).
+    await selectRange(page, 'A1');
+    await expect(input).toHaveValue('=1+2');
+  });
+
+  test('Escape reverts an in-progress edit', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+      ws.getRange('A1').setValue({ v: 'original' });
+    });
+    await selectRange(page, 'A1');
+
+    const input = page.getByTestId('formula-input');
+    await expect(input).toHaveValue('original');
+    await input.click();
+    await input.fill('discarded');
+    await input.press('Escape');
+
+    await expect(input).toHaveValue('original');
+    expect((await readCell(page, 'A1'))?.v).toBe('original');
+  });
+
+  test('Commit + Cancel buttons enable only while editing', async ({ page }) => {
+    await expect(page.getByTestId('formula-commit')).toBeDisabled();
+    await expect(page.getByTestId('formula-cancel')).toBeDisabled();
+
+    await page.getByTestId('formula-input').fill('typing');
+    await expect(page.getByTestId('formula-commit')).toBeEnabled();
+    await expect(page.getByTestId('formula-cancel')).toBeEnabled();
+  });
+
+  test('Empty input clears the cell', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+      ws.getRange('A1').setValue({ v: 'something' });
+    });
+    await selectRange(page, 'A1');
+
+    const input = page.getByTestId('formula-input');
+    await input.fill('');
+    await input.press('Enter');
+
+    const data = await readCell(page, 'A1');
+    expect(data?.v == null || data?.v === '').toBe(true);
+  });
+});

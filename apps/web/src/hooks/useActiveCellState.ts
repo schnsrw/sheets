@@ -3,18 +3,32 @@ import { useUniverAPI } from '../use-univer';
 
 /**
  * Live state of the active cell + current selection, derived from Univer events.
- * Drives ribbon toggle states (Bold/Italic/Underline/Alignment) and the
- * status bar selection stats.
+ * Drives ribbon toggle states, the formula bar, and the status bar stats.
  *
- * Subscribes to `SelectionChanged` and `SheetValueChanged` — together these
- * cover the "user moved the cursor" and "value/style changed in current cell"
- * cases that should re-render the chrome.
+ * Two events alone don't cover every case we want to react to:
+ *   - `SelectionChanged` fires only for canvas-driven changes; programmatic
+ *     FRange.activate() / setActiveRange go through `SetSelectionsOperation`
+ *     but bypass `selectionChanged$`.
+ *   - `SheetValueChanged` fires only when cell values change — style-only
+ *     mutations (numfmt, bold, alignment) don't fire it.
+ *
+ * The reliable signal is `CommandExecuted`, filtered to:
+ *   - any `sheet.mutation.*` (covers value + style + numfmt changes)
+ *   - the selection operation id (covers programmatic selection changes)
+ *
+ * Important for both user UX and any future scripted / AI command surface.
  */
 
 export type HAlign = 'left' | 'center' | 'right' | 'unset';
 
 export type ActiveCellState = {
   ready: boolean;
+  /** A1 reference of the active cell (top-left of the selection). */
+  a1: string;
+  /** Formula text without the leading `=` stripped — empty string if no formula. */
+  formula: string;
+  /** Display string: formula if present, otherwise the raw value. */
+  displayValue: string;
   isBold: boolean;
   isItalic: boolean;
   isUnderline: boolean;
@@ -26,6 +40,9 @@ export type ActiveCellState = {
 
 const EMPTY: ActiveCellState = {
   ready: false,
+  a1: '',
+  formula: '',
+  displayValue: '',
   isBold: false,
   isItalic: false,
   isUnderline: false,
@@ -33,6 +50,10 @@ const EMPTY: ActiveCellState = {
   numberFormat: '',
   stats: null,
 };
+
+const SET_SELECTIONS_OP_ID = 'sheet.operation.set-selections';
+const shouldRecompute = (id: string | undefined) =>
+  !!id && (id.startsWith('sheet.mutation.') || id === SET_SELECTIONS_OP_ID);
 
 export function useActiveCellState(): ActiveCellState {
   const api = useUniverAPI();
@@ -46,7 +67,7 @@ export function useActiveCellState(): ActiveCellState {
       if (!wb) return EMPTY;
       const sheet = wb.getActiveSheet();
       if (!sheet) return EMPTY;
-      const selection = wb.getActiveSheet().getActiveRange();
+      const selection = sheet.getActiveRange();
       if (!selection) return EMPTY;
 
       // Active cell = top-left of current selection.
@@ -56,8 +77,17 @@ export function useActiveCellState(): ActiveCellState {
       const cellData = cell.getCellData();
       const style =
         typeof cellData?.s === 'string'
-          ? wb.getWorkbook().getStyles().get(cellData.s) ?? null
+          ? (wb.getWorkbook().getStyles().get(cellData.s) ?? null)
           : (cellData?.s ?? null);
+
+      const formula = cellData?.f ?? '';
+      const rawValue = cellData?.v;
+      const displayValue =
+        formula !== ''
+          ? formula
+          : rawValue === null || rawValue === undefined
+            ? ''
+            : String(rawValue);
 
       // Selection stats (multi-cell only).
       let stats: ActiveCellState['stats'] = null;
@@ -67,8 +97,8 @@ export function useActiveCellState(): ActiveCellState {
         let count = 0;
         let sum = 0;
         const values = selection.getValues();
-        for (const row of values) {
-          for (const v of row) {
+        for (const r of values) {
+          for (const v of r) {
             const inner =
               typeof v === 'object' && v !== null && 'v' in (v as Record<string, unknown>)
                 ? (v as { v: unknown }).v
@@ -85,6 +115,9 @@ export function useActiveCellState(): ActiveCellState {
 
       return {
         ready: true,
+        a1: cell.getA1Notation(),
+        formula,
+        displayValue,
         isBold: style?.bl === 1,
         isItalic: style?.it === 1,
         isUnderline: !!style?.ul && (style.ul.s ?? 0) === 1,
@@ -96,24 +129,6 @@ export function useActiveCellState(): ActiveCellState {
     };
 
     setState(compute());
-
-    /*
-     * Two events on their own don't cover everything we want to react to:
-     *   - `SelectionChanged` fires only for canvas-driven changes; programmatic
-     *     FRange.activate() / setActiveRange go through `SetSelectionsOperation`
-     *     but bypass `selectionChanged$`.
-     *   - `SheetValueChanged` fires only when cell values change — style-only
-     *     mutations (numfmt, bold, alignment) don't fire it.
-     *
-     * The reliable signal is `CommandExecuted` filtered to:
-     *   - any `sheet.mutation.*` (covers value + style + numfmt changes)
-     *   - the selection operation id (covers programmatic selection changes)
-     *
-     * Important for both user UX and any future scripted / AI command surface.
-     */
-    const SET_SELECTIONS_OP_ID = 'sheet.operation.set-selections';
-    const shouldRecompute = (id: string | undefined) =>
-      !!id && (id.startsWith('sheet.mutation.') || id === SET_SELECTIONS_OP_ID);
 
     const disposable = api.addEvent(api.Event.CommandExecuted, (e) => {
       if (shouldRecompute((e as { id?: string }).id)) {

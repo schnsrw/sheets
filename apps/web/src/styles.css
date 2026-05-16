@@ -70,6 +70,7 @@
   /* Layout */
   --titlebar-h: 32px;
   --ribbon-h: 96px;
+  --formula-bar-h: 28px;
   --statusbar-h: 24px;
 
   /* Motion */
@@ -157,6 +158,7 @@ button {
   grid-template-rows:
     var(--titlebar-h)
     var(--ribbon-h)
+    var(--formula-bar-h)
     1fr
     var(--statusbar-h);
   height: 100vh;
@@ -337,6 +339,83 @@ button {
 .btn[aria-pressed="true"] {
   background: var(--color-pressed);
   border-color: var(--color-border-strong);
+}
+
+/* Formula bar */
+.formula-bar {
+  display: flex;
+  align-items: stretch;
+  height: var(--formula-bar-h);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.formula-bar__name-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  user-select: none;
+}
+
+.formula-bar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+
+.formula-bar__action {
+  height: 22px;
+  min-width: 22px;
+  padding: 0;
+}
+
+.formula-bar__action:disabled {
+  opacity: 0.4;
+}
+
+.formula-bar__fx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+
+.formula-bar__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 0;
+  outline: none;
+}
+
+.formula-bar__input:focus {
+  background: #fffef0; /* Excel-style subtle highlight when editing */
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring);
+}
+
+.formula-bar__input:disabled {
+  color: var(--color-text-disabled);
+  background: var(--color-surface-alt);
 }
 
 /* Grid host */

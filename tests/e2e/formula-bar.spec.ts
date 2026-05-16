@@ -1,27 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function waitForUniver(page: Page) {
-  await page.getByTestId('grid-host').locator('canvas').first().waitFor({ timeout: 15_000 });
-  await page.waitForFunction(() => Boolean(window.__univerAPI), null, { timeout: 5_000 });
-}
-
-async function selectRange(page: Page, a1: string) {
-  await page.evaluate((cell) => {
-    const api = window.__univerAPI!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-    ws.getRange(cell).activate();
-  }, a1);
-}
-
-async function readCell(page: Page, a1: string) {
-  return page.evaluate((cell) => {
-    const api = window.__univerAPI!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-    return ws.getRange(cell).getCellData();
-  }, a1);
-}
+import { expect, test } from '@playwright/test';
+import { readCell, selectRange, waitForUniver } from './_helpers';
 
 test.describe('Formula bar', () => {
   test.beforeEach(async ({ page }) => {

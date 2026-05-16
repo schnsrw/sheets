@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { selectRange, waitForUniver } from './_helpers';
 
 /**
  * Phase 1.1 — Home ribbon dispatches real Univer commands.
@@ -14,11 +15,6 @@ type CellStyle = {
   n?: { pattern: string } | null;
 };
 
-async function waitForUniver(page: Page) {
-  await page.getByTestId('grid-host').locator('canvas').first().waitFor({ timeout: 15_000 });
-  await page.waitForFunction(() => Boolean(window.__univerAPI), null, { timeout: 5_000 });
-}
-
 async function setActiveCellValue(page: Page, a1: string, value: number | string) {
   await page.evaluate(
     ([cell, v]) => {
@@ -29,15 +25,6 @@ async function setActiveCellValue(page: Page, a1: string, value: number | string
     },
     [a1, value] as const,
   );
-}
-
-async function selectRange(page: Page, a1: string) {
-  await page.evaluate((cell) => {
-    const api = window.__univerAPI!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-    ws.getRange(cell).activate();
-  }, a1);
 }
 
 async function getActiveCellStyle(page: Page): Promise<CellStyle> {

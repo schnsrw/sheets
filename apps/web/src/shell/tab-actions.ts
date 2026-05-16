@@ -62,6 +62,30 @@ export function insertNewSheet(api: FUniver) {
   wb.insertSheet();
 }
 
+/* ── Auto-fit ───────────────────────────────────────────────────────────── */
+
+export function autoFitColumns(api: FUniver) {
+  const range = activeRange(api);
+  const sheet = activeSheet(api);
+  if (!range || !sheet) return;
+  // `setColumnAutoWidth` is on the sheets-ui facade extension.
+  const sheetWithAutoWidth = sheet as unknown as {
+    setColumnAutoWidth?: (col: number, n: number) => unknown;
+  };
+  sheetWithAutoWidth.setColumnAutoWidth?.(range.getColumn(), range.getWidth());
+}
+
+export function autoFitRows(api: FUniver) {
+  const range = activeRange(api);
+  const sheet = activeSheet(api);
+  if (!range || !sheet) return;
+  // FWorksheet.autoFitRow takes a single row index. Loop the selection.
+  const start = range.getRow();
+  for (let r = 0; r < range.getHeight(); r++) {
+    sheet.autoFitRow(start + r);
+  }
+}
+
 /* ── Formulas tab — quick auto-functions ─────────────────────────────────── */
 
 type AutoFn = 'SUM' | 'AVERAGE' | 'COUNT' | 'MIN' | 'MAX';

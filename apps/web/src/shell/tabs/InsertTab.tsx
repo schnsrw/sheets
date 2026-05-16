@@ -1,6 +1,8 @@
 import { useUniverAPI } from '../../use-univer';
 import { useActiveCellState } from '../../hooks/useActiveCellState';
 import {
+  autoFitColumns,
+  autoFitRows,
   deleteSelectedColumn,
   deleteSelectedRow,
   insertColumnLeft,
@@ -73,6 +75,23 @@ export function InsertTab() {
           icon="add_box"
           disabled={!enabled}
           onClick={() => api && insertNewSheet(api)}
+        />
+      </RibbonGroup>
+
+      <RibbonGroup label="Auto-fit">
+        <ToolbarButton
+          id="autofit-cols"
+          label="Auto-fit column width"
+          icon="settings_ethernet"
+          disabled={!enabled}
+          onClick={() => api && autoFitColumns(api)}
+        />
+        <ToolbarButton
+          id="autofit-rows"
+          label="Auto-fit row height"
+          icon="height"
+          disabled={!enabled}
+          onClick={() => api && autoFitRows(api)}
         />
       </RibbonGroup>
     </>

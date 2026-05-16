@@ -3,6 +3,7 @@ import type { IWorkbookData } from '@univerjs/core';
 import { TitleBar } from './shell/TitleBar';
 import { Ribbon } from './shell/Ribbon';
 import { FormulaBar } from './shell/FormulaBar';
+import { SheetTabs } from './shell/SheetTabs';
 import { StatusBar } from './shell/StatusBar';
 import { UniverSheet } from './UniverSheet';
 import { emptyWorkbook } from './snapshot';
@@ -30,6 +31,7 @@ export function App() {
           <main className="grid-host" data-testid="grid-host">
             <UniverSheet snapshot={snapshot} />
           </main>
+          <SheetTabs />
           <StatusBar />
         </div>
       </WorkbookContext.Provider>

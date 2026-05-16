@@ -72,7 +72,7 @@
   /* Layout */
   --titlebar-h: 30px;
   --menubar-h: 28px;
-  --toolbar-h: 76px;
+  --toolbar-h: 92px;
   --formula-bar-h: 26px;
   --sheet-tabs-h: 28px;
   --statusbar-h: 24px;
@@ -224,41 +224,36 @@ button {
   background: var(--color-pressed);
 }
 
-/* ── Flat toolbar (fixed — does not switch on tab clicks) ───────────────── */
+/* ── Office-style toolbar (single horizontal strip of grouped controls) ──── */
 .toolbar {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
+  display: flex;
+  align-items: stretch;
+  height: var(--toolbar-h);
   background: var(--color-surface-alt);
   border-bottom: 1px solid var(--color-border);
   z-index: 2;
   overflow: hidden;
 }
 
-.toolbar__row {
+.toolbar__inner {
   display: flex;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
   padding: 0 var(--space-3);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  min-height: 0;
 }
 
-.toolbar__row + .toolbar__row {
-  border-top: 1px solid var(--color-divider);
-}
-
-/* Inside the flat toolbar, groups stack horizontally with thin dividers
-   and a visible bottom label, matching Office's ribbon group pattern. */
+/* Groups inside the toolbar — vertical stack: body on top, label below. */
 .toolbar .ribbon__group {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-3);
-  margin: 0;
-  height: 100%;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-right: 1px solid var(--color-divider);
   flex-shrink: 0;
 }
@@ -268,15 +263,35 @@ button {
 }
 
 .toolbar .ribbon__group-body {
-  display: inline-flex;
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: var(--space-1);
-  flex: 0 0 auto;
-  height: 26px;
+  flex: 1;
+}
+
+.toolbar .ribbon__group-body--rows {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.toolbar .ribbon__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 26px;
 }
 
 .toolbar .ribbon__group-label {
-  display: none; /* flat toolbar is tight — labels live in tooltips */
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  text-align: center;
+  line-height: 1;
+  user-select: none;
+  letter-spacing: 0.02em;
+  padding-top: var(--space-1);
 }
 
 /* Title bar */

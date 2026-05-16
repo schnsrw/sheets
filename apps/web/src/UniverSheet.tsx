@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LocaleType, LogLevel, Univer, UniverInstanceType, type IWorkbookData } from '@univerjs/core';
 import { FUniver } from '@univerjs/core/facade';
+import type { FWorkbook } from '@univerjs/sheets/facade';
 import { defaultTheme } from '@univerjs/themes';
 
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
@@ -87,6 +88,12 @@ export function UniverSheet({ snapshot }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const setApi = useSetUniverAPI();
+  // Hold the live Univer instance + API across snapshot swaps so Open replaces
+  // the workbook unit rather than tearing the whole Univer (and its internal
+  // React root) down — the latter races React's render phase and leaves the
+  // grid blank.
+  const univerRef = useRef<Univer | null>(null);
+  const apiRef = useRef<FUniver | null>(null);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -97,6 +104,7 @@ export function UniverSheet({ snapshot }: Props) {
       locales: LOCALES,
       logLevel: LogLevel.WARN,
     });
+    univerRef.current = univer;
 
     univer.registerPlugin(UniverRenderEnginePlugin);
     univer.registerPlugin(UniverFormulaEnginePlugin);
@@ -146,6 +154,7 @@ export function UniverSheet({ snapshot }: Props) {
     extendContextMenu(univer);
 
     const api = FUniver.newAPI(univer);
+    apiRef.current = api;
     setApi(api);
 
     const raf = requestAnimationFrame(() => setReady(true));
@@ -156,14 +165,45 @@ export function UniverSheet({ snapshot }: Props) {
 
     return () => {
       cancelAnimationFrame(raf);
+      // Defer disposal so it can't fire during React's render phase — Univer
+      // owns its own React root and a synchronous unmount mid-render warns and
+      // leaves the canvas detached.
+      const toDispose = univer;
+      apiRef.current = null;
+      univerRef.current = null;
       setApi(null);
-      univer.dispose();
+      queueMicrotask(() => toDispose.dispose());
       if (import.meta.env.DEV) {
         delete window.__univerAPI;
       }
     };
-    // Mount once per snapshot identity. Re-mounting on every render would tear Univer down.
+    // Mount Univer exactly once. Snapshot changes are handled by the swap
+    // effect below — recreating Univer per snapshot would race React's render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Swap the active workbook unit when the snapshot changes, without
+  // tearing down the Univer instance itself.
+  const lastSnapshotRef = useRef<IWorkbookData>(snapshot);
+  useEffect(() => {
+    if (lastSnapshotRef.current === snapshot) return;
+    const api = apiRef.current;
+    if (!api) return;
+    const current = api.getActiveWorkbook() as unknown as FWorkbook | null;
+    const currentId = current?.getId();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const createSheet = (api as any).createUniverSheet as
+      | ((data: IWorkbookData) => unknown)
+      | undefined;
+    if (!createSheet) return;
+    createSheet.call(api, snapshot);
+    if (currentId && currentId !== snapshot.id) {
+      // Dispose after the new unit has rendered to keep handoff seamless.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const disposeUnit = (api as any).disposeUnit as ((id: string) => void) | undefined;
+      queueMicrotask(() => disposeUnit?.call(api, currentId));
+    }
+    lastSnapshotRef.current = snapshot;
   }, [snapshot]);
 
   return (

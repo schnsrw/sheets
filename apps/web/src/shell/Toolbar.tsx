@@ -29,7 +29,6 @@ import {
 import { applyAutoFunction, insertComment, insertHyperlink, sortRange, toggleFilter } from './tab-actions';
 import {
   RibbonGroup,
-  RibbonRow,
   ToolbarButton,
   ToolbarColorButton,
   ToolbarDropdown,
@@ -37,10 +36,9 @@ import {
 } from './RibbonControls';
 
 /**
- * Fixed Office-style toolbar — single horizontal strip of grouped controls
- * with visible group labels at the bottom and vertical dividers between
- * groups. No tabs — content is always visible. Less-common features live
- * in the top MenuBar dropdowns.
+ * Fixed single-row toolbar — every group lays out its controls in one
+ * horizontal row, so all icons share a baseline. No 2-row groups → no
+ * visual asymmetry. Less-common features live in the top MenuBar.
  */
 
 const FONT_FAMILIES = [
@@ -113,54 +111,47 @@ export function Toolbar() {
           />
         </RibbonGroup>
 
-        <RibbonGroup label="Font" rows>
-          <RibbonRow>
-            <ToolbarSelect
-              id="font-family"
-              label="Font family"
-              value={state.fontFamily || 'Calibri'}
-              options={FONT_FAMILIES.map((f) => ({ value: f, label: f }))}
-              width={130}
-              disabled={!ready}
-              onChange={(v) => api && setFontFamily(api, v)}
-            />
-            <ToolbarSelect
-              id="font-size"
-              label="Font size"
-              value={String(state.fontSize || 11)}
-              options={FONT_SIZES.map((s) => ({ value: String(s), label: String(s) }))}
-              width={64}
-              disabled={!ready}
-              onChange={(v) => api && setFontSize(api, Number(v))}
-            />
-          </RibbonRow>
-          <RibbonRow>
-            <ToolbarButton id="bold" label="Bold (Ctrl+B)" icon="format_bold" pressed={state.isBold} disabled={!ready} onClick={() => api && toggleBold(api, state.isBold)} />
-            <ToolbarButton id="italic" label="Italic (Ctrl+I)" icon="format_italic" pressed={state.isItalic} disabled={!ready} onClick={() => api && toggleItalic(api, state.isItalic)} />
-            <ToolbarButton id="underline" label="Underline (Ctrl+U)" icon="format_underlined" pressed={state.isUnderline} disabled={!ready} onClick={() => api && toggleUnderline(api, state.isUnderline)} />
-            <ToolbarButton id="strikethrough" label="Strikethrough" icon="format_strikethrough" pressed={state.isStrike} disabled={!ready} onClick={() => api && toggleStrikethrough(api, state.isStrike)} />
-            <ToolbarColorButton
-              id="font-color"
-              label="Font color"
-              icon="format_color_text"
-              value={state.fontColor}
-              defaultColor="#000000"
-              disabled={!ready}
-              onChange={(c) => api && setFontColor(api, c)}
-            />
-            <ToolbarColorButton
-              id="fill-color"
-              label="Fill / highlight color"
-              icon="format_color_fill"
-              value={state.fillColor}
-              defaultColor="#ffeb3b"
-              disabled={!ready}
-              onChange={(c) => api && setFillColor(api, c)}
-            />
-          </RibbonRow>
-        </RibbonGroup>
-
-        <RibbonGroup label="Borders">
+        <RibbonGroup label="Font">
+          <ToolbarSelect
+            id="font-family"
+            label="Font family"
+            value={state.fontFamily || 'Calibri'}
+            options={FONT_FAMILIES.map((f) => ({ value: f, label: f }))}
+            width={130}
+            disabled={!ready}
+            onChange={(v) => api && setFontFamily(api, v)}
+          />
+          <ToolbarSelect
+            id="font-size"
+            label="Font size"
+            value={String(state.fontSize || 11)}
+            options={FONT_SIZES.map((s) => ({ value: String(s), label: String(s) }))}
+            width={56}
+            disabled={!ready}
+            onChange={(v) => api && setFontSize(api, Number(v))}
+          />
+          <ToolbarButton id="bold" label="Bold (Ctrl+B)" icon="format_bold" pressed={state.isBold} disabled={!ready} onClick={() => api && toggleBold(api, state.isBold)} />
+          <ToolbarButton id="italic" label="Italic (Ctrl+I)" icon="format_italic" pressed={state.isItalic} disabled={!ready} onClick={() => api && toggleItalic(api, state.isItalic)} />
+          <ToolbarButton id="underline" label="Underline (Ctrl+U)" icon="format_underlined" pressed={state.isUnderline} disabled={!ready} onClick={() => api && toggleUnderline(api, state.isUnderline)} />
+          <ToolbarButton id="strikethrough" label="Strikethrough" icon="format_strikethrough" pressed={state.isStrike} disabled={!ready} onClick={() => api && toggleStrikethrough(api, state.isStrike)} />
+          <ToolbarColorButton
+            id="font-color"
+            label="Font color"
+            icon="format_color_text"
+            value={state.fontColor}
+            defaultColor="#000000"
+            disabled={!ready}
+            onChange={(c) => api && setFontColor(api, c)}
+          />
+          <ToolbarColorButton
+            id="fill-color"
+            label="Fill / highlight color"
+            icon="format_color_fill"
+            value={state.fillColor}
+            defaultColor="#ffeb3b"
+            disabled={!ready}
+            onChange={(c) => api && setFillColor(api, c)}
+          />
           <ToolbarDropdown
             id="borders"
             label="Borders"
@@ -180,44 +171,36 @@ export function Toolbar() {
           />
         </RibbonGroup>
 
-        <RibbonGroup label="Alignment" rows>
-          <RibbonRow>
-            <ToolbarButton id="align-top" label="Align top" icon="vertical_align_top" pressed={state.vAlign === 'top'} disabled={!ready} onClick={() => api && setVerticalAlignment(api, 'top')} />
-            <ToolbarButton id="align-middle" label="Align middle" icon="vertical_align_center" pressed={state.vAlign === 'middle'} disabled={!ready} onClick={() => api && setVerticalAlignment(api, 'middle')} />
-            <ToolbarButton id="align-bottom" label="Align bottom" icon="vertical_align_bottom" pressed={state.vAlign === ('bottom' as VAlign)} disabled={!ready} onClick={() => api && setVerticalAlignment(api, 'bottom')} />
-            <ToolbarButton id="wrap-text" label="Wrap text" icon="wrap_text" pressed={state.isWrapped} disabled={!ready} onClick={() => api && toggleWrap(api, state.isWrapped)} />
-          </RibbonRow>
-          <RibbonRow>
-            <ToolbarButton id="align-left" label="Align left" icon="format_align_left" pressed={state.align === 'left'} disabled={!ready} onClick={() => api && setAlignment(api, 'left')} />
-            <ToolbarButton id="align-center" label="Center" icon="format_align_center" pressed={state.align === 'center'} disabled={!ready} onClick={() => api && setAlignment(api, 'center')} />
-            <ToolbarButton id="align-right" label="Align right" icon="format_align_right" pressed={state.align === ('right' as HAlign)} disabled={!ready} onClick={() => api && setAlignment(api, 'right')} />
-            <ToolbarButton
-              id="merge-cells"
-              label={state.isMerged ? 'Unmerge cells' : 'Merge & Center'}
-              icon={state.isMerged ? 'call_split' : 'cell_merge'}
-              pressed={state.isMerged}
-              disabled={!ready || (!state.isMerged && !state.isMultiCell)}
-              onClick={() => api && toggleMerge(api, state.isMerged)}
-            />
-          </RibbonRow>
+        <RibbonGroup label="Alignment">
+          <ToolbarButton id="align-left" label="Align left" icon="format_align_left" pressed={state.align === 'left'} disabled={!ready} onClick={() => api && setAlignment(api, 'left')} />
+          <ToolbarButton id="align-center" label="Center" icon="format_align_center" pressed={state.align === 'center'} disabled={!ready} onClick={() => api && setAlignment(api, 'center')} />
+          <ToolbarButton id="align-right" label="Align right" icon="format_align_right" pressed={state.align === ('right' as HAlign)} disabled={!ready} onClick={() => api && setAlignment(api, 'right')} />
+          <ToolbarButton id="align-top" label="Align top" icon="vertical_align_top" pressed={state.vAlign === 'top'} disabled={!ready} onClick={() => api && setVerticalAlignment(api, 'top')} />
+          <ToolbarButton id="align-middle" label="Align middle" icon="vertical_align_center" pressed={state.vAlign === 'middle'} disabled={!ready} onClick={() => api && setVerticalAlignment(api, 'middle')} />
+          <ToolbarButton id="align-bottom" label="Align bottom" icon="vertical_align_bottom" pressed={state.vAlign === ('bottom' as VAlign)} disabled={!ready} onClick={() => api && setVerticalAlignment(api, 'bottom')} />
+          <ToolbarButton id="wrap-text" label="Wrap text" icon="wrap_text" pressed={state.isWrapped} disabled={!ready} onClick={() => api && toggleWrap(api, state.isWrapped)} />
+          <ToolbarButton
+            id="merge-cells"
+            label={state.isMerged ? 'Unmerge cells' : 'Merge & Center'}
+            icon={state.isMerged ? 'call_split' : 'cell_merge'}
+            pressed={state.isMerged}
+            disabled={!ready || (!state.isMerged && !state.isMultiCell)}
+            onClick={() => api && toggleMerge(api, state.isMerged)}
+          />
         </RibbonGroup>
 
-        <RibbonGroup label="Number" rows>
-          <RibbonRow>
-            <ToolbarSelect
-              id="num-format"
-              label="Number format"
-              value={detectFormatKey(state.numberFormat)}
-              options={NUMBER_FORMAT_OPTIONS}
-              width={150}
-              disabled={!ready}
-              onChange={(v) => api && setNumberFormatByKey(api, v as NumberFormatKey)}
-            />
-          </RibbonRow>
-          <RibbonRow>
-            <ToolbarButton id="numfmt-currency" label="Currency" icon="attach_money" pressed={state.numberFormat === NUMBER_FORMATS.currency} disabled={!ready} onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.currency)} />
-            <ToolbarButton id="numfmt-percent" label="Percent" icon="percent" pressed={state.numberFormat === NUMBER_FORMATS.percent} disabled={!ready} onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.percent)} />
-          </RibbonRow>
+        <RibbonGroup label="Number">
+          <ToolbarSelect
+            id="num-format"
+            label="Number format"
+            value={detectFormatKey(state.numberFormat)}
+            options={NUMBER_FORMAT_OPTIONS}
+            width={140}
+            disabled={!ready}
+            onChange={(v) => api && setNumberFormatByKey(api, v as NumberFormatKey)}
+          />
+          <ToolbarButton id="numfmt-currency" label="Currency" icon="attach_money" pressed={state.numberFormat === NUMBER_FORMATS.currency} disabled={!ready} onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.currency)} />
+          <ToolbarButton id="numfmt-percent" label="Percent" icon="percent" pressed={state.numberFormat === NUMBER_FORMATS.percent} disabled={!ready} onClick={() => api && setNumberFormat(api, NUMBER_FORMATS.percent)} />
         </RibbonGroup>
 
         <RibbonGroup label="Data">

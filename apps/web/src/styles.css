@@ -72,7 +72,7 @@
   /* Layout */
   --titlebar-h: 30px;
   --menubar-h: 28px;
-  --toolbar-h: 92px;
+  --toolbar-h: 56px;
   --formula-bar-h: 26px;
   --sheet-tabs-h: 28px;
   --statusbar-h: 24px;
@@ -229,7 +229,7 @@ button {
   display: flex;
   align-items: stretch;
   height: var(--toolbar-h);
-  background: var(--color-surface-alt);
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   z-index: 2;
   overflow: hidden;
@@ -240,20 +240,21 @@ button {
   align-items: stretch;
   flex: 1;
   min-width: 0;
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
 }
 
-/* Groups inside the toolbar — vertical stack: body on top, label below. */
+/* All groups are single-row → all icons share the same baseline.
+   Group label hidden on the toolbar (kept available for ribbon-style
+   contexts elsewhere); group sections separated by thin dividers. */
 .toolbar .ribbon__group {
   display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--space-3);
   border-right: 1px solid var(--color-divider);
   flex-shrink: 0;
 }
@@ -266,32 +267,39 @@ button {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-1);
-  flex: 1;
-}
-
-.toolbar .ribbon__group-body--rows {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-1);
-}
-
-.toolbar .ribbon__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 26px;
+  gap: 2px;
 }
 
 .toolbar .ribbon__group-label {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  text-align: center;
-  line-height: 1;
-  user-select: none;
-  letter-spacing: 0.02em;
-  padding-top: var(--space-1);
+  display: none;
+}
+
+/* Inside the toolbar, normalize sizes so buttons and selects align cleanly. */
+.toolbar .btn {
+  height: 26px;
+  min-width: 26px;
+}
+
+.toolbar .ribbon__select {
+  height: 26px;
+}
+
+.toolbar .btn-split__icon {
+  height: 26px;
+  width: 26px;
+}
+
+.toolbar .btn-split__caret {
+  height: 26px;
+}
+
+.toolbar .btn-color__icon {
+  height: 26px;
+  width: 26px;
+}
+
+.toolbar .btn-color__picker {
+  height: 26px;
 }
 
 /* Title bar */

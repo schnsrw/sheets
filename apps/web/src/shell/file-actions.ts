@@ -8,8 +8,11 @@ import { workbookDataToXlsx, xlsxToWorkbookData } from '../xlsx';
  */
 
 export async function openXlsx(file: File): Promise<IWorkbookData> {
+  console.info('[open-xlsx] reading file', { name: file.name, size: file.size });
   const buf = await file.arrayBuffer();
+  console.info('[open-xlsx] buffer read', buf.byteLength, 'bytes — parsing');
   const data = await xlsxToWorkbookData(buf);
+  console.info('[open-xlsx] parsed', { id: data.id, sheets: Object.keys(data.sheets ?? {}).length });
   data.name = file.name.replace(/\.xlsx$/i, '');
   return data;
 }
@@ -39,6 +42,7 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 export function pickXlsxFile(): Promise<File | null> {
+  console.info('[open-xlsx] opening file picker');
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -53,6 +57,7 @@ export function pickXlsxFile(): Promise<File | null> {
     const onChange = () => {
       resolved = true;
       const file = input.files?.[0] ?? null;
+      console.info('[open-xlsx] file chosen', file?.name);
       cleanup();
       resolve(file);
     };
@@ -61,6 +66,7 @@ export function pickXlsxFile(): Promise<File | null> {
     const onFocus = () => {
       setTimeout(() => {
         if (resolved) return;
+        console.info('[open-xlsx] picker cancelled (focus returned without change)');
         cleanup();
         resolve(null);
       }, 200);

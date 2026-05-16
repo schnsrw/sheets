@@ -42,6 +42,7 @@ import {
   openConditionalFormatting,
   openDataValidation,
   removeDuplicates,
+  showAllRows,
   splitTextToColumns,
   toggleCommentPanel,
   toggleGridlines,
@@ -83,10 +84,18 @@ export function MenuBar() {
 
   const handleNew = () => workbook.replaceWorkbook(emptyWorkbook());
   const handleOpen = async () => {
-    const file = await pickXlsxFile();
-    if (file) {
+    try {
+      const file = await pickXlsxFile();
+      if (!file) return;
       const data = await openXlsx(file);
+      console.info('[open-xlsx] replacing active workbook', data.id);
       workbook.replaceWorkbook(data);
+      console.info('[open-xlsx] done');
+    } catch (err) {
+      // Surface failures from the xlsx parser / replace flow so they aren't
+      // swallowed by React's unhandled-rejection silence on event handlers.
+      console.error('[open-xlsx] failed', err);
+      window.alert(`Could not open this file: ${(err as Error)?.message ?? String(err)}`);
     }
   };
   const handleSaveAs = async () => {
@@ -181,6 +190,7 @@ export function MenuBar() {
         { kind: 'separator', id: 'sep-1' },
         { kind: 'item', id: 'text-to-columns', label: 'Text to Columns', icon: 'splitscreen', run: splitTextToColumns },
         { kind: 'item', id: 'remove-duplicates', label: 'Remove Duplicates', icon: 'filter_list_off', run: removeDuplicates },
+        { kind: 'item', id: 'show-all-rows', label: 'Show all rows', icon: 'unfold_more', run: showAllRows },
         { kind: 'separator', id: 'sep-2' },
         { kind: 'item', id: 'comments-panel', label: 'Comments panel', icon: 'forum', run: toggleCommentPanel },
       ],

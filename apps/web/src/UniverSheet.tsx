@@ -190,7 +190,10 @@ export function UniverSheet({ snapshot }: Props) {
   useEffect(() => {
     if (lastSnapshotRef.current === snapshot) return;
     const api = apiRef.current;
-    if (!api) return;
+    if (!api) {
+      console.warn('[open-xlsx] swap aborted: api not ready yet');
+      return;
+    }
     const current = api.getActiveWorkbook() as unknown as FWorkbook | null;
     const currentId = current?.getId();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,10 +202,20 @@ export function UniverSheet({ snapshot }: Props) {
       | ((data: IWorkbookData) => unknown)
       | undefined;
     const disposeUnit = apiAny.disposeUnit as ((id: string) => void) | undefined;
-    if (!createSheet) return;
-    if (currentId) disposeUnit?.call(api, currentId);
-    createSheet.call(api, snapshot);
-    lastSnapshotRef.current = snapshot;
+    if (!createSheet) {
+      console.warn('[open-xlsx] swap aborted: createUniverSheet missing on facade');
+      return;
+    }
+    console.info('[open-xlsx] swapping unit', { from: currentId, to: snapshot.id });
+    try {
+      if (currentId) disposeUnit?.call(api, currentId);
+      createSheet.call(api, snapshot);
+      lastSnapshotRef.current = snapshot;
+      console.info('[open-xlsx] swap complete');
+    } catch (err) {
+      console.error('[open-xlsx] swap failed', err);
+      throw err;
+    }
   }, [snapshot]);
 
   return (

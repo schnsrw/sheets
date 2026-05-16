@@ -1,5 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#217346"/>
-  <path d="M9 9h14v14H9z" fill="none" stroke="#fff" stroke-width="1.6"/>
-  <path d="M9 14h14M9 18h14M14 9v14M18 9v14" stroke="#fff" stroke-width="1" stroke-opacity="0.85"/>
+  <!-- Rounded green tile -->
+  <rect width="32" height="32" rx="7" fill="#217346"/>
+  <!-- White inner spreadsheet glyph -->
+  <g transform="translate(6 6)" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round">
+    <rect x="0" y="0" width="20" height="20" rx="2"/>
+    <!-- two vertical dividers -->
+    <path d="M7 0 v20 M13 0 v20"/>
+    <!-- three horizontal dividers -->
+    <path d="M0 5 h20 M0 10 h20 M0 15 h20"/>
+  </g>
+  <!-- Top-left "casual" dot in brand fill for personality -->
+  <rect x="6" y="6" width="7" height="5" rx="1" fill="#ffffff" fill-opacity="0.12"/>
 </svg>

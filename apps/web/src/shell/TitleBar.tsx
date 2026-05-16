@@ -6,7 +6,7 @@ export function TitleBar({ filename }: Props) {
   return (
     <header className="titlebar" data-testid="titlebar" role="banner">
       <span className="titlebar__brand">
-        <Icon name="grid_view" size="sm" className="titlebar__brand-icon" filled />
+        <Icon name="grid_view" size="lg" className="titlebar__brand-icon" filled />
         <span>casual sheets</span>
       </span>
       <span className="titlebar__divider" aria-hidden="true" />

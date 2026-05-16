@@ -1,0 +1,18 @@
+<!-- Full Casual Sheets wordmark — for README / marketing -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 56" fill="none">
+  <rect x="0" y="4" width="48" height="48" rx="10" fill="#217346"/>
+  <g transform="translate(10 14)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
+    <rect x="0" y="0" width="28" height="28" rx="3"/>
+    <path d="M10 0 v28 M19 0 v28"/>
+    <path d="M0 7 h28 M0 14 h28 M0 21 h28"/>
+  </g>
+  <rect x="10" y="14" width="10" height="7" rx="1.5" fill="#ffffff" fill-opacity="0.15"/>
+  <text x="62" y="36" font-family="Inter, -apple-system, system-ui, sans-serif"
+        font-size="22" font-weight="600" fill="#201f1e" letter-spacing="-0.02em">
+    casual
+  </text>
+  <text x="132" y="36" font-family="Inter, -apple-system, system-ui, sans-serif"
+        font-size="22" font-weight="400" fill="#605e5c" letter-spacing="-0.01em">
+    sheets
+  </text>
+</svg>

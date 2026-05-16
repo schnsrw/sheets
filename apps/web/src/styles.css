@@ -82,7 +82,7 @@
   --shadow-3: 0 8px 16px rgba(0, 0, 0, 0.10), 0 2px 4px rgba(0, 0, 0, 0.06);
 
   /* Layout */
-  --titlebar-h: 30px;
+  --titlebar-h: 40px;
   --menubar-h: 28px;
   --toolbar-h: 40px;
   --formula-bar-h: 26px;
@@ -181,8 +181,7 @@ button {
     var(--toolbar-h)
     var(--formula-bar-h)
     minmax(0, 1fr)
-    var(--sheet-tabs-h)
-    var(--statusbar-h);
+    var(--sheet-tabs-h);
   height: 100dvh;
   width: 100vw;
   overflow: hidden;
@@ -195,8 +194,7 @@ button {
     var(--menubar-h)
     var(--toolbar-h)
     minmax(0, 1fr)
-    var(--sheet-tabs-h)
-    var(--statusbar-h);
+    var(--sheet-tabs-h);
 }
 
 /* ── Menu bar (Google-Sheets style top dropdowns) ───────────────────────── */
@@ -385,8 +383,7 @@ button {
   height: 26px;
 }
 
-/* Title bar — zone 0 (white). Thin accent strip at the very top in the
-   brand colour gives the chrome a small splash of identity. */
+/* Title bar — zone 0 (white). Bigger brand for stronger top-of-page identity. */
 .titlebar {
   display: flex;
   align-items: center;
@@ -395,35 +392,37 @@ button {
   padding: 0 var(--space-6);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: var(--weight-medium);
   user-select: none;
   letter-spacing: 0;
-  border-top: 3px solid var(--color-accent);
   z-index: 4;
 }
 
 .titlebar__brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   color: var(--color-text);
   font-weight: var(--weight-semibold);
+  font-size: 16px;
 }
 
 .titlebar__brand-icon {
   color: var(--color-accent);
+  font-size: 22px;
 }
 
 .titlebar__divider {
   width: 1px;
-  height: 14px;
+  height: 18px;
   background: var(--color-divider);
 }
 
 .titlebar__filename {
   font-weight: var(--weight-regular);
   color: var(--color-text-secondary);
+  font-size: var(--text-base);
 }
 
 .titlebar__spacer {
@@ -1013,20 +1012,63 @@ button {
   min-width: 22px;
 }
 
+.sheet-tabs__stats {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin: 0 var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
 .sheet-tabs__right {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   flex-shrink: 0;
-  margin-left: var(--space-3);
+  margin-left: auto;
   padding-left: var(--space-3);
-  border-left: 1px solid var(--color-divider);
 }
 
 .sheet-tabs__action {
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+}
+
+.sheet-tabs__sep {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--color-divider);
+  margin: 0 var(--space-2);
+}
+
+.sheet-tabs__zoom-slider {
+  width: 100px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.sheet-tabs__zoom-label {
+  min-width: 44px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 0;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+
+.sheet-tabs__zoom-label:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
 }
 
 /* Status bar — zone 2 (warm grey), continuous with the sheet tabs above. */

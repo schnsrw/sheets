@@ -5,7 +5,6 @@ import { MenuBar } from './shell/MenuBar';
 import { Toolbar } from './shell/Toolbar';
 import { FormulaBar } from './shell/FormulaBar';
 import { SheetTabs } from './shell/SheetTabs';
-import { StatusBar } from './shell/StatusBar';
 import { UniverSheet } from './UniverSheet';
 import { emptyWorkbook } from './snapshot';
 import { UniverRoot } from './UniverRoot';
@@ -51,7 +50,6 @@ export function App() {
               <UniverSheet snapshot={snapshot} />
             </main>
             <SheetTabs />
-            <StatusBar />
           </div>
         </WorkbookContext.Provider>
       </UIContext.Provider>

@@ -134,6 +134,6 @@ test.describe('Status bar live stats', () => {
     await page.goto('/');
     await waitForUniver(page);
     await selectRange(page, 'A1');
-    await expect(page.getByTestId('statusbar-stats')).toHaveCount(0);
+    await expect(page.getByTestId('sheet-tabs-stats')).toHaveCount(0);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUniverAPI } from '../use-univer';
 import { useSheets } from '../hooks/useSheets';
+import { useActiveCellState } from '../hooks/useActiveCellState';
 import {
   addSheet,
   deleteSheetById,
@@ -9,40 +10,62 @@ import {
   switchToSheet,
 } from './sheet-actions';
 import { redo, undo } from './home-tab-actions';
+import { setZoom } from './tab-actions';
 import { Icon } from './Icon';
 
+const NUM = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
+const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 200, 300, 400];
+
 /**
- * Excel-style sheet tab strip.
- *   - "+" button on the left adds a sheet.
- *   - Click a tab to switch.
- *   - Double-click a tab to rename inline (Enter commits, Esc reverts).
- *   - Hover a tab to reveal an "×" — click to delete (disabled on last sheet).
- *   - Drag a tab to reorder.
+ * Bottom strip — combines:
+ *   • the sheet-tabs list with hover-X delete + drag reorder + add button
+ *   • selection stats (count / sum / avg, multi-cell only)
+ *   • undo / redo
+ *   • zoom slider with − / + steppers and a click-to-reset 100%% label
  *
- * Intentionally no right-click context menu — the X + drag pattern is
- * lighter-weight and easier to discover than a menu.
+ * Replaces the previous separate status bar. Status info that isn't
+ * actionable (e.g. "Ready") was dropped — empty signal isn't worth a row.
  */
 export function SheetTabs() {
   const api = useUniverAPI();
   const { sheets, activeSheetId, ready } = useSheets();
+  const { stats } = useActiveCellState();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // Zoom — synced from set-zoom-ratio command params, accurate.
+  const [zoomPct, setZoomPct] = useState(100);
+  useEffect(() => {
+    if (!api) return;
+    const d = api.addEvent(api.Event.CommandExecuted, (e) => {
+      const info = e as { id?: string; params?: { zoomRatio?: number } };
+      if (info.id === 'sheet.command.set-zoom-ratio' && typeof info.params?.zoomRatio === 'number') {
+        setZoomPct(Math.round(info.params.zoomRatio * 100));
+      }
+    });
+    return () => d.dispose();
+  }, [api]);
+
+  const applyZoom = (pct: number) => {
+    if (!api) return;
+    const clamped = Math.max(25, Math.min(400, pct));
+    setZoomPct(clamped);
+    setZoom(api, clamped / 100);
+  };
+
   const startRename = (id: string, currentName: string) => {
     setEditingId(id);
     setDraftName(currentName);
   };
-
   const commitRename = () => {
     if (!api || !editingId) return;
     renameSheet(api, editingId, draftName.trim());
     setEditingId(null);
     setDraftName('');
   };
-
   const cancelRename = () => {
     setEditingId(null);
     setDraftName('');
@@ -69,7 +92,6 @@ export function SheetTabs() {
           <SheetTabItem
             key={s.id}
             sheet={s}
-            index={i}
             active={s.id === activeSheetId}
             editing={editingId === s.id}
             draftName={draftName}
@@ -102,6 +124,16 @@ export function SheetTabs() {
         ))}
       </div>
 
+      {stats && stats.count > 0 && (
+        <div className="sheet-tabs__stats" data-testid="sheet-tabs-stats">
+          <span data-testid="stat-count">Count: {stats.count}</span>
+          <span data-testid="stat-sum">Sum: {NUM.format(stats.sum)}</span>
+          {stats.avg !== null && (
+            <span data-testid="stat-avg">Avg: {NUM.format(stats.avg)}</span>
+          )}
+        </div>
+      )}
+
       <div className="sheet-tabs__right">
         <button
           type="button"
@@ -125,6 +157,56 @@ export function SheetTabs() {
         >
           <Icon name="redo" size="sm" />
         </button>
+
+        <span className="sheet-tabs__sep" aria-hidden="true" />
+
+        <button
+          type="button"
+          className="sheet-tabs__action btn btn--icon"
+          data-testid="statusbar-zoom-out"
+          aria-label="Zoom out"
+          title="Zoom out"
+          onClick={() => {
+            const prev = [...ZOOM_STEPS].reverse().find((s) => s < zoomPct);
+            applyZoom(prev ?? 25);
+          }}
+        >
+          <Icon name="zoom_out" size="sm" />
+        </button>
+        <input
+          type="range"
+          min={25}
+          max={400}
+          step={5}
+          value={zoomPct}
+          data-testid="statusbar-zoom-slider"
+          aria-label="Zoom slider"
+          className="sheet-tabs__zoom-slider"
+          onChange={(e) => applyZoom(Number(e.target.value))}
+        />
+        <button
+          type="button"
+          className="sheet-tabs__action btn btn--icon"
+          data-testid="statusbar-zoom-in"
+          aria-label="Zoom in"
+          title="Zoom in"
+          onClick={() => {
+            const next = ZOOM_STEPS.find((s) => s > zoomPct);
+            applyZoom(next ?? 400);
+          }}
+        >
+          <Icon name="zoom_in" size="sm" />
+        </button>
+        <button
+          type="button"
+          className="sheet-tabs__zoom-label"
+          data-testid="statusbar-zoom-label"
+          aria-label="Reset zoom to 100%"
+          title="Reset to 100%"
+          onClick={() => applyZoom(100)}
+        >
+          {zoomPct}%
+        </button>
       </div>
     </div>
   );
@@ -132,7 +214,6 @@ export function SheetTabs() {
 
 type ItemProps = {
   sheet: { id: string; name: string };
-  index: number;
   active: boolean;
   editing: boolean;
   draftName: string;
@@ -173,7 +254,6 @@ function SheetTabItem({
   onDragEnd,
 }: ItemProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (editing) inputRef.current?.select();
   }, [editing]);
@@ -198,7 +278,6 @@ function SheetTabItem({
       onDoubleClick={onStartRename}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move';
-        // Required for Firefox: must set some data.
         e.dataTransfer.setData('text/plain', sheet.id);
         onDragStart();
       }}
@@ -244,12 +323,10 @@ function SheetTabItem({
             aria-label={`Delete ${sheet.name}`}
             title={canDelete ? `Delete ${sheet.name}` : "Can't delete the last sheet"}
             disabled={!canDelete}
-            // Stop propagation so the click doesn't also switch tabs.
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            // Don't let the drag handler eat the click.
             onMouseDown={(e) => e.stopPropagation()}
           >
             <Icon name="close" size="sm" />

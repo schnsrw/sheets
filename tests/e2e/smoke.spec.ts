@@ -11,7 +11,6 @@ test.describe('Smoke — app shell + Univer mount', () => {
     await expect(page.getByTestId('toolbar')).toBeVisible();
     await expect(page.getByTestId('formula-bar')).toBeVisible();
     await expect(page.getByTestId('grid-host')).toBeVisible();
-    await expect(page.getByTestId('statusbar')).toBeVisible();
     await expect(page.getByTestId('sheet-tabs')).toBeVisible();
   });
 

@@ -79,7 +79,7 @@
   /* Layout */
   --titlebar-h: 30px;
   --menubar-h: 28px;
-  --toolbar-h: 56px;
+  --toolbar-h: 40px;
   --formula-bar-h: 26px;
   --sheet-tabs-h: 28px;
   --statusbar-h: 24px;
@@ -231,26 +231,24 @@ button {
   background: var(--color-pressed);
 }
 
-/* ── Google-Sheets-style toolbar — rounded pill, single row ─────────────── */
+/* ── Flat toolbar row — matches the squared edges of the rest of the chrome.
+   Single row of icons on a soft grey strip, separated from the menubar
+   and formula bar by 1px divider lines. */
 .toolbar {
   display: flex;
   align-items: center;
   height: var(--toolbar-h);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  padding: 0 var(--space-5);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-divider);
+  padding: 0;
   z-index: 2;
 }
 
-/* Inner element is the visible "pill": light blue-grey, rounded corners.
-   All controls live inside it on a single baseline. */
 .toolbar__inner {
   display: inline-flex;
   align-items: center;
-  height: 40px;
-  background: var(--color-toolbar-pill);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-3);
+  height: 100%;
+  padding: 0 var(--space-5);
   gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -382,20 +380,20 @@ button {
   height: 26px;
 }
 
-/* Title bar */
+/* Title bar — white background, green icon accent (Google-Sheets style) */
 .titlebar {
   display: flex;
   align-items: center;
   gap: var(--space-5);
   height: var(--titlebar-h);
   padding: 0 var(--space-6);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   user-select: none;
-  letter-spacing: 0.01em;
-  box-shadow: var(--shadow-1);
+  letter-spacing: 0;
+  border-bottom: 1px solid var(--color-divider);
   z-index: 4;
 }
 
@@ -403,24 +401,24 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-  opacity: 0.95;
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
 }
 
 .titlebar__brand-icon {
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--color-accent);
 }
 
 .titlebar__divider {
   width: 1px;
   height: 14px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--color-divider);
 }
 
 .titlebar__filename {
-  font-weight: var(--weight-medium);
-  letter-spacing: 0;
+  font-weight: var(--weight-regular);
+  color: var(--color-text-secondary);
 }
-
 
 .titlebar__spacer {
   flex: 1;
@@ -474,21 +472,11 @@ button {
   border-bottom-color: var(--color-accent);
 }
 
+/* (Legacy — kept in case any flow still mounts the old tabbed ribbon's
+   File tab; current shell uses MenuBar instead.) */
 .ribbon__tab--file {
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  border-bottom-color: transparent;
-  margin-right: var(--space-2);
-}
-
-.ribbon__tab--file:hover {
-  background: var(--color-accent-hover);
-  color: var(--color-text-on-accent);
-}
-
-.ribbon__tab--file:active,
-.ribbon__tab--file[aria-expanded="true"] {
-  background: var(--color-accent-active);
+  background: transparent;
+  color: var(--color-text);
 }
 
 .ribbon__body {
@@ -707,13 +695,13 @@ button {
   cursor: pointer;
 }
 
-/* Formula bar */
+/* Formula bar — same 1px divider strip as the rest of the chrome. */
 .formula-bar {
   display: flex;
   align-items: stretch;
   height: var(--formula-bar-h);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-divider);
   z-index: 2;
 }
 

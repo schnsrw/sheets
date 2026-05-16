@@ -1,0 +1,44 @@
+# Vendor — read-only Univer source clone, kept locally for research.
+# Bootstrap on a fresh checkout:
+#   git clone --depth 1 https://github.com/dream-num/univer.git vendor/univer
+vendor/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Playwright
+test-results/
+playwright-report/
+.playwright/
+blob-report/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+.vscode/
+# .idea/ is kept (IntelliJ project metadata committed intentionally)

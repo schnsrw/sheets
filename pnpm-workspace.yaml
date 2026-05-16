@@ -1,0 +1,6 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# vendor/univer is a read-only clone of dream-num/univer for source-level study.
+# Do NOT include it in the workspace.

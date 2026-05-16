@@ -1,0 +1,14 @@
+# Normalize line endings across platforms.
+* text=auto eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Treat lockfiles as text but never auto-format / diff visually.
+pnpm-lock.yaml -diff

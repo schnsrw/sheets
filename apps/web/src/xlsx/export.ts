@@ -2,6 +2,12 @@ import ExcelJS from 'exceljs';
 import type { IStyleData, IWorkbookData } from '@univerjs/core';
 import { univerStyleToExcel } from './style-mapping';
 
+type ICellSnapshot = {
+  v?: string | number | boolean;
+  f?: string;
+  s?: string | IStyleData;
+};
+
 /**
  * Convert a Univer `IWorkbookData` snapshot to an .xlsx Blob.
  * See `import.ts` for the fidelity scope (same coverage in both directions).
@@ -61,9 +67,3 @@ export async function workbookDataToXlsx(data: IWorkbookData): Promise<Blob> {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 }
-
-type ICellSnapshot = {
-  v?: string | number | boolean;
-  f?: string;
-  s?: string | IStyleData;
-};

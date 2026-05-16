@@ -1,0 +1,20 @@
+Casual Sheets
+Copyright 2026 Casual Sheets contributors
+
+This product includes software developed at DreamNum Co., Ltd:
+  Univer (https://github.com/dream-num/univer)
+  Copyright 2023-present DreamNum Co., Ltd
+  Licensed under the Apache License, Version 2.0.
+
+This product depends on the following Open Source software at runtime
+(non-exhaustive — see apps/web/package.json for the full dependency list):
+
+  * @univerjs/*     — Apache-2.0   (DreamNum)
+  * exceljs         — MIT          (Guyon Roche)
+  * react           — MIT          (Meta Platforms, Inc.)
+  * rxjs            — Apache-2.0   (Ben Lesh)
+  * vite            — MIT          (Evan You)
+
+A clone of the upstream Univer source is kept under vendor/univer for
+research / cross-reference. It is not part of our build output. See
+vendor/univer/LICENSE for its original terms.

@@ -78,4 +78,6 @@ git clone --depth 1 https://github.com/dream-num/univer.git vendor/univer
 
 ## License
 
-Project code: TBD. Vendored Univer source is Apache-2.0 (DreamNum Co., Ltd.).
+Apache-2.0. See [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE) for attribution.
+
+Vendored Univer source (`vendor/univer/`) keeps its upstream Apache-2.0 license; we do not modify it and it is not part of our build.

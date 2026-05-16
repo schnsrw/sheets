@@ -41,6 +41,7 @@ import '@univerjs/engine-formula/facade';
 
 import { LOCALES } from './locale';
 import { useSetUniverAPI } from './use-univer';
+import { extendContextMenu } from './context-menu-extensions';
 
 type Props = { snapshot: IWorkbookData };
 
@@ -87,6 +88,9 @@ export function UniverSheet({ snapshot }: Props) {
     univer.registerPlugin(UniverSheetsFilterUIPlugin);
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, snapshot);
+
+    // Augment the built-in cell context menu with Merge / Unmerge entries.
+    extendContextMenu(univer);
 
     const api = FUniver.newAPI(univer);
     setApi(api);

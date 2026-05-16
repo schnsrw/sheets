@@ -36,3 +36,16 @@ export function deleteSheetById(api: FUniver, sheetId: string): boolean {
 export function addSheet(api: FUniver) {
   api.getActiveWorkbook()?.insertSheet();
 }
+
+/**
+ * Move a sheet to a new index in the tab order.
+ */
+export function moveSheetTo(api: FUniver, sheetId: string, toIndex: number) {
+  const wb = api.getActiveWorkbook();
+  if (!wb) return;
+  const sheets = wb.getSheets();
+  const sheet = sheets.find((s) => s.getSheetId() === sheetId);
+  if (!sheet) return;
+  const clamped = Math.max(0, Math.min(toIndex, sheets.length - 1));
+  wb.moveSheet(sheet, clamped);
+}

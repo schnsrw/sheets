@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUniverAPI } from '../use-univer';
 import { useSheets } from '../hooks/useSheets';
-import { addSheet, deleteSheetById, renameSheet, switchToSheet } from './sheet-actions';
+import {
+  addSheet,
+  deleteSheetById,
+  moveSheetTo,
+  renameSheet,
+  switchToSheet,
+} from './sheet-actions';
 import { Icon } from './Icon';
-import { Popover } from './Popover';
 
 /**
- * Excel-style sheet tab strip. Lives between the grid and the status bar.
- *   - Click a tab to switch sheets.
- *   - Double-click to rename (Enter to commit, Esc to revert).
- *   - Right-click for a context menu with Rename / Delete.
- *   - "+" button at the end adds a new sheet.
+ * Excel-style sheet tab strip.
+ *   - "+" button on the left adds a sheet.
+ *   - Click a tab to switch.
+ *   - Double-click a tab to rename inline (Enter commits, Esc reverts).
+ *   - Hover a tab to reveal an "×" — click to delete (disabled on last sheet).
+ *   - Drag a tab to reorder.
+ *
+ * Intentionally no right-click context menu — the X + drag pattern is
+ * lighter-weight and easier to discover than a menu.
  */
 export function SheetTabs() {
   const api = useUniverAPI();
@@ -18,9 +27,8 @@ export function SheetTabs() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
-  const [contextMenu, setContextMenu] = useState<{ sheetId: string; x: number; y: number } | null>(
-    null,
-  );
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const startRename = (id: string, currentName: string) => {
     setEditingId(id);
@@ -39,6 +47,8 @@ export function SheetTabs() {
     setDraftName('');
   };
 
+  const canDelete = sheets.length > 1;
+
   return (
     <div className="sheet-tabs" data-testid="sheet-tabs" role="tablist">
       <button
@@ -54,59 +64,66 @@ export function SheetTabs() {
       </button>
 
       <div className="sheet-tabs__list">
-        {sheets.map((s) => (
+        {sheets.map((s, i) => (
           <SheetTabItem
             key={s.id}
             sheet={s}
+            index={i}
             active={s.id === activeSheetId}
             editing={editingId === s.id}
             draftName={draftName}
+            canDelete={canDelete}
+            isDragging={draggingId === s.id}
+            isDropTarget={dragOverIndex === i && draggingId !== null && draggingId !== s.id}
             onSwitch={() => api && switchToSheet(api, s.id)}
             onStartRename={() => startRename(s.id, s.name)}
             onDraftChange={setDraftName}
             onCommit={commitRename}
             onCancel={cancelRename}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setContextMenu({ sheetId: s.id, x: e.clientX, y: e.clientY });
+            onDelete={() => api && deleteSheetById(api, s.id)}
+            onDragStart={() => setDraggingId(s.id)}
+            onDragOverIndex={() => setDragOverIndex(i)}
+            onDragLeaveIndex={() =>
+              setDragOverIndex((prev) => (prev === i ? null : prev))
+            }
+            onDrop={() => {
+              if (api && draggingId && draggingId !== s.id) {
+                moveSheetTo(api, draggingId, i);
+              }
+              setDraggingId(null);
+              setDragOverIndex(null);
+            }}
+            onDragEnd={() => {
+              setDraggingId(null);
+              setDragOverIndex(null);
             }}
           />
         ))}
       </div>
-
-      {contextMenu && (
-        <SheetContextMenu
-          sheetId={contextMenu.sheetId}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          onRename={() => {
-            const sheet = sheets.find((s) => s.id === contextMenu.sheetId);
-            if (sheet) startRename(sheet.id, sheet.name);
-            setContextMenu(null);
-          }}
-          onDelete={() => {
-            if (api) deleteSheetById(api, contextMenu.sheetId);
-            setContextMenu(null);
-          }}
-          canDelete={sheets.length > 1}
-        />
-      )}
     </div>
   );
 }
 
 type ItemProps = {
   sheet: { id: string; name: string };
+  index: number;
   active: boolean;
   editing: boolean;
   draftName: string;
+  canDelete: boolean;
+  isDragging: boolean;
+  isDropTarget: boolean;
   onSwitch: () => void;
   onStartRename: () => void;
   onDraftChange: (v: string) => void;
   onCommit: () => void;
   onCancel: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
+  onDelete: () => void;
+  onDragStart: () => void;
+  onDragOverIndex: () => void;
+  onDragLeaveIndex: () => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 };
 
 function SheetTabItem({
@@ -114,30 +131,62 @@ function SheetTabItem({
   active,
   editing,
   draftName,
+  canDelete,
+  isDragging,
+  isDropTarget,
   onSwitch,
   onStartRename,
   onDraftChange,
   onCommit,
   onCancel,
-  onContextMenu,
+  onDelete,
+  onDragStart,
+  onDragOverIndex,
+  onDragLeaveIndex,
+  onDrop,
+  onDragEnd,
 }: ItemProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.select();
-    }
+    if (editing) inputRef.current?.select();
   }, [editing]);
+
+  const className = [
+    'sheet-tab',
+    active && 'sheet-tab--active',
+    isDragging && 'sheet-tab--dragging',
+    isDropTarget && 'sheet-tab--drop-target',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
       role="tab"
       aria-selected={active}
-      className={`sheet-tab${active ? ' sheet-tab--active' : ''}`}
+      className={className}
       data-testid={`sheet-tab-${sheet.id}`}
+      draggable={!editing}
       onClick={() => !editing && onSwitch()}
       onDoubleClick={onStartRename}
-      onContextMenu={onContextMenu}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        // Required for Firefox: must set some data.
+        e.dataTransfer.setData('text/plain', sheet.id);
+        onDragStart();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        onDragOverIndex();
+      }}
+      onDragLeave={onDragLeaveIndex}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      onDragEnd={onDragEnd}
     >
       {editing ? (
         <input
@@ -160,66 +209,27 @@ function SheetTabItem({
           }}
         />
       ) : (
-        <span className="sheet-tab__label">{sheet.name}</span>
+        <>
+          <span className="sheet-tab__label">{sheet.name}</span>
+          <button
+            type="button"
+            className="sheet-tab__close"
+            data-testid={`sheet-tab-close-${sheet.id}`}
+            aria-label={`Delete ${sheet.name}`}
+            title={canDelete ? `Delete ${sheet.name}` : "Can't delete the last sheet"}
+            disabled={!canDelete}
+            // Stop propagation so the click doesn't also switch tabs.
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            // Don't let the drag handler eat the click.
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Icon name="close" size="sm" />
+          </button>
+        </>
       )}
     </div>
-  );
-}
-
-function SheetContextMenu({
-  x,
-  y,
-  onClose,
-  onRename,
-  onDelete,
-  canDelete,
-}: {
-  sheetId: string;
-  x: number;
-  y: number;
-  onClose: () => void;
-  onRename: () => void;
-  onDelete: () => void;
-  canDelete: boolean;
-}) {
-  // We want a popover positioned at (x, y), not anchored to a DOM element.
-  // Build a synthetic anchor ref so we can reuse <Popover>'s positioning code.
-  const fakeAnchor = useRef<HTMLDivElement>(null);
-
-  return (
-    <>
-      <div
-        ref={fakeAnchor}
-        style={{
-          position: 'fixed',
-          left: x,
-          top: y - 8, // popover positions below; offset so menu opens at cursor
-          width: 0,
-          height: 0,
-          pointerEvents: 'none',
-        }}
-      />
-      <Popover
-        anchorRef={fakeAnchor}
-        onClose={onClose}
-        data-testid="sheet-context-menu"
-      >
-        <button type="button" className="menu__item" role="menuitem" onClick={onRename}>
-          <Icon name="edit" size="sm" className="menu__item-icon" />
-          <span>Rename</span>
-        </button>
-        <button
-          type="button"
-          className="menu__item"
-          role="menuitem"
-          data-testid="sheet-context-menu-delete"
-          disabled={!canDelete}
-          onClick={onDelete}
-        >
-          <Icon name="delete" size="sm" className="menu__item-icon" />
-          <span>Delete</span>
-        </button>
-      </Popover>
-    </>
   );
 }

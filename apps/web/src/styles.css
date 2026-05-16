@@ -659,7 +659,8 @@ button {
 .sheet-tab {
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--space-5);
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-5);
   height: 100%;
   cursor: pointer;
   color: var(--color-text-secondary);
@@ -672,6 +673,7 @@ button {
   user-select: none;
   font-weight: var(--weight-medium);
   letter-spacing: 0.01em;
+  position: relative;
 }
 
 .sheet-tab:hover {
@@ -684,6 +686,52 @@ button {
   color: var(--color-accent);
   font-weight: var(--weight-semibold);
   box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.sheet-tab--dragging {
+  opacity: 0.4;
+}
+
+.sheet-tab--drop-target {
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+/* Hover-revealed × on each tab */
+.sheet-tab__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: 50%;
+  opacity: 0;
+  cursor: pointer;
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+.sheet-tab__close .icon {
+  font-size: 12px;
+}
+
+.sheet-tab:hover .sheet-tab__close,
+.sheet-tab--active .sheet-tab__close {
+  opacity: 1;
+}
+
+.sheet-tab__close:hover:not(:disabled) {
+  background: var(--color-pressed);
+  color: var(--color-text);
+}
+
+.sheet-tab__close:disabled {
+  opacity: 0;
+  cursor: not-allowed;
 }
 
 .sheet-tab__input {

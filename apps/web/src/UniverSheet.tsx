@@ -29,7 +29,7 @@ import { UniverSheetsHyperLinkPlugin } from '@univerjs/sheets-hyper-link';
 import { UniverSheetsHyperLinkUIPlugin } from '@univerjs/sheets-hyper-link-ui';
 import { UniverSheetsNotePlugin } from '@univerjs/sheets-note';
 import { UniverSheetsNoteUIPlugin } from '@univerjs/sheets-note-ui';
-import { UniverSheetsTablePlugin } from '@univerjs/sheets-table';
+import { SheetTableService, UniverSheetsTablePlugin } from '@univerjs/sheets-table';
 import { UniverSheetsTableUIPlugin } from '@univerjs/sheets-table-ui';
 import { UniverSheetsThreadCommentPlugin } from '@univerjs/sheets-thread-comment';
 import { UniverSheetsThreadCommentUIPlugin } from '@univerjs/sheets-thread-comment-ui';
@@ -68,6 +68,7 @@ import '@univerjs/sheets-formula/facade';
 import '@univerjs/sheets-numfmt/facade';
 import '@univerjs/sheets-sort/facade';
 import '@univerjs/sheets-filter/facade';
+import '@univerjs/sheets-table/facade';
 import '@univerjs/docs-ui/facade';
 import '@univerjs/ui/facade';
 import '@univerjs/engine-formula/facade';
@@ -81,6 +82,7 @@ type Props = { snapshot: IWorkbookData };
 declare global {
   interface Window {
     __univerAPI?: FUniver;
+    __getTableStyleId__?: (tableId: string) => string | undefined;
   }
 }
 
@@ -161,6 +163,17 @@ export function UniverSheet({ snapshot }: Props) {
 
     if (import.meta.env.DEV) {
       window.__univerAPI = api;
+      // Test helper: expose the underlying Table's tableStyleId, which the
+      // public facade (FWorkbook.getTableList) intentionally strips.
+      window.__getTableStyleId__ = (tableId: string) => {
+        const wb = api.getActiveWorkbook();
+        if (!wb) return undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const svc = (wb as any)._injector?.get(SheetTableService) as
+          | { _tableManager?: { getTable: (u: string, t: string) => { getTableStyleId: () => string } | undefined } }
+          | undefined;
+        return svc?._tableManager?.getTable(wb.getId(), tableId)?.getTableStyleId();
+      };
     }
 
     return () => {
@@ -175,6 +188,7 @@ export function UniverSheet({ snapshot }: Props) {
       queueMicrotask(() => toDispose.dispose());
       if (import.meta.env.DEV) {
         delete window.__univerAPI;
+        delete window.__getTableStyleId__;
       }
     };
     // Mount Univer exactly once. Snapshot changes are handled by the swap

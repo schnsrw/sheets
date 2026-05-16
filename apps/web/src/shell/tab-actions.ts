@@ -1,4 +1,5 @@
 import type { FUniver } from '@univerjs/core/facade';
+import type { FRange } from '@univerjs/sheets/facade';
 
 /** Imperative dispatchers used by Insert / Formulas / Data tabs. */
 
@@ -284,6 +285,118 @@ export function insertTable(api: FUniver) {
       endColumn: range.getColumn() + range.getWidth() - 1,
     },
   });
+}
+
+/**
+ * Univer ships six built-in table themes: indigo, teal, green, purple,
+ * pink, red. Surfaced as the Format-as-Table dropdown swatches.
+ */
+export const TABLE_THEMES = [
+  { id: 'table-default-0', label: 'Indigo', swatch: '#6280F9' },
+  { id: 'table-default-1', label: 'Teal', swatch: '#16BDCA' },
+  { id: 'table-default-2', label: 'Green', swatch: '#31C48D' },
+  { id: 'table-default-3', label: 'Purple', swatch: '#AC94FA' },
+  { id: 'table-default-4', label: 'Pink', swatch: '#F17EBB' },
+  { id: 'table-default-5', label: 'Red', swatch: '#F98080' },
+] as const;
+
+export type TableThemeId = (typeof TABLE_THEMES)[number]['id'];
+
+/**
+ * Convert the active selection — or the contiguous data block around a
+ * single-cell selection — into a styled Univer table, then auto-fit its
+ * column widths. Mirrors Excel's "Format as Table".
+ */
+export function formatAsTable(api: FUniver, themeId?: TableThemeId) {
+  const wb = api.getActiveWorkbook();
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!wb || !sheet || !range) return;
+
+  const bounds = detectTableBounds(api, range);
+  if (!bounds) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fws = sheet as any;
+  if (typeof fws.addTable !== 'function') return;
+
+  const id = `table-${Date.now().toString(36)}`;
+  const name = `Table_${Date.now().toString(36)}`;
+  const options = themeId ? { tableStyleId: themeId } : undefined;
+  const result = fws.addTable(name, bounds, id, options);
+
+  const after = () => {
+    const sheetAny = sheet as unknown as {
+      setColumnAutoWidth?: (col: number, n: number) => unknown;
+    };
+    sheetAny.setColumnAutoWidth?.(
+      bounds.startColumn,
+      bounds.endColumn - bounds.startColumn + 1,
+    );
+  };
+  if (result && typeof (result as Promise<boolean>).then === 'function') {
+    (result as Promise<boolean>).then(after).catch(() => {});
+  } else {
+    after();
+  }
+}
+
+/**
+ * Expand a single-cell selection to the contiguous block of populated cells
+ * around it (Excel's "current region"). Multi-cell selections are trusted.
+ */
+function detectTableBounds(
+  api: FUniver,
+  range: FRange,
+): { startRow: number; startColumn: number; endRow: number; endColumn: number } | null {
+  const isMulti = range.getWidth() * range.getHeight() > 1;
+  if (isMulti) {
+    return {
+      startRow: range.getRow(),
+      startColumn: range.getColumn(),
+      endRow: range.getRow() + range.getHeight() - 1,
+      endColumn: range.getColumn() + range.getWidth() - 1,
+    };
+  }
+
+  const sheet = api.getActiveWorkbook()?.getActiveSheet();
+  if (!sheet) return null;
+
+  const startRow0 = range.getRow();
+  const startCol0 = range.getColumn();
+
+  const hasValue = (r: number, c: number): boolean => {
+    try {
+      const cd = sheet.getRange(r, c).getCellData();
+      const v = cd?.v;
+      return v !== undefined && v !== null && v !== '';
+    } catch {
+      return false;
+    }
+  };
+
+  // Empty starting cell → return a 1×1 range so the user gets an empty table.
+  if (!hasValue(startRow0, startCol0)) {
+    return {
+      startRow: startRow0,
+      startColumn: startCol0,
+      endRow: startRow0,
+      endColumn: startCol0,
+    };
+  }
+
+  let top = startRow0;
+  while (top > 0 && hasValue(top - 1, startCol0)) top--;
+  let bottom = startRow0;
+  const maxRows = sheet.getMaxRows();
+  while (bottom < maxRows - 1 && hasValue(bottom + 1, startCol0)) bottom++;
+  let left = startCol0;
+  while (left > 0 && hasValue(top, left - 1)) left--;
+  let right = startCol0;
+  const maxCols = sheet.getMaxColumns();
+  while (right < maxCols - 1 && hasValue(top, right + 1)) right++;
+
+  return { startRow: top, startColumn: left, endRow: bottom, endColumn: right };
 }
 
 export function openConditionalFormatting(api: FUniver) {

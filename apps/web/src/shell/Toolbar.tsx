@@ -26,7 +26,16 @@ import {
   type BorderChoice,
   type NumberFormatKey,
 } from './home-tab-actions';
-import { applyAutoFunction, insertComment, insertHyperlink, sortRange, toggleFilter } from './tab-actions';
+import {
+  TABLE_THEMES,
+  applyAutoFunction,
+  formatAsTable,
+  insertComment,
+  insertHyperlink,
+  sortRange,
+  toggleFilter,
+  type TableThemeId,
+} from './tab-actions';
 import {
   RibbonGroup,
   ToolbarButton,
@@ -224,6 +233,26 @@ export function Toolbar() {
             ]}
             onDefault={() => api && applyAutoFunction(api, 'SUM')}
             onChoose={(id) => api && applyAutoFunction(api, id as 'SUM' | 'AVERAGE' | 'COUNT' | 'MIN' | 'MAX')}
+          />
+          <ToolbarDropdown
+            id="format-as-table"
+            label="Format as Table"
+            icon="table_rows"
+            disabled={!ready}
+            items={[
+              { id: 'plain', label: 'Plain (no style)', icon: 'grid_on' },
+              ...TABLE_THEMES.map((t) => ({
+                id: t.id,
+                label: t.label,
+                icon: 'table_chart',
+              })),
+            ]}
+            onDefault={() => api && formatAsTable(api, 'table-default-0')}
+            onChoose={(id) => {
+              if (!api) return;
+              if (id === 'plain') formatAsTable(api, undefined);
+              else formatAsTable(api, id as TableThemeId);
+            }}
           />
           <ToolbarButton id="insert-comment" label="Insert comment" icon="add_comment" disabled={!ready} onClick={() => api && insertComment(api)} />
           <ToolbarButton id="insert-hyperlink" label="Insert hyperlink (Ctrl+K)" icon="link" disabled={!ready} onClick={() => api && insertHyperlink(api)} />

@@ -51,6 +51,7 @@ import {
   insertRowBelow,
   insertTable,
   openConditionalFormatting,
+  openCustomSort,
   openDataValidation,
   removeDuplicates,
   showAllRows,
@@ -264,6 +265,8 @@ export function MenuBar() {
     data: {
       label: 'Data',
       items: [
+        { kind: 'item', id: 'sort-custom', label: 'Sort range…', icon: 'sort', run: openCustomSort },
+        { kind: 'separator', id: 'sep-0' },
         { kind: 'item', id: 'data-validation', label: 'Data validation…', icon: 'rule', run: openDataValidation },
         { kind: 'item', id: 'conditional-formatting', label: 'Conditional formatting…', icon: 'palette', run: openConditionalFormatting },
         { kind: 'separator', id: 'sep-1' },

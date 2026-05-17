@@ -254,6 +254,15 @@ export function sortRange(api: FUniver, ascending: boolean) {
   withSort.sort?.({ column: range.getColumn(), ascending });
 }
 
+/**
+ * Open Univer's Custom Sort panel for the active range — supports multi-key
+ * sort (sort by A, then B, then C). The panel is shipped by sheets-sort-ui;
+ * we dispatch the command rather than building our own dialog.
+ */
+export function openCustomSort(api: FUniver) {
+  api.executeCommand('sheet.command.sort-range-custom');
+}
+
 /* ── Wave B — Insert / Data / View ──────────────────────────────────────── */
 
 export function insertHyperlink(api: FUniver) {

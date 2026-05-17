@@ -4,7 +4,7 @@
 [![Deploy](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen)](#develop)
-[![E2E tests](https://img.shields.io/badge/e2e-120%20passing-brightgreen)](./tests/e2e)
+[![E2E tests](https://img.shields.io/badge/e2e-127%20passing-brightgreen)](./tests/e2e)
 
 **Live demo: <https://sheet.schnsrw.live/>** — auto-deployed from `main` on every push (CI → Pages).
 
@@ -14,11 +14,11 @@ The goal: feel like Excel, not like Google Sheets — ribbon, formula bar, file-
 
 ## Status
 
-Phase 1 — single-user editor is feature-rich and locked down by 120 Playwright tests. Multi-user (Yjs + Hocuspocus) comes next.
+Phase 1 — single-user editor is feature-rich and locked down by 127 Playwright tests. Multi-user (Yjs + Hocuspocus) comes next.
 
 - **CI** runs `lint`, `typecheck`, and the full Playwright suite on every PR and `main` push ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 - **Deploy** publishes `apps/web` to GitHub Pages on every `main` push ([`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)).
-- **Tests**: 120 e2e specs in [`tests/e2e/`](./tests/e2e); xlsx / ods / csv / tsv round-trip, hyperlinks, drag-fill, drag-and-drop file open, formula evaluation, tables, freeze, comments, and more.
+- **Tests**: 127 e2e specs in [`tests/e2e/`](./tests/e2e); xlsx / ods / csv / tsv round-trip, hyperlinks, drag-fill, drag-and-drop file open, formula evaluation, tables, freeze, comments, and more.
 - **Live URL**: <https://sheet.schnsrw.live/>
 
 | Working | Coming |
@@ -43,7 +43,9 @@ Phase 1 — single-user editor is feature-rich and locked down by 120 Playwright
 | Freeze panes (top row / first column / at selection) | |
 | Sheet tabs at the bottom (add / rename / delete / reorder) | |
 | Auto-fit column / row | |
-| Print active sheet (Ctrl+P, headless render to iframe) | |
+| Print active sheet with Page Setup (orientation + margins, prefs persist) | |
+| Border color picker (preset swatches + custom color) | |
+| Multi-column sort dialog (Data → Sort range…) | |
 | File menu with Properties dialog | |
 | Dynamic workbook growth — 1024×128 → 8192×1024 | |
 | Material Symbols icons, Inter typography | |

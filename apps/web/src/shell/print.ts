@@ -1,5 +1,53 @@
 import type { FUniver } from '@univerjs/core/facade';
 
+export type PrintOrientation = 'portrait' | 'landscape';
+export type PrintMarginPreset = 'narrow' | 'normal' | 'wide';
+
+export type PrintOptions = {
+  orientation: PrintOrientation;
+  margins: PrintMarginPreset;
+};
+
+export const DEFAULT_PRINT_OPTIONS: PrintOptions = {
+  orientation: 'portrait',
+  margins: 'normal',
+};
+
+const MARGIN_MM: Record<PrintMarginPreset, number> = {
+  narrow: 6.35,
+  normal: 18,
+  wide: 25,
+};
+
+const STORAGE_KEY = 'casual-sheets/print-options';
+
+/**
+ * Read previously-chosen print options from localStorage. Returns the
+ * defaults if nothing is stored or the stored value looks malformed.
+ */
+export function loadPrintOptions(): PrintOptions {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PRINT_OPTIONS;
+    const parsed = JSON.parse(raw) as Partial<PrintOptions>;
+    const orientation: PrintOrientation =
+      parsed.orientation === 'landscape' ? 'landscape' : 'portrait';
+    const margins: PrintMarginPreset =
+      parsed.margins === 'narrow' || parsed.margins === 'wide' ? parsed.margins : 'normal';
+    return { orientation, margins };
+  } catch {
+    return DEFAULT_PRINT_OPTIONS;
+  }
+}
+
+export function savePrintOptions(options: PrintOptions): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
+  } catch {
+    /* private mode / storage full — silent, options just won't persist */
+  }
+}
+
 /**
  * Print the active sheet via the browser's native print dialog.
  *
@@ -12,7 +60,10 @@ import type { FUniver } from '@univerjs/core/facade';
  * Loss: formulas show their evaluated value (Excel's normal print behavior),
  * column widths are approximated, drawings/charts are not included.
  */
-export function printActiveSheet(api: FUniver): void {
+export function printActiveSheet(
+  api: FUniver,
+  options: PrintOptions = DEFAULT_PRINT_OPTIONS,
+): void {
   const wb = api.getActiveWorkbook();
   if (!wb) return;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,13 +105,16 @@ export function printActiveSheet(api: FUniver): void {
     colWidths.push(`<col style="width:${Math.round(w)}px" />`);
   }
 
+  const marginMm = MARGIN_MM[options.margins];
+  const pageRule = `@page { size: A4 ${options.orientation}; margin: ${marginMm}mm; }`;
+
   const html = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
 <title>${escapeHtml(workbookName)} — ${escapeHtml(sheetName)}</title>
 <style>
-  @page { margin: 12mm; }
+  ${pageRule}
   body { font: 11pt Inter, system-ui, sans-serif; color: #1a1a1a; margin: 0; }
   h1 { font-size: 14pt; margin: 0 0 8pt; font-weight: 600; }
   .meta { color: #6b7280; font-size: 9pt; margin-bottom: 8pt; }

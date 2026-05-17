@@ -44,6 +44,10 @@ test('File → Print injects an HTML render of the active sheet', async ({ page 
   await page.getByTestId('menubar-file').click();
   await page.getByTestId('menu-item-print').click();
 
+  // File → Print opens the Page Setup dialog first; click its Print button
+  // to actually fire the underlying printActiveSheet call.
+  await page.getByTestId('page-setup-print').click();
+
   // The iframe is briefly attached. Grab its srcdoc and inspect.
   const srcdoc = await page.waitForFunction(
     () => {

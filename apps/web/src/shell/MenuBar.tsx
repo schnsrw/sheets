@@ -15,7 +15,8 @@ import {
   saveAsTsv,
   saveAsXlsx,
 } from './file-actions';
-import { printActiveSheet } from './print';
+import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
+import { PageSetupDialog } from './PageSetupDialog';
 import { openBugReport } from './report-bug';
 import { useOutlineActions } from '../outline/use-outline-actions';
 import { useOutline } from '../outline/outline-context';
@@ -100,6 +101,7 @@ export function MenuBar() {
   const [open, setOpen] = useState<MenuId | null>(null);
   const [showProperties, setShowProperties] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showPageSetup, setShowPageSetup] = useState(false);
 
   const onClose = () => setOpen(null);
 
@@ -114,7 +116,7 @@ export function MenuBar() {
       if (mod && !e.altKey) {
         if (k === 'p' && !e.shiftKey) {
           e.preventDefault();
-          if (api) printActiveSheet(api);
+          if (api) setShowPageSetup(true);
         } else if (k === 's' && !e.shiftKey) {
           e.preventDefault();
           void handleSave();
@@ -189,7 +191,7 @@ export function MenuBar() {
           ],
         },
         { kind: 'separator', id: 'sep-1' },
-        { kind: 'item', id: 'print', label: 'Print', icon: 'print', shortcut: 'Ctrl+P', onClick: () => api && printActiveSheet(api) },
+        { kind: 'item', id: 'print', label: 'Print', icon: 'print', shortcut: 'Ctrl+P', onClick: () => setShowPageSetup(true) },
         { kind: 'separator', id: 'sep-2' },
         { kind: 'item', id: 'properties', label: 'Properties', icon: 'info', onClick: () => setShowProperties(true) },
       ],
@@ -345,6 +347,18 @@ export function MenuBar() {
       )}
 
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+
+      {showPageSetup && (
+        <PageSetupDialog
+          initial={loadPrintOptions()}
+          onCancel={() => setShowPageSetup(false)}
+          onPrint={(options) => {
+            savePrintOptions(options);
+            setShowPageSetup(false);
+            if (api) printActiveSheet(api, options);
+          }}
+        />
+      )}
     </>
   );
 }

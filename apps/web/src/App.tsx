@@ -5,6 +5,7 @@ import { MenuBar } from './shell/MenuBar';
 import { Toolbar } from './shell/Toolbar';
 import { FormulaBar } from './shell/FormulaBar';
 import { SheetTabs } from './shell/SheetTabs';
+import { TablesPanel } from './shell/TablesPanel';
 import { UniverSheet } from './UniverSheet';
 import { emptyWorkbook } from './snapshot';
 import { UniverRoot } from './UniverRoot';
@@ -15,6 +16,7 @@ import { UIContext, type UICtxValue } from './ui-context';
 export function App() {
   const [snapshot, setSnapshot] = useState<IWorkbookData>(() => emptyWorkbook());
   const [formulaBarVisible, setFormulaBarVisible] = useState(true);
+  const [tablesPanelVisible, setTablesPanelVisible] = useState(false);
 
   const replaceWorkbook = useCallback((next: IWorkbookData) => {
     setSnapshot(next);
@@ -29,8 +31,10 @@ export function App() {
     () => ({
       formulaBarVisible,
       toggleFormulaBar: () => setFormulaBarVisible((v) => !v),
+      tablesPanelVisible,
+      toggleTablesPanel: () => setTablesPanelVisible((v) => !v),
     }),
-    [formulaBarVisible],
+    [formulaBarVisible, tablesPanelVisible],
   );
 
   return (
@@ -46,9 +50,12 @@ export function App() {
             <MenuBar />
             <Toolbar />
             {formulaBarVisible && <FormulaBar />}
-            <main className="grid-host" data-testid="grid-host">
-              <UniverSheet snapshot={snapshot} />
-            </main>
+            <div className="grid-row">
+              <main className="grid-host" data-testid="grid-host">
+                <UniverSheet snapshot={snapshot} />
+              </main>
+              {tablesPanelVisible && <TablesPanel />}
+            </div>
             <SheetTabs />
           </div>
         </WorkbookContext.Provider>

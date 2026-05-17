@@ -34,11 +34,25 @@ export function useWorkbookGrowth() {
       const selection = sheet.getActiveRange();
       if (!selection) return;
 
-      const lastRow = selection.getRow() + selection.getHeight() - 1;
-      const lastCol = selection.getColumn() + selection.getWidth() - 1;
+      const startRow = selection.getRow();
+      const startCol = selection.getColumn();
+      const lastRow = startRow + selection.getHeight() - 1;
+      const lastCol = startCol + selection.getWidth() - 1;
 
       const maxRows = sheet.getMaxRows();
       const maxCols = sheet.getMaxColumns();
+
+      // Skip growth on a Select-All selection. A click on the top-left
+      // corner (or Ctrl+A escalation) selects 0,0 .. maxRow-1,maxCol-1 —
+      // the user is selecting what exists, not asking to extend. Without
+      // this guard the growth hook would chase the edge in chunks until
+      // hitting MAX_ROWS, looping ~28 times and freezing the UI ~800ms.
+      const isSelectAll =
+        startRow === 0 &&
+        startCol === 0 &&
+        lastRow === maxRows - 1 &&
+        lastCol === maxCols - 1;
+      if (isSelectAll) return;
 
       // Use setRowCount / setColumnCount (Facade) — direct count bump, no
       // per-row undo overhead the way insertRowsAfter would incur.

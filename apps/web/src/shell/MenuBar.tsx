@@ -192,6 +192,7 @@ export function MenuBar() {
         { kind: 'item', id: 'remove-duplicates', label: 'Remove Duplicates', icon: 'filter_list_off', run: removeDuplicates },
         { kind: 'item', id: 'show-all-rows', label: 'Show all rows', icon: 'unfold_more', run: showAllRows },
         { kind: 'separator', id: 'sep-2' },
+        { kind: 'item', id: 'tables-panel', label: ui.tablesPanelVisible ? 'Hide Tables panel' : 'Tables panel', icon: 'table_rows', onClick: ui.toggleTablesPanel },
         { kind: 'item', id: 'comments-panel', label: 'Comments panel', icon: 'forum', run: toggleCommentPanel },
       ],
     },

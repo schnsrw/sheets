@@ -862,15 +862,178 @@ button {
   line-height: 1.35;
 }
 
+/* Row containing the grid host + any of our React side panels (Tables
+   panel today; more later). Univer's own side panels still mount inside
+   .grid-host because they hook into Univer's render tree. */
+.grid-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 /* Grid host — zone 0 (white). The grey sheet-tabs strip below provides
    the next layer break. */
 .grid-host {
   position: relative;
+  flex: 1;
   min-height: 0;
+  min-width: 0;
   background: var(--color-surface);
   overflow: hidden;
   z-index: 1;
   border-top: 1px solid var(--color-divider);
+}
+
+/* Our React-owned side panel (Tables for now). Sits to the right of the
+   grid, same tint as Univer's built-in sidebars so the surfaces feel
+   consistent. */
+.tables-panel {
+  width: 320px;
+  flex: 0 0 320px;
+  background: var(--color-surface-alt);
+  border-top: 1px solid var(--color-divider);
+  border-left: 1px solid var(--color-divider);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tables-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-divider);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.tables-panel__close {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.tables-panel__close:hover {
+  background: var(--color-surface-strip);
+  color: var(--color-text);
+}
+
+.tables-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.tables-panel__empty {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  padding: 6px 4px;
+}
+
+.tables-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tables-panel__row {
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name delete'
+    'range delete'
+    'themes themes';
+  row-gap: 6px;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.tables-panel__name {
+  grid-area: name;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.tables-panel__name-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tables-panel__name-input {
+  width: 100%;
+  font: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--color-accent);
+  border-radius: 3px;
+  background: var(--color-surface);
+}
+
+.tables-panel__range {
+  grid-area: range;
+  color: var(--color-text-secondary);
+  font-family:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+}
+
+.tables-panel__themes {
+  grid-area: themes;
+  display: flex;
+  gap: 4px;
+}
+
+.tables-panel__swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-divider);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tables-panel__swatch--active {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.tables-panel__delete {
+  grid-area: delete;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  align-self: start;
+}
+
+.tables-panel__delete:hover {
+  background: var(--color-danger-soft, #fde7e7);
+  color: var(--color-danger, #c4321a);
 }
 
 /* Univer side panels — Comments, Data Validation, Conditional Formatting,

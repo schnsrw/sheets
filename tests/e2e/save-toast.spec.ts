@@ -11,21 +11,29 @@ import { waitForUniver } from './_helpers';
  * from Sonner's internal markup.
  */
 test('File → Save shows a "Saved as …" toast', async ({ page }) => {
-  // Skip the actual browser download — clicking the anchor would trigger a
-  // file save dialog in headless mode and time out the test. We only care
-  // about the toast, which fires before/after the click regardless of
-  // whether the browser persists the file.
-  await page.addInitScript(() => {
-    HTMLAnchorElement.prototype.click = function () {};
-  });
-
   await page.goto('/');
   await waitForUniver(page);
+
+  // Suppress the actual download anchor click — we only care about the
+  // toast (which fires after triggerDownload). Use a targeted selector
+  // instead of overriding HTMLAnchorElement.prototype.click globally,
+  // which on slower CI runners can race with Univer's own initialization
+  // (one flake observed). The anchor has download=… attr; intercept that.
+  await page.addInitScript(() => {
+    const orig = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.hasAttribute('download')) return;
+      return orig.call(this);
+    };
+  });
 
   await page.getByTestId('menubar-file').click();
   await page.getByTestId('menu-item-save').click();
 
+  // Give Sonner a beat to mount the toast portal on first run (cold caches
+  // on CI take longer than local). 8s headroom over the prior 5s avoids the
+  // intermittent fail; toast actually appears in ~200 ms locally.
   await expect(page.getByText(/Saved as .+\.xlsx/i)).toBeVisible({
-    timeout: 5_000,
+    timeout: 8_000,
   });
 });

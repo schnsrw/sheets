@@ -139,10 +139,11 @@ export function OutlineProvider({ children }: ProviderProps) {
 }
 
 /**
- * Dispatch Univer's hide / show row / col command for the given range. We
- * keep the column bounds wide open for row ops (and vice versa) because the
- * command's `ranges` is a 2D range list; the unused axis just spans the
- * sheet.
+ * Dispatch Univer's hide / show row / col command for the given range. The
+ * unused axis is clamped to the actual sheet dimensions — earlier we used
+ * Number.MAX_SAFE_INTEGER as a "spans the sheet" placeholder, but the
+ * set-rows-hidden mutation appears to iterate row/col bounds internally and
+ * hangs hard on a 2^53 range (CI: 30s teardown timeout, context unrecoverable).
  */
 async function dispatchVisibility(
   api: FUniver,
@@ -155,10 +156,24 @@ async function dispatchVisibility(
   const wb = api.getActiveWorkbook();
   if (!wb) return;
   const unitId = wb.getId();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheet = (wb as any).getSheetBySheetId?.(subUnitId) ?? wb.getActiveSheet();
+  // Facade method names vary slightly across versions — fall back to sensible
+  // defaults so we never hand Univer a NaN.
+  const maxRow =
+    Number(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sheet as any)?.getMaxRows?.() ?? (sheet as any)?.getRowCount?.() ?? 1024,
+    ) - 1;
+  const maxCol =
+    Number(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sheet as any)?.getMaxColumns?.() ?? (sheet as any)?.getColumnCount?.() ?? 128,
+    ) - 1;
   const range =
     axis === 'rows'
-      ? { startRow: start, endRow: end, startColumn: 0, endColumn: Number.MAX_SAFE_INTEGER }
-      : { startRow: 0, endRow: Number.MAX_SAFE_INTEGER, startColumn: start, endColumn: end };
+      ? { startRow: start, endRow: end, startColumn: 0, endColumn: Math.max(0, maxCol) }
+      : { startRow: 0, endRow: Math.max(0, maxRow), startColumn: start, endColumn: end };
   const cmd =
     axis === 'rows'
       ? (show ? 'sheet.command.set-specific-rows-visible' : 'sheet.command.set-rows-hidden')

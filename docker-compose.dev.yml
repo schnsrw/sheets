@@ -1,0 +1,39 @@
+# Casual Sheets — development override.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Skips the prebuilt app image and runs the live Vite dev server + tsx
+# watcher with the workspace bind-mounted, so hot reload works inside the
+# container. Redis still comes from the same service in docker-compose.yml.
+#
+# For most local work, `pnpm dev:web` + `pnpm dev:server` on the host is
+# faster — this file is for parity-testing the Docker network setup
+# (Redis URL, WebSocket upgrade through the same container, etc.).
+
+services:
+  app:
+    # Override the runtime image with a Node-only base; we run pnpm dev
+    # against the bind-mount instead of executing a built artifact.
+    image: node:22-alpine
+    user: 'node'
+    working_dir: /app
+    command:
+      - sh
+      - -lc
+      - |
+        corepack enable && corepack prepare pnpm@10.33.4 --activate
+        pnpm install --frozen-lockfile
+        pnpm --filter @sheet/server dev &
+        pnpm --filter @sheet/web dev --host 0.0.0.0 &
+        wait
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/apps/server/node_modules
+    ports:
+      - '3000:3000' # server + Hocuspocus
+      - '5273:5273' # Vite dev server
+    environment:
+      # Vite serves on 5273; tell the bridge to point at the server on 3000.
+      VITE_COLLAB_WS_URL: ws://localhost:3000/yjs

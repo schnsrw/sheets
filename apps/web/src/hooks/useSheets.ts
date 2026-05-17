@@ -37,12 +37,21 @@ export function useSheets(): SheetsState {
 
     setState(compute());
 
+    const refresh = () => setState(compute());
     const disposables = [
-      api.addEvent(api.Event.SheetCreated, () => setState(compute())),
-      api.addEvent(api.Event.SheetDeleted, () => setState(compute())),
-      api.addEvent(api.Event.SheetNameChanged, () => setState(compute())),
-      api.addEvent(api.Event.ActiveSheetChanged, () => setState(compute())),
-      api.addEvent(api.Event.SheetMoved, () => setState(compute())),
+      api.addEvent(api.Event.SheetCreated, refresh),
+      api.addEvent(api.Event.SheetDeleted, refresh),
+      api.addEvent(api.Event.SheetNameChanged, refresh),
+      api.addEvent(api.Event.ActiveSheetChanged, refresh),
+      api.addEvent(api.Event.SheetMoved, refresh),
+      // File → Open / drag-drop swap the entire workbook unit. None of
+      // the SheetCreated / SheetMoved events fire for those — the sheets
+      // come in as part of the new unit's initial snapshot. Subscribe to
+      // unit creation so the tab strip refreshes when the user opens a
+      // multi-sheet xlsx. Deferred a tick because Univer emits
+      // unitAdded$ BEFORE setCurrentUnitForType — calling compute()
+      // synchronously here would still see the old active workbook.
+      api.onUniverSheetCreated(() => queueMicrotask(refresh)),
     ];
     return () => {
       for (const d of disposables) d.dispose();

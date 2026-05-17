@@ -15,6 +15,7 @@ import { WorkbookContext, type WorkbookCtxValue, type WorkbookFormat } from './w
 import { UIContext, type UICtxValue } from './ui-context';
 import { OutlineProvider } from './outline/outline-context';
 import { OutlinePanel } from './shell/OutlinePanel';
+import { CollabDriver } from './collab/CollabDriver';
 
 export function App() {
   const [snapshot, setSnapshot] = useState<IWorkbookData>(() => emptyWorkbook());
@@ -58,6 +59,7 @@ export function App() {
           <OutlineProvider>
             <GrowthDriver />
             <FileDropDriver />
+            <CollabDriver />
             <div
               className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
               data-testid="app-shell"

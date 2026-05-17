@@ -1,6 +1,12 @@
 # Casual Sheets
 
-**Live demo: <https://schnsrw.github.io/sheets/>** (deployed from `main` via GitHub Actions)
+[![CI](https://github.com/schnsrw/sheets/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/ci.yml)
+[![Deploy](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen)](#develop)
+[![E2E tests](https://img.shields.io/badge/e2e-107%20passing-brightgreen)](./tests/e2e)
+
+**Live demo: <https://schnsrw.github.io/sheets/>** — auto-deployed from `main` on every push (CI → Pages).
 
 A web-based, Excel-flavored spreadsheet editor with real-time collaboration on the roadmap. Built on [Univer](https://github.com/dream-num/univer) (Apache-2.0 OSS).
 
@@ -8,21 +14,33 @@ The goal: feel like Excel, not like Google Sheets — ribbon, formula bar, file-
 
 ## Status
 
-Phase 1 — single-user editor is feature-rich. Multi-user (Yjs + Hocuspocus) comes next.
+Phase 1 — single-user editor is feature-rich and locked down by 107 Playwright tests. Multi-user (Yjs + Hocuspocus) comes next.
+
+- **CI** runs `lint`, `typecheck`, and the full Playwright suite on every PR and `main` push ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
+- **Deploy** publishes `apps/web` to GitHub Pages on every `main` push ([`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)).
+- **Tests**: 107 e2e specs in [`tests/e2e/`](./tests/e2e); xlsx / ods / csv / tsv round-trip, hyperlinks, drag-fill, drag-and-drop file open, formula evaluation, tables, freeze, comments, and more.
+- **Live URL**: <https://schnsrw.github.io/sheets/>
 
 | Working | Coming |
 | --- | --- |
 | Office-style ribbon (Home / Insert / Formulas / Data) | Real-time co-editing |
 | Inline cell editing, F2, Backspace, Delete, Escape | Presence (cursors, avatars) |
-| Formula bar with Name Box, fx, live mirror | More ribbon tabs (Review / View) |
+| Formula bar with editable Name Box (type `B5` to jump) | More ribbon tabs (Review / View) |
 | Fonts (family + size), colors, fill, wrap, alignment | Charts |
 | Borders (split-button dropdown with 7 modes) | Pivot tables |
-| Cell merge + unmerge | Print / PDF |
-| AutoSum / Average / Count / Min / Max | WOPI host integration |
-| Sort ascending/descending, Filter | |
-| Open / Save As .xlsx (ExcelJS round-trip) | |
-| Sheet tabs at the bottom (add / rename / delete / switch) | |
+| Cell merge + unmerge | Group / outline rows + columns |
+| AutoSum / Average / Count / Min / Max | Recent-files / landing page |
+| Sort ascending/descending, Filter | WOPI host integration |
+| Open / Save .xlsx / .ods / .csv / .tsv (full round-trip) | |
+| Drag-and-drop file open + Save / Export toasts | |
+| Hyperlinks (import + export round-trip) | |
+| Drag-fill handle, Ctrl+D / Ctrl+R, relative-ref formula extension | |
+| Tables (Format as Table, themes, Tables panel) | |
+| Comments (with corner indicator markers) | |
+| Freeze panes (top row / first column / at selection) | |
+| Sheet tabs at the bottom (add / rename / delete / reorder) | |
 | Auto-fit column / row | |
+| Print active sheet (Ctrl+P, headless render to iframe) | |
 | File menu with Properties dialog | |
 | Dynamic workbook growth — 1024×128 → 8192×1024 | |
 | Material Symbols icons, Inter typography | |

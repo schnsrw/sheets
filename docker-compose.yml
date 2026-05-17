@@ -1,0 +1,57 @@
+# Casual Sheets — production-style compose.
+#
+#   docker compose up -d
+#   open http://localhost:3000
+#
+# Wires the single app image to a Redis container for Y.Doc persistence so
+# rooms survive restarts. Without Redis, the app still runs (in-memory
+# only) — see Dockerfile for the bare `docker run` form.
+
+services:
+  app:
+    image: schnsrw/casual-sheets:0.0.2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: casual-sheets
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '3000'
+      REDIS_URL: redis://redis:6379
+      # Eviction window for idle rooms (minutes). After the last client
+      # leaves and this elapses, the room is freed in-process and its
+      # Redis snapshot will also lapse via RedisStorage's 7-day TTL.
+      ROOM_TTL_MIN: '15'
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:3000/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    # Pinned minor version for reproducibility; alpine for size.
+    image: redis:7.4-alpine
+    container_name: casual-sheets-redis
+    restart: unless-stopped
+    # appendonly = persist writes to disk; keeps Y.Doc snapshots across
+    # `docker compose down` without committing to a heavyweight backup
+    # story for a v1 self-hosted deploy.
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

@@ -1,0 +1,45 @@
+# Source trees the image doesn't need
+.git
+.github
+.vscode
+.idea
+
+# Local dev clutter
+node_modules
+**/node_modules
+**/.vite
+**/dist
+**/build
+**/.next
+**/.turbo
+
+# Tests, fixtures, screenshots — not part of the runtime
+test-results
+playwright-report
+**/__tests__
+**/*.test.*
+**/*.spec.*
+
+# Editor / OS
+.DS_Store
+*.swp
+.env*
+!.env.example
+
+# Vendored read-only Univer clone (huge, not in repo anyway)
+vendor
+
+# Docs and standalone sites
+docs
+site
+*.md
+!README.md
+
+# Local docker artifacts
+docker-compose.override.yml
+
+# Coverage / logs
+coverage
+*.log
+npm-debug.log*
+pnpm-debug.log*

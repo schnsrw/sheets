@@ -4,7 +4,8 @@
 [![Deploy](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen)](#develop)
-[![E2E tests](https://img.shields.io/badge/e2e-127%20passing-brightgreen)](./tests/e2e)
+[![E2E tests](https://img.shields.io/badge/e2e-129%20passing-brightgreen)](./tests/e2e)
+[![Docker](https://img.shields.io/badge/docker-schnsrw%2Fcasual--sheets-blue?logo=docker)](https://hub.docker.com/r/schnsrw/casual-sheets)
 
 **Live demo: <https://sheet.schnsrw.live/>** — auto-deployed from `main` on every push (CI → Pages).
 
@@ -14,11 +15,12 @@ The goal: feel like Excel, not like Google Sheets — ribbon, formula bar, file-
 
 ## Status
 
-Phase 1 — single-user editor is feature-rich and locked down by 127 Playwright tests. Multi-user (Yjs + Hocuspocus) comes next.
+Phase 1 — single-user editor, feature-rich and locked down by 129 Playwright tests.
+Phase 2 — real-time co-editing (Yjs + Hocuspocus + Redis persistence), shipped as a self-hosted Docker image.
 
 - **CI** runs `lint`, `typecheck`, and the full Playwright suite on every PR and `main` push ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 - **Deploy** publishes `apps/web` to GitHub Pages on every `main` push ([`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)).
-- **Tests**: 127 e2e specs in [`tests/e2e/`](./tests/e2e); xlsx / ods / csv / tsv round-trip, hyperlinks, drag-fill, drag-and-drop file open, formula evaluation, tables, freeze, comments, and more.
+- **Tests**: 129 e2e specs in [`tests/e2e/`](./tests/e2e); xlsx / ods / csv / tsv round-trip, hyperlinks, drag-fill, drag-and-drop file open, formula evaluation, tables, freeze, comments, and more.
 - **Live URL**: <https://sheet.schnsrw.live/>
 
 | Working | Coming |
@@ -50,6 +52,45 @@ Phase 1 — single-user editor is feature-rich and locked down by 127 Playwright
 | Dynamic workbook growth — 1024×128 → 8192×1024 | |
 | Material Symbols icons, Inter typography | |
 
+## Self-host with Docker
+
+Single image. Web + Hocuspocus + Fastify in one container, Redis alongside
+for room persistence so sessions survive restarts.
+
+```sh
+# Run the published image directly (in-memory rooms — fine for a quick try):
+docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
+# open http://localhost:3000
+
+# Or with persistence + Redis via compose:
+docker compose up -d
+# open http://localhost:3000
+```
+
+Co-edit a sheet: open `http://localhost:3000/r/<any-id>` in two browsers —
+both join the same `Y.Doc`, edits propagate in <1 s. Anonymous, no login.
+
+The same image is built and pushed from this repo. See
+[`docs/CO-EDITING.md`](./docs/CO-EDITING.md) for the architecture and
+[`Dockerfile`](./Dockerfile) / [`docker-compose.yml`](./docker-compose.yml)
+for the deploy shape.
+
+| Endpoint                 | What it does                                |
+| ------------------------ | ------------------------------------------- |
+| `GET  /`                 | Serves the built web app                    |
+| `GET  /r/:roomId`        | Same SPA; bridges into the named Y.Doc      |
+| `POST /api/rooms`        | Allocates a fresh empty room id             |
+| `GET  /api/rooms`        | Diagnostic — live rooms + client counts     |
+| `GET  /health`           | Liveness probe (returns `{ok, ts, rooms}`)  |
+| `WS   /yjs`              | Hocuspocus Yjs sync                         |
+
+| Env var          | Default | Meaning                                            |
+| ---------------- | ------- | -------------------------------------------------- |
+| `PORT`           | `3000`  | HTTP + WS port                                     |
+| `HOST`           | `0.0.0.0` | Bind address                                     |
+| `REDIS_URL`      | _unset_ | If set, Y.Docs persist to Redis with a 7-day TTL   |
+| `ROOM_TTL_MIN`   | `5`     | Minutes a room stays in memory after the last client leaves |
+
 ## Develop
 
 Prereqs: Node ≥ 18.17, pnpm 10+.
@@ -57,7 +98,7 @@ Prereqs: Node ≥ 18.17, pnpm 10+.
 ```sh
 pnpm install               # one-time
 pnpm dev:web               # http://127.0.0.1:5273
-pnpm dev:server            # http://127.0.0.1:3000 (placeholder until collab lands)
+pnpm dev:server            # http://127.0.0.1:3000  (HTTP + Hocuspocus WS at /yjs)
 pnpm test:e2e              # Playwright (auto-starts the web dev server)
 pnpm test:e2e:ui           # Playwright UI mode
 pnpm lint                  # eslint

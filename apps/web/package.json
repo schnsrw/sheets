@@ -1,6 +1,6 @@
 {
   "name": "@sheet/web",
-  "version": "0.0.0",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -49,9 +49,11 @@
     "@univerjs/thread-comment": "0.22.1",
     "@univerjs/thread-comment-ui": "0.22.1",
     "@univerjs/ui": "0.22.1",
+    "@hocuspocus/provider": "^2.15.2",
     "exceljs": "^4.4.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "yjs": "^13.6.21"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

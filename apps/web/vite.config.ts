@@ -1,13 +1,33 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 // `PAGES_BASE` lets the GitHub Pages workflow build for /sheets/ without
 // committing that path into the repo (local dev stays at /).
 const base = process.env.PAGES_BASE ?? '/';
 
+// Read app version from package.json so the About dialog stays in sync
+// without manual bumps every release.
+const pkg = JSON.parse(
+  readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), 'package.json'),
+    'utf-8',
+  ),
+) as { version: string };
+
+const collabEnabled =
+  process.env.VITE_COLLAB_ENABLED === '1' ||
+  process.env.VITE_COLLAB_ENABLED === 'true';
+
 export default defineConfig({
   base,
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __COLLAB_BUILD__: JSON.stringify(collabEnabled),
+  },
   server: {
     host: '127.0.0.1',
     port: 5273,

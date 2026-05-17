@@ -464,6 +464,36 @@ button {
   flex: 1;
 }
 
+.titlebar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 14px;
+}
+
+.titlebar__share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: var(--weight-semibold, 600);
+}
+
+.titlebar__roompill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-accent-soft, var(--color-surface-alt));
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: var(--weight-medium, 500);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
 /* Ribbon */
 .ribbon {
   display: flex;
@@ -1551,6 +1581,8 @@ button {
   overflow: hidden;
 }
 
+.dialog--narrow { width: min(420px, 92vw); }
+
 .dialog__header {
   display: flex;
   align-items: center;
@@ -1898,6 +1930,205 @@ button {
 }
 
 .collab-banner__close:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* Neutral variant (view-only notice) — softer, doesn't feel like an alert. */
+.collab-banner--neutral {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.collab-banner--neutral .collab-banner__body code {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+.collab-banner--neutral .collab-banner__body a {
+  color: var(--color-accent);
+  text-decoration-color: var(--color-accent);
+}
+.collab-banner--neutral .collab-banner__close { color: var(--color-text-soft, var(--color-text)); }
+.collab-banner--neutral .collab-banner__close:hover { background: var(--color-hover); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Live presence: remote cursors / selections + avatar stack.
+   The cursor overlay is an absolutely-positioned layer over the grid;
+   each peer's selection is a colored rectangle with a name tag at the
+   top-right. Avatar stack lives next to the connection pill.
+   ───────────────────────────────────────────────────────────────────────── */
+.presence-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 60;
+}
+
+.presence-cursor {
+  position: absolute;
+  border: 2px solid var(--presence-color, #1a73e8);
+  background: color-mix(in srgb, var(--presence-color, #1a73e8) 12%, transparent);
+  border-radius: 2px;
+  transition: top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+.presence-cursor__label {
+  position: absolute;
+  top: -20px;
+  left: -2px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: var(--weight-semibold, 600);
+  color: #fff;
+  background: var(--presence-color, #1a73e8);
+  border-radius: 3px 3px 3px 0;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.presence-avatars {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.presence-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: var(--weight-semibold, 600);
+  border: 2px solid var(--color-surface);
+  margin-left: -8px;
+  position: relative;
+  cursor: default;
+  user-select: none;
+}
+.presence-avatar:first-child { margin-left: 0; }
+.presence-avatar--more {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  border-color: var(--color-surface);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Share-for-co-edit dialog. Stacks input rows, then renders the generated
+   URLs in monospace boxes with a copy button on the right.
+   ───────────────────────────────────────────────────────────────────────── */
+.share-room {
+  display: grid;
+  gap: 14px;
+}
+.share-room__row { display: grid; gap: 6px; }
+.share-room__label {
+  font-size: 12px;
+  font-weight: var(--weight-semibold, 600);
+  color: var(--color-text-soft, var(--color-text));
+  letter-spacing: 0.02em;
+}
+.share-room__hint {
+  font-size: 12px;
+  color: var(--color-text-soft, var(--color-text));
+  margin: 0;
+}
+.share-room__file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.share-room__file-name {
+  font-size: 13px;
+  color: var(--color-text-soft, var(--color-text));
+  flex: 1 1 auto;
+  min-width: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.share-room__segment {
+  display: inline-flex;
+  gap: 8px;
+}
+.share-room__seg-opt {
+  flex: 1 1 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: var(--weight-medium, 500);
+  text-align: left;
+}
+.share-room__seg-opt:hover { background: var(--color-hover); }
+.share-room__seg-opt--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft, transparent);
+  color: var(--color-accent);
+}
+.share-room__seg-opt-desc {
+  font-size: 11px;
+  font-weight: var(--weight-regular, 400);
+  color: var(--color-text-soft, var(--color-text));
+}
+.share-room__seg-opt--active .share-room__seg-opt-desc { color: var(--color-accent); }
+
+.share-room__urls {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+.share-room__url {
+  display: grid;
+  gap: 4px;
+}
+.share-room__url-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.share-room__url-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+.share-room__copy {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 13px;
+}
+.share-room__copy:hover { background: var(--color-hover); }
+.share-room__copy--done {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-soft, transparent);
+}
 
 /* ─────────────────────────────────────────────────────────────────────────
    Outline (group) side panel. Mirrors the TablesPanel surface treatment —

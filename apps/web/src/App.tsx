@@ -16,12 +16,14 @@ import { UIContext, type UICtxValue } from './ui-context';
 import { OutlineProvider } from './outline/outline-context';
 import { OutlinePanel } from './shell/OutlinePanel';
 import { CollabDriver } from './collab/CollabDriver';
+import { CreateRoomDialog } from './shell/CreateRoomDialog';
 
 export function App() {
   const [snapshot, setSnapshot] = useState<IWorkbookData>(() => emptyWorkbook());
   const [formulaBarVisible, setFormulaBarVisible] = useState(true);
   const [tablesPanelVisible, setTablesPanelVisible] = useState(false);
   const [outlinePanelVisible, setOutlinePanelVisible] = useState(false);
+  const [shareRoomOpen, setShareRoomOpen] = useState(false);
   // What File → Save should write to. Set on Open from the file extension;
   // null while editing an empty / unsaved workbook (in which case Save
   // defaults to .xlsx).
@@ -48,6 +50,7 @@ export function App() {
       toggleTablesPanel: () => setTablesPanelVisible((v) => !v),
       outlinePanelVisible,
       toggleOutlinePanel: () => setOutlinePanelVisible((v) => !v),
+      openShareRoom: () => setShareRoomOpen(true),
     }),
     [formulaBarVisible, tablesPanelVisible, outlinePanelVisible],
   );
@@ -76,6 +79,9 @@ export function App() {
                   {outlinePanelVisible && <OutlinePanel />}
                 </div>
                 <SheetTabs />
+                {shareRoomOpen && (
+                  <CreateRoomDialog onClose={() => setShareRoomOpen(false)} />
+                )}
               </div>
             </CollabDriver>
           </OutlineProvider>

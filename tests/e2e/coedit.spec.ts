@@ -83,6 +83,12 @@ test('two browsers in the same room sync a single cell edit', async ({ baseURL }
     await p.addInitScript((url) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__COLLAB_WS_URL__ = url;
+      // Skip the first-time name prompt — this test doesn't exercise it.
+      try {
+        localStorage.setItem('casual.collab.namePrompted', '1');
+      } catch {
+        /* private mode */
+      }
     }, WS_URL);
   }
 
@@ -148,6 +154,11 @@ test('style + structural mutations propagate across peers', async ({ baseURL }) 
     await p.addInitScript((wsUrl) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__COLLAB_WS_URL__ = wsUrl;
+      try {
+        localStorage.setItem('casual.collab.namePrompted', '1');
+      } catch {
+        /* private mode */
+      }
     }, WS_URL);
   }
 

@@ -91,7 +91,18 @@ export type BridgeHandle = {
   dispose: () => void;
 };
 
-export function startBridge(api: FUniver, doc: Y.Doc): BridgeHandle {
+export type BridgeOptions = {
+  /**
+   * `view` clients only RECEIVE remote updates — local mutations don't
+   * append to the log, so peers never see them. Client-side gate only;
+   * a determined user can run the bridge in write mode by editing the
+   * URL. Server-side enforcement is a follow-up hardening pass.
+   */
+  role?: 'view' | 'write';
+};
+
+export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}): BridgeHandle {
+  const role = opts.role ?? 'write';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const injector = (api as any)._injector as
     | { get: (token: unknown) => unknown }
@@ -109,8 +120,10 @@ export function startBridge(api: FUniver, doc: Y.Doc): BridgeHandle {
   const log = doc.getArray<OpRecord>(LOG_KEY);
   const myClientId = String(doc.clientID);
 
-  // Local → Yjs: append every synced mutation to the log.
+  // Local → Yjs: append every synced mutation to the log. Skipped for
+  // view-role clients — their local edits never leave their browser.
   const subDispose = cmdSvc.onMutationExecutedForCollab((info, options) => {
+    if (role === 'view') return;
     if (options?.fromCollab) return;
     if (!SYNCED_MUTATIONS.has(info.id)) return;
     const rec: OpRecord = {

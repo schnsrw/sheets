@@ -18,7 +18,7 @@ import {
 import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
 import { PageSetupDialog } from './PageSetupDialog';
 import { openBugReport } from './report-bug';
-import { startCoEditRoom } from './share-room';
+import { useCollab } from '../collab/collab-context';
 import { useOutlineActions } from '../outline/use-outline-actions';
 import { useOutline } from '../outline/outline-context';
 import {
@@ -99,6 +99,7 @@ export function MenuBar() {
   const ui = useUI();
   const outlineActions = useOutlineActions();
   const outline = useOutline();
+  const collab = useCollab();
   const [open, setOpen] = useState<MenuId | null>(null);
   const [showProperties, setShowProperties] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -194,7 +195,36 @@ export function MenuBar() {
         { kind: 'separator', id: 'sep-1' },
         { kind: 'item', id: 'print', label: 'Print', icon: 'print', shortcut: 'Ctrl+P', onClick: () => setShowPageSetup(true) },
         { kind: 'separator', id: 'sep-coedit' },
-        { kind: 'item', id: 'start-room', label: 'Start co-edit room…', icon: 'group_add', onClick: () => void startCoEditRoom() },
+        ...(collab.roomId
+          ? ([
+              {
+                kind: 'item',
+                id: 'download-room',
+                label: 'Download a copy (.xlsx)',
+                icon: 'download',
+                onClick: handleExportXlsx,
+              },
+              {
+                kind: 'item',
+                id: 'leave-room',
+                label: 'Leave room',
+                icon: 'logout',
+                onClick: () => {
+                  // Drop the /r/<id> path; SPA reload starts a fresh single-user
+                  // workbook. State in the room continues for other peers.
+                  window.location.href = window.location.origin + '/';
+                },
+              },
+            ] as MenuItem[])
+          : ([
+              {
+                kind: 'item',
+                id: 'start-room',
+                label: 'Share for co-editing…',
+                icon: 'group_add',
+                onClick: () => ui.openShareRoom(),
+              },
+            ] as MenuItem[])),
         { kind: 'separator', id: 'sep-2' },
         { kind: 'item', id: 'properties', label: 'Properties', icon: 'info', onClick: () => setShowProperties(true) },
       ],
@@ -362,6 +392,7 @@ export function MenuBar() {
           }}
         />
       )}
+
     </>
   );
 }

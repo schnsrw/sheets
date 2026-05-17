@@ -110,6 +110,26 @@ export async function saveAsXlsx(
 }
 
 /**
+ * Snapshot the active workbook to xlsx bytes WITHOUT triggering a
+ * download. Used by the co-edit share flow to upload the room's
+ * starting workbook to the server. Returns null if no workbook is
+ * mounted.
+ */
+export async function exportCurrentWorkbookAsXlsxBlob(
+  api: FUniver,
+  options: SaveOptions = {},
+): Promise<Blob | null> {
+  const wb = api.getActiveWorkbook();
+  if (!wb) return null;
+  const snapshot = wb.save() as IWorkbookData;
+  const extras: ExportExtras = {
+    ...collectExportExtras(api),
+    ...(options.outline ? { outline: options.outline } : {}),
+  };
+  return workbookDataToXlsx(snapshot, extras);
+}
+
+/**
  * Resolve Univer's IMessageService off the FUniver injector and show a brief
  * success toast. Silently no-ops if the message service isn't registered (in
  * tests, in headless seed paths, etc.) — feedback is nice-to-have, not load-

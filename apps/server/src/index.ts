@@ -26,7 +26,9 @@ if (servesWeb) {
   await app.register(staticPlugin, {
     root: webDist,
     prefix: '/',
-    decorateReply: false,
+    // `decorateReply: true` (the default) gives us `reply.sendFile()` —
+    // required by the SPA fallback below so `/r/<roomId>` reloads serve
+    // index.html instead of 500'ing.
     wildcard: false,
   });
   app.log.info(`serving built web app from ${webDist}`);
@@ -45,27 +47,78 @@ app.get('/health', async () => ({
   rooms: rooms.snapshot().length,
 }));
 
-// Create a fresh room. v1: empty Y.Doc; xlsx-seeded rooms come once we
-// wire ExcelJS → Yjs on the server.
-app.post('/api/rooms', async () => {
-  const id = rooms.create();
-  return { roomId: id };
+/**
+ * Create a fresh room. Body is optional JSON `{ password?: string }`.
+ * Empty Y.Doc to start — the room creator's client seeds it (via xlsx
+ * open or fresh edits) which then propagates through the op-log bridge
+ * to anyone who joins. Keeps the server out of the workbook parsing
+ * business; everything goes through the same code path on the client.
+ */
+app.post('/api/rooms', async (req) => {
+  const body = (req.body ?? {}) as { password?: unknown };
+  const password =
+    typeof body.password === 'string' && body.password.length > 0
+      ? body.password
+      : undefined;
+  const id = rooms.create({ password });
+  return { roomId: id, needsPassword: Boolean(password) };
+});
+
+/**
+ * Pre-flight check for a join URL. Lets the client decide whether to
+ * prompt for a password before opening the WebSocket. Returns 404 when
+ * the room doesn't exist so a bad link surfaces immediately.
+ */
+app.get<{ Params: { id: string } }>('/api/rooms/:id/info', async (req, reply) => {
+  const room = rooms.get(req.params.id);
+  if (!room) return reply.code(404).send({ error: 'room_not_found' });
+  return {
+    id: room.id,
+    needsPassword: room.passwordHash !== null,
+    hasSeed: Boolean(room.xlsxSeed),
+    clients: room.clients,
+  };
+});
+
+/**
+ * Upload an xlsx file as the room's starting workbook. Joiners GET the
+ * same bytes via /seed and import them locally before the op-log bridge
+ * takes over — that's how content the owner had before creating the room
+ * reaches peers (the op log only carries *future* mutations).
+ *
+ * No auth: the owner is the only client who knows the freshly-minted
+ * roomId at this instant. A misuse window of "another tab races to
+ * overwrite the seed before the owner uploads" is theoretical and not
+ * worth more machinery in a self-hosted v1.
+ */
+app.post<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) => {
+  const room = rooms.get(req.params.id);
+  if (!room) return reply.code(404).send({ error: 'room_not_found' });
+  const file = await req.file();
+  if (!file) return reply.code(400).send({ error: 'no_file' });
+  const buf = await file.toBuffer();
+  rooms.setXlsxSeed(req.params.id, new Uint8Array(buf));
+  return { ok: true, bytes: buf.byteLength };
+});
+
+/**
+ * Serve the room's xlsx starting workbook. Joiners apply this locally
+ * before the bridge runs so they begin from the same state as the owner.
+ */
+app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) => {
+  const room = rooms.get(req.params.id);
+  if (!room?.xlsxSeed) return reply.code(404).send({ error: 'no_seed' });
+  reply.header(
+    'content-type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  reply.header('cache-control', 'no-store');
+  return reply.send(Buffer.from(room.xlsxSeed));
 });
 
 // Diagnostic: list current rooms (clients, idle time). No auth — fine
 // for v1 since the surface is anonymous and self-hosted anyway.
 app.get('/api/rooms', async () => ({ rooms: rooms.snapshot() }));
-
-// Placeholders — implemented once the server-side xlsx ↔ Y.Doc bridge
-// lands. For v1 the client uploads through the existing browser parser
-// and writes into the live Y.Doc directly.
-app.post('/upload', async (_req, reply) => {
-  return reply.code(501).send({ error: 'not_implemented', phase: 'phase-2.1' });
-});
-
-app.get('/download/:roomId', async (_req, reply) => {
-  return reply.code(501).send({ error: 'not_implemented', phase: 'phase-2.1' });
-});
 
 // SPA fallback — any unknown HTML route serves index.html so client-side
 // routing (e.g. /r/:roomId) works on reload. Only registered when the

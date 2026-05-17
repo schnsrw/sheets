@@ -1,0 +1,120 @@
+/**
+ * Local-user identity for the presence layer. Persisted in localStorage
+ * so a name set in one tab follows the user across reloads and into new
+ * rooms. Color is deterministically derived from the name so a single
+ * user picks the *same* color in every room — useful when two tabs of
+ * the same person open the same room.
+ */
+
+const NAME_KEY = 'casual.collab.displayName';
+const NAME_PROMPTED_KEY = 'casual.collab.namePrompted';
+
+export type Identity = {
+  name: string;
+  color: string;
+};
+
+/**
+ * Palette tuned for AA contrast on white backgrounds with white text.
+ * Twelve hues so even a packed room rarely collides.
+ */
+const COLORS = [
+  '#1a73e8', '#d93025', '#188038', '#e8710a', '#9334e6', '#1e8e3e',
+  '#c5221f', '#1967d2', '#a142f4', '#f29900', '#0b8043', '#b06000',
+];
+
+export function colorForName(name: string): string {
+  const trimmed = name.trim() || 'anon';
+  let h = 5381;
+  for (let i = 0; i < trimmed.length; i += 1) {
+    // djb2 — fast, well-distributed for short strings.
+    h = ((h << 5) + h + trimmed.charCodeAt(i)) | 0;
+  }
+  return COLORS[Math.abs(h) % COLORS.length];
+}
+
+export function getDisplayName(): string | null {
+  try {
+    const v = localStorage.getItem(NAME_KEY);
+    return v && v.trim().length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setDisplayName(name: string): void {
+  const clean = name.trim().slice(0, 32);
+  try {
+    localStorage.setItem(NAME_KEY, clean);
+    localStorage.setItem(NAME_PROMPTED_KEY, '1');
+  } catch {
+    /* private mode — fine, we'll just re-prompt */
+  }
+}
+
+export function markNamePrompted(): void {
+  try {
+    localStorage.setItem(NAME_PROMPTED_KEY, '1');
+  } catch {
+    /* no-op */
+  }
+}
+
+export function wasNamePrompted(): boolean {
+  try {
+    return localStorage.getItem(NAME_PROMPTED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whimsical default if the user dismisses the prompt — better than
+ * "Anonymous" in a room with multiple unnamed peers, and the seed
+ * keeps it stable per browser session.
+ */
+const ADJ = ['Curious', 'Sunny', 'Quiet', 'Brisk', 'Cosmic', 'Quirky', 'Gentle', 'Lively'];
+const ANIM = ['Otter', 'Sparrow', 'Fox', 'Panda', 'Heron', 'Lynx', 'Badger', 'Magpie'];
+
+export function suggestAnonName(): string {
+  const a = ADJ[Math.floor(Math.random() * ADJ.length)];
+  const b = ANIM[Math.floor(Math.random() * ANIM.length)];
+  return `${a} ${b}`;
+}
+
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Awareness payload broadcast per peer. Kept tiny — awareness updates
+ * fire on every selection move and ride the same WS as Yjs sync.
+ *
+ *   u: unitId of the workbook the selection belongs to (peers ignore
+ *      selections from a different unit — usually our local active one
+ *      remapped, but during snapshot swaps they can diverge briefly).
+ *   s: subUnitId (sheet id) — peer's selection only renders when the
+ *      local active sheet matches.
+ *   r: bounding rect {sr, er, sc, ec} of the primary selection range.
+ *      Skipping multi-select for v1 — render only the first range.
+ */
+export type PeerAwareness = {
+  name: string;
+  color: string;
+  sel?: {
+    u: string;
+    s: string;
+    r: { sr: number; er: number; sc: number; ec: number };
+  };
+};
+
+export type Peer = {
+  /** Yjs awareness clientId — stable per browser tab connection. */
+  clientId: number;
+  name: string;
+  color: string;
+  selection: PeerAwareness['sel'];
+};

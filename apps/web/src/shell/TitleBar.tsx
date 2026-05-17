@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useWorkbook } from '../use-workbook';
+import { useUI } from '../use-ui';
+import { useCollab } from '../collab/collab-context';
+import { AvatarStack } from '../collab/AvatarStack';
+import { Icon } from './Icon';
 
 /**
  * Title bar — brand on the left, editable filename in the middle. Click the
@@ -8,6 +12,8 @@ import { useWorkbook } from '../use-workbook';
  */
 export function TitleBar() {
   const { snapshot, replaceWorkbook } = useWorkbook();
+  const ui = useUI();
+  const collab = useCollab();
   const filename = snapshot.name || 'Untitled';
 
   const [editing, setEditing] = useState(false);
@@ -89,6 +95,30 @@ export function TitleBar() {
         </button>
       )}
       <span className="titlebar__spacer" />
+
+      <div className="titlebar__actions" data-testid="titlebar-actions">
+        <AvatarStack />
+        {collab.roomId ? (
+          <span
+            className="titlebar__roompill"
+            data-testid="titlebar-roompill"
+            title={`Joined room ${collab.roomId}`}
+          >
+            <Icon name="group" size="sm" />
+            <span>In room</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="titlebar__share btn-primary"
+            data-testid="titlebar-share"
+            onClick={() => ui.openShareRoom()}
+          >
+            <Icon name="group_add" size="sm" />
+            <span>Share</span>
+          </button>
+        )}
+      </div>
     </header>
   );
 }

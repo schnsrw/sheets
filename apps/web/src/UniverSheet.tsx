@@ -4,87 +4,17 @@ import { FUniver } from '@univerjs/core/facade';
 import type { FWorkbook } from '@univerjs/sheets/facade';
 import { defaultTheme } from '@univerjs/themes';
 
-import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
-import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula';
-import { UniverUIPlugin } from '@univerjs/ui';
-import { UniverDocsPlugin } from '@univerjs/docs';
-import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
-import { UniverSheetsPlugin } from '@univerjs/sheets';
-import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
-import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
-import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
-import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt';
-import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
-import { UniverSheetsSortPlugin } from '@univerjs/sheets-sort';
-import { UniverSheetsSortUIPlugin } from '@univerjs/sheets-sort-ui';
-import { UniverSheetsFilterPlugin } from '@univerjs/sheets-filter';
-import { UniverSheetsFilterUIPlugin } from '@univerjs/sheets-filter-ui';
-import { UniverFindReplacePlugin } from '@univerjs/find-replace';
-import { UniverSheetsFindReplacePlugin } from '@univerjs/sheets-find-replace';
-import { UniverSheetsConditionalFormattingPlugin } from '@univerjs/sheets-conditional-formatting';
-import { UniverSheetsConditionalFormattingUIPlugin } from '@univerjs/sheets-conditional-formatting-ui';
-import { UniverSheetsDataValidationPlugin } from '@univerjs/sheets-data-validation';
-import { UniverSheetsDataValidationUIPlugin } from '@univerjs/sheets-data-validation-ui';
-import { UniverSheetsHyperLinkPlugin } from '@univerjs/sheets-hyper-link';
-import { UniverSheetsHyperLinkUIPlugin } from '@univerjs/sheets-hyper-link-ui';
-import { UniverSheetsNotePlugin } from '@univerjs/sheets-note';
-import { UniverSheetsNoteUIPlugin } from '@univerjs/sheets-note-ui';
-import { SheetTableService, UniverSheetsTablePlugin } from '@univerjs/sheets-table';
-import { UniverSheetsTableUIPlugin } from '@univerjs/sheets-table-ui';
-import { UniverSheetsThreadCommentPlugin } from '@univerjs/sheets-thread-comment';
-import { UniverSheetsThreadCommentUIPlugin } from '@univerjs/sheets-thread-comment-ui';
-import { UniverThreadCommentPlugin } from '@univerjs/thread-comment';
-import { UniverThreadCommentUIPlugin } from '@univerjs/thread-comment-ui';
-import { UniverDrawingPlugin } from '@univerjs/drawing';
-import { UniverDrawingUIPlugin } from '@univerjs/drawing-ui';
-import { UniverSheetsDrawingPlugin } from '@univerjs/sheets-drawing';
-import { UniverSheetsDrawingUIPlugin } from '@univerjs/sheets-drawing-ui';
-
-// Per-plugin CSS — Univer ships its own design tokens & layout primitives;
-// each plugin's `lib/index.css` must be imported once.
-import '@univerjs/design/lib/index.css';
-import '@univerjs/ui/lib/index.css';
-import '@univerjs/docs-ui/lib/index.css';
-import '@univerjs/sheets-ui/lib/index.css';
-import '@univerjs/sheets-formula-ui/lib/index.css';
-import '@univerjs/sheets-sort-ui/lib/index.css';
-import '@univerjs/sheets-filter-ui/lib/index.css';
-import '@univerjs/sheets-numfmt-ui/lib/index.css';
-import '@univerjs/find-replace/lib/index.css';
-import '@univerjs/sheets-conditional-formatting-ui/lib/index.css';
-import '@univerjs/sheets-data-validation-ui/lib/index.css';
-import '@univerjs/sheets-hyper-link-ui/lib/index.css';
-import '@univerjs/sheets-note-ui/lib/index.css';
-import '@univerjs/sheets-table-ui/lib/index.css';
-import '@univerjs/sheets-thread-comment-ui/lib/index.css';
-import '@univerjs/thread-comment-ui/lib/index.css';
-import '@univerjs/drawing-ui/lib/index.css';
-import '@univerjs/sheets-drawing-ui/lib/index.css';
-
-// Facade extensions — side-effect imports that attach methods to FUniver.
-import '@univerjs/sheets/facade';
-import '@univerjs/sheets-ui/facade';
-import '@univerjs/sheets-formula/facade';
-import '@univerjs/sheets-numfmt/facade';
-import '@univerjs/sheets-sort/facade';
-import '@univerjs/sheets-filter/facade';
-import '@univerjs/sheets-table/facade';
-import '@univerjs/docs-ui/facade';
-import '@univerjs/ui/facade';
-import '@univerjs/engine-formula/facade';
+// Side-effect modules — must load before Univer is constructed.
+import './univer/styles';
+import './univer/facade';
 
 import { LOCALES } from './locale';
 import { useSetUniverAPI } from './use-univer';
 import { extendContextMenu } from './context-menu-extensions';
+import { registerPlugins } from './univer/plugins';
+import { installDevHelpers } from './univer/dev-helpers';
 
 type Props = { snapshot: IWorkbookData };
-
-declare global {
-  interface Window {
-    __univerAPI?: FUniver;
-    __getTableStyleId__?: (tableId: string) => string | undefined;
-  }
-}
 
 export function UniverSheet({ snapshot }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -108,47 +38,7 @@ export function UniverSheet({ snapshot }: Props) {
     });
     univerRef.current = univer;
 
-    univer.registerPlugin(UniverRenderEnginePlugin);
-    univer.registerPlugin(UniverFormulaEnginePlugin);
-    univer.registerPlugin(UniverUIPlugin, {
-      container: hostRef.current,
-      header: false,
-      toolbar: false,
-      footer: false,
-      contextMenu: true,
-    });
-    univer.registerPlugin(UniverDocsPlugin);
-    univer.registerPlugin(UniverDocsUIPlugin);
-    univer.registerPlugin(UniverSheetsPlugin);
-    univer.registerPlugin(UniverSheetsUIPlugin);
-    univer.registerPlugin(UniverSheetsFormulaPlugin);
-    univer.registerPlugin(UniverSheetsFormulaUIPlugin);
-    univer.registerPlugin(UniverSheetsNumfmtPlugin);
-    univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
-    univer.registerPlugin(UniverSheetsSortPlugin);
-    univer.registerPlugin(UniverSheetsSortUIPlugin);
-    univer.registerPlugin(UniverSheetsFilterPlugin);
-    univer.registerPlugin(UniverSheetsFilterUIPlugin);
-    univer.registerPlugin(UniverFindReplacePlugin);
-    univer.registerPlugin(UniverSheetsFindReplacePlugin);
-    univer.registerPlugin(UniverSheetsConditionalFormattingPlugin);
-    univer.registerPlugin(UniverSheetsConditionalFormattingUIPlugin);
-    univer.registerPlugin(UniverSheetsDataValidationPlugin);
-    univer.registerPlugin(UniverSheetsDataValidationUIPlugin);
-    univer.registerPlugin(UniverSheetsHyperLinkPlugin);
-    univer.registerPlugin(UniverSheetsHyperLinkUIPlugin);
-    univer.registerPlugin(UniverSheetsNotePlugin);
-    univer.registerPlugin(UniverSheetsNoteUIPlugin);
-    univer.registerPlugin(UniverSheetsTablePlugin);
-    univer.registerPlugin(UniverSheetsTableUIPlugin);
-    univer.registerPlugin(UniverThreadCommentPlugin);
-    univer.registerPlugin(UniverThreadCommentUIPlugin);
-    univer.registerPlugin(UniverSheetsThreadCommentPlugin);
-    univer.registerPlugin(UniverSheetsThreadCommentUIPlugin);
-    univer.registerPlugin(UniverDrawingPlugin);
-    univer.registerPlugin(UniverDrawingUIPlugin);
-    univer.registerPlugin(UniverSheetsDrawingPlugin);
-    univer.registerPlugin(UniverSheetsDrawingUIPlugin);
+    registerPlugins(univer, hostRef.current);
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, snapshot);
 
@@ -160,21 +50,7 @@ export function UniverSheet({ snapshot }: Props) {
     setApi(api);
 
     const raf = requestAnimationFrame(() => setReady(true));
-
-    if (import.meta.env.DEV) {
-      window.__univerAPI = api;
-      // Test helper: expose the underlying Table's tableStyleId, which the
-      // public facade (FWorkbook.getTableList) intentionally strips.
-      window.__getTableStyleId__ = (tableId: string) => {
-        const wb = api.getActiveWorkbook();
-        if (!wb) return undefined;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const svc = (wb as any)._injector?.get(SheetTableService) as
-          | { _tableManager?: { getTable: (u: string, t: string) => { getTableStyleId: () => string } | undefined } }
-          | undefined;
-        return svc?._tableManager?.getTable(wb.getId(), tableId)?.getTableStyleId();
-      };
-    }
+    const teardownDevHelpers = installDevHelpers(api);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -186,10 +62,7 @@ export function UniverSheet({ snapshot }: Props) {
       univerRef.current = null;
       setApi(null);
       queueMicrotask(() => toDispose.dispose());
-      if (import.meta.env.DEV) {
-        delete window.__univerAPI;
-        delete window.__getTableStyleId__;
-      }
+      teardownDevHelpers();
     };
     // Mount Univer exactly once. Snapshot changes are handled by the swap
     // effect below — recreating Univer per snapshot would race React's render.

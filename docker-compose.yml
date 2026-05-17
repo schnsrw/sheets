@@ -9,7 +9,7 @@
 
 services:
   app:
-    image: schnsrw/casual-sheets:0.0.2
+    image: schnsrw/casual-sheets:0.0.3
     build:
       context: .
       dockerfile: Dockerfile

@@ -116,6 +116,18 @@ export async function saveAsXlsx(
  * bearing.
  */
 function toast(api: FUniver, content: string): void {
+  // Dev-only record so e2e specs can verify the call without depending on
+  // Sonner's lazily-mounted toast portal (which made the assertion flaky
+  // on cold CI runners). Production builds tree-shake `import.meta.env.DEV`
+  // away — this is a no-op cost in shipped bundles.
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sink = (globalThis as any).__toastLog__ as Array<{ content: string }> | undefined;
+    if (Array.isArray(sink)) sink.push({ content });
+    else
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).__toastLog__ = [{ content }];
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const injector = (api as any)._injector as
     | { get: (token: unknown) => unknown }

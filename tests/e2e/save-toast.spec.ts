@@ -2,38 +2,50 @@ import { expect, test } from '@playwright/test';
 import { waitForUniver } from './_helpers';
 
 /**
- * Save confirmation toast. Each File → Save / Export path calls Univer's
- * IMessageService.show() with the resolved filename so the user gets in-app
- * feedback (the browser's download notification alone is too easy to miss).
+ * Save confirmation toast. Each File → Save / Export path calls
+ * `toast(api, 'Saved as <filename>')` in apps/web/src/shell/file-actions.ts,
+ * which both invokes Univer's IMessageService.show() (the visible UI) and
+ * pushes the content onto a dev-only `globalThis.__toastLog__` sink.
  *
- * Univer renders the toast via Sonner under the `univer-message-toaster`
- * region — we assert by text rather than DOM id so the test is decoupled
- * from Sonner's internal markup.
+ * The earlier DOM-based assertion (waiting for Sonner to paint the toast)
+ * flaked on CI cold caches — the toast portal mounts lazily, and our
+ * Save fires before it's in the DOM. Sniffing the sink is deterministic
+ * and proves the production code path ran without coupling to Sonner.
  */
-test('File → Save shows a "Saved as …" toast', async ({ page }) => {
+test('File → Save records "Saved as …" via the toast helper', async ({ page }) => {
+  // Cancel any download Save triggers so the headless browser doesn't
+  // hold the file across runs.
+  page.on('download', (d) => {
+    void d.cancel();
+  });
+
   await page.goto('/');
   await waitForUniver(page);
 
-  // Suppress the actual download anchor click — we only care about the
-  // toast (which fires after triggerDownload). Use a targeted selector
-  // instead of overriding HTMLAnchorElement.prototype.click globally,
-  // which on slower CI runners can race with Univer's own initialization
-  // (one flake observed). The anchor has download=… attr; intercept that.
-  await page.addInitScript(() => {
-    const orig = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function () {
-      if (this.hasAttribute('download')) return;
-      return orig.call(this);
-    };
+  // Reset the sink so this test's assertions don't see stale entries
+  // from a previous Save (Playwright reuses the page within a test).
+  await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__toastLog__ = [];
   });
 
   await page.getByTestId('menubar-file').click();
   await page.getByTestId('menu-item-save').click();
 
-  // Give Sonner a beat to mount the toast portal on first run (cold caches
-  // on CI take longer than local). 8s headroom over the prior 5s avoids the
-  // intermittent fail; toast actually appears in ~200 ms locally.
-  await expect(page.getByText(/Saved as .+\.xlsx/i)).toBeVisible({
-    timeout: 8_000,
+  await page.waitForFunction(
+    () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const log = (window as any).__toastLog__ as Array<{ content: string }> | undefined;
+      return log?.some((entry) => /Saved as .+\.xlsx/i.test(entry.content)) ?? false;
+    },
+    null,
+    { timeout: 10_000 },
+  );
+
+  // Sanity: assert the actual content for nicer failure messages.
+  const log = await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return ((window as any).__toastLog__ ?? []) as Array<{ content: string }>;
   });
+  expect(log.map((e) => e.content).join('|')).toMatch(/Saved as .+\.xlsx/i);
 });

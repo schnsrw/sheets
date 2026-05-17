@@ -8,6 +8,17 @@ type ICellSnapshot = {
   s?: string | IStyleData;
 };
 
+// Univer stores column width in pixels, Excel uses character widths
+// based on the default workbook font. The Excel docs define width as
+// "the number of characters of the largest digit (0-9) in the normal
+// style's font that fit in the column," which empirically resolves to
+// roughly 7 px per character at the default 11pt Calibri. ExcelJS exposes
+// the same number, so we convert at the boundary.
+const PX_PER_CHAR = 7;
+const pxToChars = (px: number) => Math.max(0, px / PX_PER_CHAR);
+// Univer stores row height in pixels, Excel uses points. 96dpi → 72pt.
+const pxToPoints = (px: number) => Math.max(0, (px * 72) / 96);
+
 /**
  * Convert a Univer `IWorkbookData` snapshot to an .xlsx Blob.
  * See `import.ts` for the fidelity scope (same coverage in both directions).
@@ -59,6 +70,28 @@ export async function workbookDataToXlsx(data: IWorkbookData): Promise<Blob> {
       for (const m of wsd.mergeData) {
         ws.mergeCells(m.startRow + 1, m.startColumn + 1, m.endRow + 1, m.endColumn + 1);
       }
+    }
+
+    // Column widths.
+    const columnData = (wsd.columnData ?? {}) as Record<string, { w?: number; hd?: number }>;
+    for (const cKey of Object.keys(columnData)) {
+      const c = Number(cKey);
+      const meta = columnData[cKey];
+      if (typeof meta?.w === 'number' && meta.w > 0) {
+        ws.getColumn(c + 1).width = pxToChars(meta.w);
+      }
+      if (meta?.hd === 1) ws.getColumn(c + 1).hidden = true;
+    }
+
+    // Row heights.
+    const rowData = (wsd.rowData ?? {}) as Record<string, { h?: number; hd?: number }>;
+    for (const rKey of Object.keys(rowData)) {
+      const r = Number(rKey);
+      const meta = rowData[rKey];
+      if (typeof meta?.h === 'number' && meta.h > 0) {
+        ws.getRow(r + 1).height = pxToPoints(meta.h);
+      }
+      if (meta?.hd === 1) ws.getRow(r + 1).hidden = true;
     }
   }
 

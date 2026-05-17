@@ -164,4 +164,42 @@ test.describe('xlsx round-trip', () => {
     expect(names).toContain('Forecast');
     expect(names).toContain('Inputs');
   });
+
+  test('column widths and row heights round-trip', async ({ page }) => {
+    // Set non-default widths on A and B and a tall row 1 via the facade,
+    // then export → re-import and check the values come back.
+    await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fws: any = api.getActiveWorkbook()!.getActiveSheet();
+      fws.setColumnWidth(0, 140);
+      fws.setColumnWidth(1, 60);
+      fws.setRowHeight(0, 48);
+    });
+
+    const result = await page.evaluate(async () => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const original: any = api.getActiveWorkbook()!.save();
+      const blob = await window.__xlsx!.workbookDataToXlsx(original);
+      const buf = await blob.arrayBuffer();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reloaded: any = await window.__xlsx!.xlsxToWorkbookData(buf);
+      const sheetId = reloaded.sheetOrder[0];
+      const wsd = reloaded.sheets[sheetId];
+      return {
+        widthA: wsd.columnData?.[0]?.w,
+        widthB: wsd.columnData?.[1]?.w,
+        heightRow1: wsd.rowData?.[0]?.h,
+      };
+    });
+
+    // Allow ±2px slop from the px↔char↔px Excel char-width conversion.
+    expect(result.widthA).toBeGreaterThan(135);
+    expect(result.widthA).toBeLessThan(145);
+    expect(result.widthB).toBeGreaterThan(55);
+    expect(result.widthB).toBeLessThan(65);
+    expect(result.heightRow1).toBeGreaterThan(44);
+    expect(result.heightRow1).toBeLessThan(52);
+  });
 });

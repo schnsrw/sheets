@@ -44,12 +44,20 @@ export async function xlsxToWorkbookData(buffer: ArrayBuffer): Promise<IWorkbook
     return styleId;
   };
 
+  // Same conversion constants as the exporter — keep them in lockstep so
+  // a save → reopen → save cycle is a fixed point.
+  const PX_PER_CHAR = 7;
+  const charsToPx = (chars: number) => Math.round(chars * PX_PER_CHAR);
+  const pointsToPx = (pt: number) => Math.round((pt * 96) / 72);
+
   for (const ws of wb.worksheets) {
     const sheetId = `sheet-${ws.id}`;
     sheetOrder.push(sheetId);
 
     const cellData: Record<number, Record<number, ICellData>> = {};
     const mergeData: IRange[] = [];
+    const columnData: Record<number, { w?: number; hd?: number }> = {};
+    const rowData: Record<number, { h?: number; hd?: number }> = {};
 
     let maxRow = 0;
     let maxCol = 0;
@@ -118,11 +126,34 @@ export async function xlsxToWorkbookData(buffer: ArrayBuffer): Promise<IWorkbook
       });
     }
 
+    // Column widths (ExcelJS uses character units; convert to pixels).
+    // ws.columns is undefined when no column metadata is set.
+    const wsColumns = (ws as { columns?: Array<{ width?: number; hidden?: boolean } | null> })
+      .columns ?? [];
+    wsColumns.forEach((col, i) => {
+      if (!col) return;
+      const entry: { w?: number; hd?: number } = {};
+      if (typeof col.width === 'number') entry.w = charsToPx(col.width);
+      if (col.hidden) entry.hd = 1;
+      if (entry.w !== undefined || entry.hd !== undefined) columnData[i] = entry;
+    });
+
+    // Row heights (ExcelJS uses points; convert to pixels). Only rows with
+    // an explicit height are emitted by ExcelJS — empty rows are skipped.
+    ws.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      const entry: { h?: number; hd?: number } = {};
+      if (typeof row.height === 'number') entry.h = pointsToPx(row.height);
+      if (row.hidden) entry.hd = 1;
+      if (entry.h !== undefined || entry.hd !== undefined) rowData[rowNumber - 1] = entry;
+    });
+
     sheets[sheetId] = {
       id: sheetId,
       name: ws.name,
       cellData,
       mergeData,
+      columnData,
+      rowData,
       rowCount: Math.max(INITIAL_ROWS, maxRow + 1),
       columnCount: Math.max(INITIAL_COLUMNS, maxCol + 1),
     };

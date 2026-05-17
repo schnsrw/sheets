@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
+import { useLoading } from '../loading-context';
 import { loadSpreadsheetFile } from '../shell/file-actions';
 
 const SUPPORTED_EXTENSIONS = ['xlsx', 'ods', 'csv', 'tsv', 'tab'];
@@ -19,6 +20,7 @@ const SUPPORTED_EXTENSIONS = ['xlsx', 'ods', 'csv', 'tsv', 'tab'];
 export function useFileDrop(): boolean {
   const api = useUniverAPI();
   const workbook = useWorkbook();
+  const loading = useLoading();
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -55,13 +57,18 @@ export function useFileDrop(): boolean {
         );
         return;
       }
+      loading.set({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
       try {
-        await loadSpreadsheetFile(file, api, workbook.replaceWorkbook);
+        await loadSpreadsheetFile(file, api, workbook.replaceWorkbook, (phase) =>
+          loading.set({ phase }),
+        );
       } catch (err) {
         console.error('[drop] failed', err);
         window.alert(
           `Could not open this file: ${(err as Error)?.message ?? String(err)}`,
         );
+      } finally {
+        requestAnimationFrame(() => loading.set(null));
       }
     };
 
@@ -75,6 +82,7 @@ export function useFileDrop(): boolean {
       window.removeEventListener('dragleave', onLeave);
       window.removeEventListener('drop', onDrop);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, workbook.replaceWorkbook]);
 
   return dragging;

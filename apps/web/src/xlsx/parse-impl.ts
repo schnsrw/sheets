@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { LocaleType, type ICellData, type IRange, type IStyleData, type IWorkbookData } from '@univerjs/core';
 import { excelStyleToUniver } from './style-mapping';
 import { INITIAL_COLUMNS, INITIAL_ROWS, UNIVER_VERSION } from '../snapshot';
-import { RESOURCES_SHEET } from './export';
+import { RESOURCES_SHEET } from './constants';
 import type { ImportedWorkbook, PendingHyperlink } from './import';
 
 /**

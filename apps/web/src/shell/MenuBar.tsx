@@ -19,6 +19,7 @@ import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
 import { PageSetupDialog } from './PageSetupDialog';
 import { openBugReport } from './report-bug';
 import { useCollab } from '../collab/collab-context';
+import { useLoading } from '../loading-context';
 import { useOutlineActions } from '../outline/use-outline-actions';
 import { useOutline } from '../outline/outline-context';
 import {
@@ -100,6 +101,7 @@ export function MenuBar() {
   const outlineActions = useOutlineActions();
   const outline = useOutline();
   const collab = useCollab();
+  const loading = useLoading();
   const [open, setOpen] = useState<MenuId | null>(null);
   const [showProperties, setShowProperties] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -137,8 +139,22 @@ export function MenuBar() {
     try {
       const file = await pickXlsxFile();
       if (!file) return;
-      await loadSpreadsheetFile(file, api, workbook.replaceWorkbook);
+      // Open the loading overlay before we await anything heavy — we
+      // want the user to see "Reading file" before the parser worker
+      // even spins up.
+      loading.set({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
+      try {
+        await loadSpreadsheetFile(file, api, workbook.replaceWorkbook, (phase) =>
+          loading.set({ phase }),
+        );
+      } finally {
+        // Give Univer's mount one frame to settle before dropping the
+        // overlay — otherwise a fast open shows a blink of the empty
+        // grid before the new unit paints.
+        requestAnimationFrame(() => loading.set(null));
+      }
     } catch (err) {
+      loading.set(null);
       // Surface failures from the parser / replace flow so they aren't
       // swallowed by React's unhandled-rejection silence on event handlers.
       console.error('[open] failed', err);

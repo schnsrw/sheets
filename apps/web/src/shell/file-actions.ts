@@ -23,15 +23,25 @@ import {
  * (e.g. lifting the workbook snapshot so a new Open replaces the active unit).
  */
 
+/** Optional progress reporter called as the open flow transitions
+ *  between phases (read buffer → parse → mount). Used by the loading
+ *  overlay; ignored by callers that don't want UI feedback. */
+export type OpenProgress = (phase: 'reading' | 'parsing' | 'mounting') => void;
+
 /**
  * Open a spreadsheet from disk. We auto-detect by file extension and
- * dispatch to the right parser. xlsx files go through ExcelJS; ods files
- * through SheetJS Community.
+ * dispatch to the right parser. xlsx files go through ExcelJS (in a
+ * worker); ods files through SheetJS Community.
  */
-export async function openSpreadsheetFile(file: File): Promise<IWorkbookData> {
+export async function openSpreadsheetFile(
+  file: File,
+  onProgress?: OpenProgress,
+): Promise<IWorkbookData> {
   console.info('[open] reading file', { name: file.name, size: file.size });
+  onProgress?.('reading');
   const buf = await file.arrayBuffer();
   console.info('[open] buffer read', buf.byteLength, 'bytes — parsing');
+  onProgress?.('parsing');
   const lower = file.name.toLowerCase();
   let data: IWorkbookData;
   if (lower.endsWith('.ods')) data = await odsToWorkbookData(buf);
@@ -69,13 +79,15 @@ export async function loadSpreadsheetFile(
   file: File,
   api: FUniver | null,
   replaceWorkbook: (data: IWorkbookData, format: WorkbookFormat) => void,
+  onProgress?: OpenProgress,
 ): Promise<void> {
-  const data = await openSpreadsheetFile(file);
+  const data = await openSpreadsheetFile(file, onProgress);
   const format = inferFormat(file.name);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pending = (data as any).__pendingHyperlinks as
     | PendingHyperlink[]
     | undefined;
+  onProgress?.('mounting');
   replaceWorkbook(data, format);
   if (api && Array.isArray(pending) && pending.length > 0) {
     const targetUnitId = data.id;

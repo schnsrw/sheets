@@ -17,6 +17,8 @@ import { OutlineProvider } from './outline/outline-context';
 import { OutlinePanel } from './shell/OutlinePanel';
 import { CollabDriver } from './collab/CollabDriver';
 import { CreateRoomDialog } from './shell/CreateRoomDialog';
+import { LoadingOverlay } from './shell/LoadingOverlay';
+import { LoadingContext, type LoadingCtxValue, type LoadingState } from './loading-context';
 
 export function App() {
   const [snapshot, setSnapshot] = useState<IWorkbookData>(() => emptyWorkbook());
@@ -28,6 +30,7 @@ export function App() {
   // null while editing an empty / unsaved workbook (in which case Save
   // defaults to .xlsx).
   const [sourceFormat, setSourceFormat] = useState<WorkbookFormat | null>(null);
+  const [loading, setLoading] = useState<LoadingState | null>(null);
 
   const replaceWorkbook = useCallback(
     (next: IWorkbookData, format?: WorkbookFormat | null) => {
@@ -40,6 +43,34 @@ export function App() {
   const wbValue: WorkbookCtxValue = useMemo(
     () => ({ snapshot, replaceWorkbook, sourceFormat }),
     [snapshot, replaceWorkbook, sourceFormat],
+  );
+
+  const loadingValue: LoadingCtxValue = useMemo(
+    () => ({
+      state: loading,
+      set: (next) => {
+        if (next === null) {
+          setLoading(null);
+          return;
+        }
+        setLoading((prev) => {
+          // Fresh session — requires at least fileName + phase.
+          if (!prev) {
+            if (!next.fileName || !next.phase) return prev;
+            return {
+              fileName: next.fileName,
+              phase: next.phase,
+              sizeBytes: next.sizeBytes,
+              startedAt: Date.now(),
+            };
+          }
+          // Update an open session — preserve startedAt so the elapsed
+          // timer keeps counting through phase transitions.
+          return { ...prev, ...next, startedAt: prev.startedAt };
+        });
+      },
+    }),
+    [loading],
   );
 
   const uiValue: UICtxValue = useMemo(
@@ -59,6 +90,7 @@ export function App() {
     <UniverRoot>
       <UIContext.Provider value={uiValue}>
         <WorkbookContext.Provider value={wbValue}>
+        <LoadingContext.Provider value={loadingValue}>
           <OutlineProvider>
             <GrowthDriver />
             <FileDropDriver />
@@ -84,7 +116,9 @@ export function App() {
                 )}
               </div>
             </CollabDriver>
+            <LoadingOverlay />
           </OutlineProvider>
+        </LoadingContext.Provider>
         </WorkbookContext.Provider>
       </UIContext.Provider>
     </UniverRoot>

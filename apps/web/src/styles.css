@@ -1552,6 +1552,122 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Loading overlay — shown while a multi-MB workbook is being opened.
+   Render-blocking modal with a phase label + indeterminate stripe.
+   ───────────────────────────────────────────────────────────────────────── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6000;
+  animation: backdrop-in 120ms var(--ease-out, ease-out);
+}
+
+.loading-overlay__card {
+  width: min(420px, 92vw);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  padding: 24px 28px;
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.loading-overlay__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-accent-soft, var(--color-surface-alt));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px;
+}
+
+.loading-overlay__icon-inner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-top-color: var(--color-accent);
+  animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-overlay__title {
+  font-size: 15px;
+  font-weight: var(--weight-semibold, 600);
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.loading-overlay__title strong {
+  font-weight: var(--weight-semibold, 600);
+}
+
+.loading-overlay__size {
+  color: var(--color-text-soft, var(--color-text));
+  font-weight: var(--weight-regular, 400);
+}
+
+.loading-overlay__phase {
+  font-size: 13px;
+  color: var(--color-text-soft, var(--color-text));
+  margin: 2px 0 8px;
+}
+
+.loading-overlay__bar {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  background: var(--color-surface-alt);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading-overlay__bar-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-accent) 50%,
+    transparent 100%
+  );
+  width: 40%;
+  border-radius: 999px;
+  animation: loading-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-sweep {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
+
+.loading-overlay__elapsed {
+  font-size: 12px;
+  color: var(--color-text-soft, var(--color-text));
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.loading-overlay__hint {
+  font-size: 12px;
+  color: var(--color-text-soft, var(--color-text));
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Modal dialog (Properties dialog and future modals)
    ───────────────────────────────────────────────────────────────────────── */
 .dialog-backdrop {

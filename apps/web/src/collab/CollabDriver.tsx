@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
+import { useLoading } from '../loading-context';
 import { xlsxToWorkbookData } from '../xlsx';
 import { startBridge, type BridgeHandle } from './bridge';
 import { CollabContext, type CollabRole, type CollabStatus } from './collab-context';
@@ -37,6 +38,7 @@ import { PresenceLayer } from './PresenceLayer';
 export function CollabDriver({ children }: { children?: ReactNode }) {
   const api = useUniverAPI();
   const workbook = useWorkbook();
+  const loading = useLoading();
   const handleRef = useRef<BridgeHandle | null>(null);
   const docRef = useRef<Y.Doc | null>(null);
 
@@ -101,11 +103,17 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       if (info?.hasSeed && !wasOwnerOfRoom(id)) {
         try {
           setStatus('connecting');
+          // Show the loading overlay for the joiner. We don't know the
+          // file name yet (the server only ships bytes), so use the
+          // room id as a stand-in label.
+          loading.set({ fileName: `room ${id}`, phase: 'reading' });
           const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/seed`);
           if (res.ok) {
             const buf = await res.arrayBuffer();
+            loading.set({ phase: 'parsing', sizeBytes: buf.byteLength });
             const data = await xlsxToWorkbookData(buf);
             if (cancelled) return;
+            loading.set({ phase: 'mounting' });
             workbook.replaceWorkbook(data, 'xlsx');
             // Univer's unit-swap is async — wait a frame so the new
             // unit is wired into the facade before the bridge attaches.
@@ -115,6 +123,8 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
           }
         } catch (err) {
           console.warn('[collab] failed to apply seed', err);
+        } finally {
+          requestAnimationFrame(() => loading.set(null));
         }
         if (cancelled) return;
       }

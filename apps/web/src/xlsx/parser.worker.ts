@@ -29,7 +29,11 @@ ctx.addEventListener('message', async (e: MessageEvent<ParseRequest>) => {
     const reply: ParseResponse = { id, ok: true, data };
     ctx.postMessage(reply);
   } catch (err) {
-    const reply: ParseResponse = { id, ok: false, error: String(err) };
+    // Preserve the underlying error type + stack so the main-thread
+    // overlay can show something more useful than "Error code: 5".
+    const error =
+      err instanceof Error ? `${err.name}: ${err.message}\n${err.stack ?? ''}` : String(err);
+    const reply: ParseResponse = { id, ok: false, error };
     ctx.postMessage(reply);
   }
 });

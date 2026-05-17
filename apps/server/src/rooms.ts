@@ -20,6 +20,13 @@ type RoomState = {
    *  doesn't carry pre-existing cells — the owner's "Share current
    *  workbook" flow uploads here so peers see the same starting state. */
   xlsxSeed?: Uint8Array;
+  /** Optional gzipped JSON snapshot (`IWorkbookData`) — server-side cache
+   *  so joiners skip the multi-second xlsx parse on join. Same content
+   *  as `xlsxSeed`, just in a form the client can apply via
+   *  `replaceWorkbook` without re-running ExcelJS. Lives alongside the
+   *  xlsx (not instead of it) so existing tooling that wants the .xlsx
+   *  bytes still has them. */
+  snapshotGz?: Uint8Array;
   /** ISO timestamp the room was created. */
   createdAt: string;
   /** SHA-256 hash of the room password, hex-encoded. `null` = open room. */
@@ -69,6 +76,14 @@ export class RoomRegistry {
     const room = this.rooms.get(id);
     if (!room) return false;
     room.xlsxSeed = bytes;
+    return true;
+  }
+
+  /** Cache the gzipped JSON snapshot for fast-path joiner load. */
+  setSnapshotGz(id: string, bytes: Uint8Array): boolean {
+    const room = this.rooms.get(id);
+    if (!room) return false;
+    room.snapshotGz = bytes;
     return true;
   }
 

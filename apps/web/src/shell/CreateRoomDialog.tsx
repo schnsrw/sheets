@@ -58,12 +58,15 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
       if (!res.ok) throw new Error(`server responded ${res.status}`);
       const body = (await res.json()) as { roomId: string };
 
-      // Upload the current workbook as the room's starting xlsx so
-      // joiners begin from the same content. The op-log only carries
-      // *future* mutations, so without this every joiner would see a
-      // blank grid. We always upload — even an "empty" workbook is
-      // valid xlsx and harmless to ship.
+      // Upload TWO representations of the starting workbook:
+      //   1. xlsx bytes — for compatibility and any tooling that wants
+      //      the raw file (server stores at /api/rooms/:id/seed).
+      //   2. gzipped JSON snapshot — fast-path for joiners so they can
+      //      skip the multi-second ExcelJS parse on join.
+      // Both are best-effort: a missing snapshot just means joiners
+      // fall back to the xlsx path, which still works.
       if (api) {
+        const wb = api.getActiveWorkbook();
         try {
           const blob = await exportCurrentWorkbookAsXlsxBlob(api);
           if (blob) {
@@ -74,9 +77,6 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
               body: form,
             });
             if (!seedRes.ok) {
-              // Non-fatal: the room exists and is joinable, but peers
-              // will get a blank starting workbook. Log loudly so we
-              // notice it in the field.
               console.warn(
                 '[share-room] seed upload failed',
                 seedRes.status,
@@ -85,7 +85,31 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
             }
           }
         } catch (err) {
-          console.warn('[share-room] failed to serialize seed', err);
+          console.warn('[share-room] failed to serialize xlsx seed', err);
+        }
+        try {
+          if (wb && typeof CompressionStream !== 'undefined') {
+            // Walk the in-memory snapshot — wb.save() is a deep clone
+            // but we'd pay the same cost in the xlsx exporter, so
+            // this is essentially free.
+            const snapshot = wb.save();
+            const json = JSON.stringify(snapshot);
+            const gzipped = await gzipString(json);
+            const snapRes = await fetch(`/api/rooms/${body.roomId}/snapshot`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/gzip' },
+              body: gzipped as BodyInit,
+            });
+            if (!snapRes.ok) {
+              console.warn(
+                '[share-room] snapshot upload failed',
+                snapRes.status,
+                await snapRes.text().catch(() => ''),
+              );
+            }
+          }
+        } catch (err) {
+          console.warn('[share-room] failed to upload snapshot cache', err);
         }
       }
 
@@ -328,6 +352,25 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Gzip a JS string via the browser-native CompressionStream. Available
+ * in every evergreen browser; we feature-check before calling so an
+ * older Safari just skips the snapshot upload and joiners fall back
+ * to the xlsx path.
+ */
+async function gzipString(input: string): Promise<Uint8Array> {
+  const enc = new TextEncoder().encode(input);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stream = new (window as any).CompressionStream('gzip') as ReadableWritablePair<
+    Uint8Array,
+    Uint8Array
+  >;
+  const blob = await new Response(
+    new Blob([enc as BlobPart]).stream().pipeThrough(stream as unknown as ReadableWritablePair),
+  ).arrayBuffer();
+  return new Uint8Array(blob);
 }
 
 function ShareUrlRow({

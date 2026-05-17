@@ -18,6 +18,9 @@ export type LoadingState = {
   phase: LoadingPhase;
   /** Unix ms when the overlay first opened — used for the elapsed timer. */
   startedAt: number;
+  /** Set when the load failed. The overlay flips into an error card with
+   *  this message + a Dismiss button. */
+  error?: string;
 };
 
 export type LoadingCtxValue = {

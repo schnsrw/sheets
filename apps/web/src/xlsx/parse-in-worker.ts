@@ -34,7 +34,19 @@ export function parseXlsxInWorker(buffer: ArrayBuffer): Promise<ImportedWorkbook
     );
     worker.addEventListener('error', (e) => {
       cleanup();
-      reject(new Error(`xlsx worker error: ${e.message || 'unknown'}`));
+      // ErrorEvent.message is "" when the worker crashes from OOM in
+      // some browsers; fall back to filename/line for context. Common
+      // cause: a workbook too large to allocate during ExcelJS load.
+      const detail = e.message || `${e.filename ?? ''}:${e.lineno ?? ''}` || 'unknown';
+      reject(
+        new Error(
+          `xlsx parser worker crashed (${detail}). The workbook may be too large for this browser to allocate.`,
+        ),
+      );
+    });
+    worker.addEventListener('messageerror', () => {
+      cleanup();
+      reject(new Error('xlsx parser worker returned an unserializable result.'));
     });
     worker.postMessage({ id, buffer }, [buffer]);
   });

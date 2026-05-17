@@ -23,29 +23,12 @@ import { parseXlsxInWorker } from './parse-in-worker';
  * data tables, comments, hyperlinks, advanced borders (dashed/double), themes.
  */
 
-/** A hyperlink read off an xlsx cell that must be replayed into Univer's
- * hyperlink plugin AFTER the snapshot becomes the active workbook. The
- * hyperlink plugin keeps its state in HyperLinkModel (and the rich-text cell
- * body it mutates as a side-effect of AddHyperLinkCommand), neither of which
- * we can construct in the pure-data import path — so we capture the URL
- * here and re-issue the command after the unit mounts.
- *
- * `id` is a fresh client id; xlsx doesn't persist Univer's link ids, so a new
- * one per import is correct and matches what an in-app insert would assign. */
-export type PendingHyperlink = {
-  subUnitId: string;
-  id: string;
-  row: number;
-  column: number;
-  payload: string;
-  display?: string;
-};
-
-/** Workbook data plus side-channel info that has to be replayed into
- * plugin services after the snapshot is mounted as the active unit. */
-export type ImportedWorkbook = IWorkbookData & {
-  __pendingHyperlinks?: PendingHyperlink[];
-};
+/**
+ * Workbook data ready to mount. Stage 5 of the pipeline folded
+ * hyperlinks into `cell.p.body.customRanges` inline, so no more
+ * `__pendingHyperlinks` side-channel — the snapshot is self-contained.
+ */
+export type ImportedWorkbook = IWorkbookData;
 
 export async function xlsxToWorkbookData(buffer: ArrayBuffer): Promise<ImportedWorkbook> {
   return timeItAsync('parse-xlsx', () => parseXlsxInWorker(buffer));

@@ -117,8 +117,11 @@ test('share → password join → presence → download → leave', async ({ bas
   await owner.getByTestId('share-room-create').click();
 
   // "Ready" stage exposes both URLs — read the edit link.
+  // 20s is plenty even on slow CI: the dialog does a worker xlsx
+  // export + a fetch upload behind the click, both of which can take
+  // ~1–2 s on shared runners.
   const writeUrlInput = owner.getByTestId('share-room-write-url');
-  await expect(writeUrlInput).toBeVisible({ timeout: 10_000 });
+  await expect(writeUrlInput).toBeVisible({ timeout: 20_000 });
   const writeUrl = await writeUrlInput.inputValue();
   expect(writeUrl).toMatch(/\/r\/[\w-]{6,}$/);
   const roomId = writeUrl.split('/r/')[1];

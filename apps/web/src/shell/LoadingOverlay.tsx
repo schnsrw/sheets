@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLoading, type LoadingPhase } from '../loading-context';
+import { Icon } from './Icon';
 
 /**
  * Centered modal shown while a multi-MB workbook is being opened. The
@@ -19,11 +20,11 @@ const PHASE_TEXT: Record<LoadingPhase, string> = {
 };
 
 export function LoadingOverlay() {
-  const { state } = useLoading();
+  const { state, set } = useLoading();
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (!state) {
+    if (!state || state.error) {
       setElapsed(0);
       return;
     }
@@ -34,6 +35,42 @@ export function LoadingOverlay() {
   }, [state]);
 
   if (!state) return null;
+
+  // Error flavor — same shell, different content. We keep the modal
+  // blocking so the user explicitly dismisses; otherwise a fast-fail
+  // would flash and vanish before they can read the message.
+  if (state.error) {
+    return (
+      <div
+        className="loading-overlay"
+        data-testid="loading-overlay"
+        role="alertdialog"
+        aria-live="assertive"
+        aria-modal="true"
+      >
+        <div className="loading-overlay__card loading-overlay__card--error" data-testid="loading-overlay-error-card">
+          <div className="loading-overlay__icon loading-overlay__icon--error" aria-hidden="true">
+            <Icon name="error" size="md" />
+          </div>
+          <div className="loading-overlay__title">
+            Couldn't open <strong>{state.fileName}</strong>
+          </div>
+          <pre className="loading-overlay__error-text" data-testid="loading-overlay-error">
+            {state.error}
+          </pre>
+          <button
+            type="button"
+            className="btn-primary"
+            data-testid="loading-overlay-dismiss"
+            onClick={() => set(null)}
+            style={{ marginTop: 12 }}
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const showElapsed = elapsed > 1500;
   const showBigFileHint = elapsed > 4000;

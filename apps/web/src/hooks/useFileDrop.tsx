@@ -62,13 +62,16 @@ export function useFileDrop(): boolean {
         await loadSpreadsheetFile(file, api, workbook.replaceWorkbook, (phase) =>
           loading.set({ phase }),
         );
-      } catch (err) {
-        console.error('[drop] failed', err);
-        window.alert(
-          `Could not open this file: ${(err as Error)?.message ?? String(err)}`,
-        );
-      } finally {
         requestAnimationFrame(() => loading.set(null));
+      } catch (err) {
+        const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        console.error('[drop] failed', err);
+        loading.set({
+          fileName: file.name,
+          sizeBytes: file.size,
+          phase: 'reading',
+          error: msg,
+        });
       }
     };
 

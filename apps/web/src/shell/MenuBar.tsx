@@ -129,36 +129,41 @@ export function MenuBar() {
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
-    // handleSave reads workbook.sourceFormat + workbook.snapshot.name from
-    // context; api in deps re-binds the handler when the workbook is swapped.
+    // handleSave reads workbook.meta from context; api in deps re-binds
+    // the handler when the workbook is swapped.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, workbook.sourceFormat, workbook.snapshot.name]);
+  }, [api, workbook.meta]);
 
   const handleNew = () => workbook.replaceWorkbook(emptyWorkbook(), null);
   const handleOpen = async () => {
+    let openedFile: File | null = null;
     try {
       const file = await pickXlsxFile();
       if (!file) return;
+      openedFile = file;
       // Open the loading overlay before we await anything heavy — we
       // want the user to see "Reading file" before the parser worker
       // even spins up.
       loading.set({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
-      try {
-        await loadSpreadsheetFile(file, api, workbook.replaceWorkbook, (phase) =>
-          loading.set({ phase }),
-        );
-      } finally {
-        // Give Univer's mount one frame to settle before dropping the
-        // overlay — otherwise a fast open shows a blink of the empty
-        // grid before the new unit paints.
-        requestAnimationFrame(() => loading.set(null));
-      }
+      await loadSpreadsheetFile(file, api, workbook.replaceWorkbook, (phase) =>
+        loading.set({ phase }),
+      );
+      // Give Univer's mount one frame to settle before dropping the
+      // overlay — otherwise a fast open shows a blink of the empty
+      // grid before the new unit paints.
+      requestAnimationFrame(() => loading.set(null));
     } catch (err) {
-      loading.set(null);
-      // Surface failures from the parser / replace flow so they aren't
-      // swallowed by React's unhandled-rejection silence on event handlers.
+      // Surface failures in the overlay rather than window.alert so the
+      // user can read + copy the actual error message instead of losing
+      // it to an OS dialog.
+      const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
       console.error('[open] failed', err);
-      window.alert(`Could not open this file: ${(err as Error)?.message ?? String(err)}`);
+      loading.set({
+        fileName: openedFile?.name ?? 'workbook',
+        sizeBytes: openedFile?.size,
+        phase: 'reading',
+        error: msg,
+      });
     }
   };
 
@@ -166,8 +171,8 @@ export function MenuBar() {
   // back to xlsx for a fresh / empty workbook. Mirrors Excel & LibreOffice.
   const handleSave = async () => {
     if (!api) return;
-    const name = workbook.snapshot.name || 'workbook';
-    switch (workbook.sourceFormat) {
+    const name = workbook.meta.name || 'workbook';
+    switch (workbook.meta.sourceFormat) {
       case 'ods':
         await saveAsOds(api, name);
         return;
@@ -184,10 +189,10 @@ export function MenuBar() {
   };
 
   const handleExportXlsx = async () =>
-    api && saveAsXlsx(api, workbook.snapshot.name || 'workbook', { outline: outline.state });
-  const handleExportOds = async () => api && saveAsOds(api, workbook.snapshot.name || 'workbook');
-  const handleExportCsv = async () => api && saveAsCsv(api, workbook.snapshot.name || 'workbook');
-  const handleExportTsv = async () => api && saveAsTsv(api, workbook.snapshot.name || 'workbook');
+    api && saveAsXlsx(api, workbook.meta.name || 'workbook', { outline: outline.state });
+  const handleExportOds = async () => api && saveAsOds(api, workbook.meta.name || 'workbook');
+  const handleExportCsv = async () => api && saveAsCsv(api, workbook.meta.name || 'workbook');
+  const handleExportTsv = async () => api && saveAsTsv(api, workbook.meta.name || 'workbook');
 
   const menus: Record<MenuId, { label: string; items: MenuItem[] }> = {
     file: {

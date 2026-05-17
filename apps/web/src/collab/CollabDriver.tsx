@@ -100,26 +100,50 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       // is marked with a sessionStorage flag when they navigated here,
       // so they skip the round-trip (they already *have* the workbook
       // in memory — replacing it would just churn).
-      if (info?.hasSeed && !wasOwnerOfRoom(id)) {
+      if ((info?.hasSnapshot || info?.hasSeed) && !wasOwnerOfRoom(id)) {
         try {
           setStatus('connecting');
           // Show the loading overlay for the joiner. We don't know the
           // file name yet (the server only ships bytes), so use the
           // room id as a stand-in label.
           loading.set({ fileName: `room ${id}`, phase: 'reading' });
-          const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/seed`);
-          if (res.ok) {
-            const buf = await res.arrayBuffer();
-            loading.set({ phase: 'parsing', sizeBytes: buf.byteLength });
-            const data = await xlsxToWorkbookData(buf);
-            if (cancelled) return;
-            loading.set({ phase: 'mounting' });
+
+          // Fast path: try the pre-parsed gzipped snapshot first. This
+          // skips ExcelJS entirely — multi-second win on big workbooks.
+          // Browser handles `content-encoding: gzip` transparently, so
+          // we just read the JSON.
+          let data: import('@univerjs/core').IWorkbookData | null = null;
+          if (info?.hasSnapshot && typeof DecompressionStream !== 'undefined') {
+            try {
+              const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/snapshot`);
+              if (res.ok) {
+                loading.set({ phase: 'mounting' });
+                data = (await res.json()) as import('@univerjs/core').IWorkbookData;
+              }
+            } catch (err) {
+              console.warn('[collab] snapshot fast-path failed, falling back to xlsx', err);
+            }
+          }
+
+          // Slow path: parse the xlsx in the worker.
+          if (!data && info?.hasSeed) {
+            const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/seed`);
+            if (res.ok) {
+              const buf = await res.arrayBuffer();
+              loading.set({ phase: 'parsing', sizeBytes: buf.byteLength });
+              data = await xlsxToWorkbookData(buf);
+              loading.set({ phase: 'mounting' });
+            } else {
+              console.warn('[collab] seed fetch failed', res.status);
+            }
+          }
+
+          if (cancelled) return;
+          if (data) {
             workbook.replaceWorkbook(data, 'xlsx');
             // Univer's unit-swap is async — wait a frame so the new
             // unit is wired into the facade before the bridge attaches.
             await new Promise((r) => requestAnimationFrame(() => r(null)));
-          } else {
-            console.warn('[collab] seed fetch failed', res.status);
           }
         } catch (err) {
           console.warn('[collab] failed to apply seed', err);
@@ -400,11 +424,16 @@ function PasswordPrompt({
 
 async function fetchRoomInfo(
   id: string,
-): Promise<{ needsPassword: boolean; hasSeed: boolean; clients: number } | null> {
+): Promise<{ needsPassword: boolean; hasSeed: boolean; hasSnapshot: boolean; clients: number } | null> {
   try {
     const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/info`);
     if (!res.ok) return null;
-    return (await res.json()) as { needsPassword: boolean; hasSeed: boolean; clients: number };
+    return (await res.json()) as {
+      needsPassword: boolean;
+      hasSeed: boolean;
+      hasSnapshot: boolean;
+      clients: number;
+    };
   } catch {
     return null;
   }

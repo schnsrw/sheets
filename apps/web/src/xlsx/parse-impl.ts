@@ -1,9 +1,16 @@
 import ExcelJS from 'exceljs';
-import { LocaleType, type ICellData, type IRange, type IStyleData, type IWorkbookData } from '@univerjs/core';
+import {
+  CustomRangeType,
+  LocaleType,
+  type ICellData,
+  type IRange,
+  type IStyleData,
+  type IWorkbookData,
+} from '@univerjs/core';
 import { excelStyleToUniver } from './style-mapping';
 import { INITIAL_COLUMNS, INITIAL_ROWS, UNIVER_VERSION } from '../snapshot';
 import { RESOURCES_SHEET } from './constants';
-import type { ImportedWorkbook, PendingHyperlink } from './import';
+import type { ImportedWorkbook } from './import';
 
 /**
  * Pure conversion: ExcelJS workbook → Univer IWorkbookData snapshot.
@@ -19,6 +26,40 @@ import type { ImportedWorkbook, PendingHyperlink } from './import';
 let hyperlinkIdCounter = 0;
 const nextHyperlinkId = () =>
   `hl-${Date.now().toString(36)}-${(hyperlinkIdCounter++).toString(36)}`;
+
+/**
+ * Build a rich-text doc body that encodes a hyperlink at the cell. The
+ * shape mirrors what `AddHyperLinkCommand` writes into `cell.p.body`
+ * (see vendor: sheets-hyper-link's AddHyperLinkCommand impl). Putting
+ * hyperlinks here at import time avoids the previous per-link serial
+ * `executeCommand` round-trip after mount — for a workbook with
+ * thousands of links that path took multiple seconds.
+ */
+function buildHyperlinkBody(display: string, url: string, id: string): ICellData['p'] {
+  // Univer doc bodies end with `\r\n` (paragraph + section break). The
+  // customRange covers only the visible text [0, display.length - 1].
+  const dataStream = `${display}\r\n`;
+  return {
+    id: '__INTERNAL_EDITOR__DOCS_NORMAL',
+    documentStyle: {},
+    body: {
+      dataStream,
+      customRanges: [
+        {
+          startIndex: 0,
+          endIndex: display.length - 1,
+          rangeType: CustomRangeType.HYPERLINK,
+          rangeId: id,
+          properties: { url },
+        },
+      ],
+      paragraphs: [{ startIndex: display.length }],
+      sectionBreaks: [{ startIndex: display.length + 1 }],
+      textRuns: [],
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
 
 function readResourcesSheet(ws: ExcelJS.Worksheet): IWorkbookData['resources'] {
   const parts: string[] = [];
@@ -70,8 +111,6 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
   const charsToPx = (chars: number) => Math.round(chars * PX_PER_CHAR);
   const pointsToPx = (pt: number) => Math.round((pt * 96) / 72);
 
-  const pendingHyperlinksAll: PendingHyperlink[] = [];
-
   let resources: IWorkbookData['resources'] | undefined;
   for (const ws of wb.worksheets) {
     if (ws.name === RESOURCES_SHEET) {
@@ -89,7 +128,6 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
     const mergeData: IRange[] = [];
     const columnData: Record<number, { w?: number; hd?: number }> = {};
     const rowData: Record<number, { h?: number; hd?: number }> = {};
-    const pendingHyperlinks: Array<{ row: number; column: number; payload: string; display?: string }> = [];
 
     let maxRow = 0;
     let maxCol = 0;
@@ -113,15 +151,13 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
         } else if (raw && typeof raw === 'object' && 'richText' in raw) {
           cd.v = (raw as { richText: { text: string }[] }).richText.map((t) => t.text).join('');
         } else if (raw && typeof raw === 'object' && 'text' in raw && 'hyperlink' in raw) {
-          cd.v = (raw as { text: string }).text;
+          const display = (raw as { text: string }).text ?? '';
+          cd.v = display;
           const url = (raw as { hyperlink: string }).hyperlink;
-          if (typeof url === 'string' && url) {
-            pendingHyperlinks.push({
-              row: r,
-              column: c,
-              payload: url,
-              display: (raw as { text: string }).text,
-            });
+          if (typeof url === 'string' && url && display.length > 0) {
+            // Inline the link into cell.p so it ships in the snapshot.
+            // No need to replay through AddHyperLinkCommand at mount.
+            cd.p = buildHyperlinkBody(display, url, nextHyperlinkId());
           }
         } else if (raw && typeof raw === 'object' && 'sharedFormula' in raw) {
           const sf = (raw as { sharedFormula: string; result?: unknown }).sharedFormula;
@@ -224,10 +260,6 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
       ...(defaultRowHeight !== undefined ? { defaultRowHeight } : {}),
       ...(hidden ? { hidden } : {}),
     };
-
-    for (const hl of pendingHyperlinks) {
-      pendingHyperlinksAll.push({ ...hl, subUnitId: sheetId, id: nextHyperlinkId() });
-    }
   }
 
   if (sheetOrder.length === 0) {
@@ -251,6 +283,5 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
     sheetOrder,
     sheets,
     ...(resources ? { resources } : {}),
-    ...(pendingHyperlinksAll.length ? { __pendingHyperlinks: pendingHyperlinksAll } : {}),
   };
 }

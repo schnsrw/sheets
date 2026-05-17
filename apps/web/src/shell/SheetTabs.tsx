@@ -13,6 +13,7 @@ import {
 import { redo, undo } from './home-tab-actions';
 import { setZoom } from './tab-actions';
 import { Icon } from './Icon';
+import { Tooltip } from './Tooltip';
 
 const NUM = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
 const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 200, 300, 400];
@@ -77,17 +78,18 @@ export function SheetTabs() {
 
   return (
     <div className="sheet-tabs" data-testid="sheet-tabs" role="tablist">
-      <button
-        type="button"
-        className="sheet-tabs__add btn btn--icon"
-        data-testid="sheet-tabs-add"
-        aria-label="Add sheet"
-        title="Add sheet"
-        disabled={!ready}
-        onClick={() => api && addSheet(api)}
-      >
-        <Icon name="add" size="sm" />
-      </button>
+      <Tooltip label="Add sheet" side="top">
+        <button
+          type="button"
+          className="sheet-tabs__add btn btn--icon"
+          data-testid="sheet-tabs-add"
+          aria-label="Add sheet"
+          disabled={!ready}
+          onClick={() => api && addSheet(api)}
+        >
+          <Icon name="add" size="sm" />
+        </button>
+      </Tooltip>
 
       <div className="sheet-tabs__list" data-testid="sheet-tabs-list">
         {sheets.map((s, i) => (
@@ -141,44 +143,47 @@ export function SheetTabs() {
       )}
 
       <div className="sheet-tabs__right">
-        <button
-          type="button"
-          className="sheet-tabs__action btn btn--icon"
-          data-testid="qat-undo"
-          aria-label="Undo (Ctrl+Z)"
-          title="Undo (Ctrl+Z)"
-          disabled={!ready || !api}
-          onClick={() => api && undo(api)}
-        >
-          <Icon name="undo" size="sm" />
-        </button>
-        <button
-          type="button"
-          className="sheet-tabs__action btn btn--icon"
-          data-testid="qat-redo"
-          aria-label="Redo (Ctrl+Y)"
-          title="Redo (Ctrl+Y)"
-          disabled={!ready || !api}
-          onClick={() => api && redo(api)}
-        >
-          <Icon name="redo" size="sm" />
-        </button>
+        <Tooltip label="Undo (Ctrl+Z)" side="top">
+          <button
+            type="button"
+            className="sheet-tabs__action btn btn--icon"
+            data-testid="qat-undo"
+            aria-label="Undo (Ctrl+Z)"
+            disabled={!ready || !api}
+            onClick={() => api && undo(api)}
+          >
+            <Icon name="undo" size="sm" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Redo (Ctrl+Y)" side="top">
+          <button
+            type="button"
+            className="sheet-tabs__action btn btn--icon"
+            data-testid="qat-redo"
+            aria-label="Redo (Ctrl+Y)"
+            disabled={!ready || !api}
+            onClick={() => api && redo(api)}
+          >
+            <Icon name="redo" size="sm" />
+          </button>
+        </Tooltip>
 
         <span className="sheet-tabs__sep" aria-hidden="true" />
 
-        <button
-          type="button"
-          className="sheet-tabs__action btn btn--icon"
-          data-testid="statusbar-zoom-out"
-          aria-label="Zoom out"
-          title="Zoom out"
-          onClick={() => {
-            const prev = [...ZOOM_STEPS].reverse().find((s) => s < zoomPct);
-            applyZoom(prev ?? 25);
-          }}
-        >
-          <Icon name="zoom_out" size="sm" />
-        </button>
+        <Tooltip label="Zoom out" side="top">
+          <button
+            type="button"
+            className="sheet-tabs__action btn btn--icon"
+            data-testid="statusbar-zoom-out"
+            aria-label="Zoom out"
+            onClick={() => {
+              const prev = [...ZOOM_STEPS].reverse().find((s) => s < zoomPct);
+              applyZoom(prev ?? 25);
+            }}
+          >
+            <Icon name="zoom_out" size="sm" />
+          </button>
+        </Tooltip>
         <input
           type="range"
           min={25}
@@ -190,29 +195,31 @@ export function SheetTabs() {
           className="sheet-tabs__zoom-slider"
           onChange={(e) => applyZoom(Number(e.target.value))}
         />
-        <button
-          type="button"
-          className="sheet-tabs__action btn btn--icon"
-          data-testid="statusbar-zoom-in"
-          aria-label="Zoom in"
-          title="Zoom in"
-          onClick={() => {
-            const next = ZOOM_STEPS.find((s) => s > zoomPct);
-            applyZoom(next ?? 400);
-          }}
-        >
-          <Icon name="zoom_in" size="sm" />
-        </button>
-        <button
-          type="button"
-          className="sheet-tabs__zoom-label"
-          data-testid="statusbar-zoom-label"
-          aria-label="Reset zoom to 100%"
-          title="Reset to 100%"
-          onClick={() => applyZoom(100)}
-        >
-          {zoomPct}%
-        </button>
+        <Tooltip label="Zoom in" side="top">
+          <button
+            type="button"
+            className="sheet-tabs__action btn btn--icon"
+            data-testid="statusbar-zoom-in"
+            aria-label="Zoom in"
+            onClick={() => {
+              const next = ZOOM_STEPS.find((s) => s > zoomPct);
+              applyZoom(next ?? 400);
+            }}
+          >
+            <Icon name="zoom_in" size="sm" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Reset to 100%" side="top">
+          <button
+            type="button"
+            className="sheet-tabs__zoom-label"
+            data-testid="statusbar-zoom-label"
+            aria-label="Reset zoom to 100%"
+            onClick={() => applyZoom(100)}
+          >
+            {zoomPct}%
+          </button>
+        </Tooltip>
       </div>
 
       {tabMenu && (
@@ -432,21 +439,25 @@ function SheetTabItem({
       ) : (
         <>
           <span className="sheet-tab__label">{sheet.name}</span>
-          <button
-            type="button"
-            className="sheet-tab__close"
-            data-testid={`sheet-tab-close-${sheet.id}`}
-            aria-label={`Delete ${sheet.name}`}
-            title={canDelete ? `Delete ${sheet.name}` : "Can't delete the last sheet"}
-            disabled={!canDelete}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
+          <Tooltip
+            label={canDelete ? `Delete ${sheet.name}` : "Can't delete the last sheet"}
+            side="top"
           >
-            <Icon name="close" size="sm" />
-          </button>
+            <button
+              type="button"
+              className="sheet-tab__close"
+              data-testid={`sheet-tab-close-${sheet.id}`}
+              aria-label={`Delete ${sheet.name}`}
+              disabled={!canDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <Icon name="close" size="sm" />
+            </button>
+          </Tooltip>
         </>
       )}
     </div>

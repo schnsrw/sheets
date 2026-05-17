@@ -1659,6 +1659,48 @@ button {
 .btn-secondary:hover { background: var(--color-hover); }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Custom tooltip. Drop-in replacement for the slow native `title=` tooltip:
+   300 ms delay, dark pill, portaled to <body> so it escapes ribbon clipping.
+   The trigger keeps its `aria-label` for screen readers; the tooltip itself
+   is purely visual (pointer-events: none, so it never blocks clicks).
+   ───────────────────────────────────────────────────────────────────────── */
+.tooltip {
+  position: fixed;
+  z-index: 10000;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: rgba(28, 31, 36, 0.95);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: var(--weight-medium, 500);
+  line-height: 1.3;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  /* Subtle fade-in so the tooltip doesn't pop harshly after the delay. */
+  animation: tooltip-fade-in 120ms ease-out both;
+}
+
+.tooltip--top {
+  transform: translate(-50%, -100%);
+}
+
+@keyframes tooltip-fade-in {
+  from { opacity: 0; transform: translate(-50%, 2px); }
+  to   { opacity: 1; }
+}
+
+.tooltip--top {
+  animation-name: tooltip-fade-in-top;
+}
+
+@keyframes tooltip-fade-in-top {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 2px)); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Drag-and-drop file open overlay. Window-level; appears while the user is
    dragging a file over the page. Pointer-events disabled so it never
    intercepts the actual drop event.

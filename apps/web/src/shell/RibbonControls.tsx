@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { Popover } from './Popover';
+import { Tooltip } from './Tooltip';
 
 /** Reusable ribbon primitives shared across all tabs. */
 
@@ -46,18 +47,19 @@ export function ToolbarButton({
   onClick,
 }: ToolbarButtonProps) {
   return (
-    <button
-      type="button"
-      className="btn btn--icon"
-      data-testid={`ribbon-btn-${id}`}
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <Icon name={icon} size="sm" />
-    </button>
+    <Tooltip label={label}>
+      <button
+        type="button"
+        className="btn btn--icon"
+        data-testid={`ribbon-btn-${id}`}
+        aria-label={label}
+        aria-pressed={pressed}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        <Icon name={icon} size="sm" />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -81,22 +83,23 @@ export function ToolbarSelect({
   onChange,
 }: SelectProps) {
   return (
-    <select
-      data-testid={`ribbon-select-${id}`}
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      value={value}
-      style={{ width }}
-      className="ribbon__select"
-      onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <Tooltip label={label}>
+      <select
+        data-testid={`ribbon-select-${id}`}
+        aria-label={label}
+        disabled={disabled}
+        value={value}
+        style={{ width }}
+        className="ribbon__select"
+        onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </Tooltip>
   );
 }
 
@@ -146,22 +149,23 @@ export function ToolbarDropdown({
       className="btn-split"
       data-testid={`ribbon-dropdown-${id}`}
     >
-      <button
-        type="button"
-        className="btn btn--icon btn-split__icon"
-        data-testid={`ribbon-dropdown-${id}-apply`}
-        aria-label={label}
-        title={label}
-        disabled={disabled}
-        onClick={() => {
-          onDefault?.();
-          // Office pattern: applying the icon's default also dismisses the
-          // popover if it happens to be open.
-          if (open) setOpen(false);
-        }}
-      >
-        <Icon name={icon} size="sm" />
-      </button>
+      <Tooltip label={label}>
+        <button
+          type="button"
+          className="btn btn--icon btn-split__icon"
+          data-testid={`ribbon-dropdown-${id}-apply`}
+          aria-label={label}
+          disabled={disabled}
+          onClick={() => {
+            onDefault?.();
+            // Office pattern: applying the icon's default also dismisses the
+            // popover if it happens to be open.
+            if (open) setOpen(false);
+          }}
+        >
+          <Icon name={icon} size="sm" />
+        </button>
+      </Tooltip>
       <button
         type="button"
         className="btn btn--icon btn-split__caret"
@@ -218,18 +222,19 @@ export function ToolbarColorButton({
   const applied = value || defaultColor;
   return (
     <span className="btn-color" data-testid={`ribbon-color-${id}`}>
-      <button
-        type="button"
-        className="btn btn--icon btn-color__icon"
-        data-testid={`ribbon-color-${id}-apply`}
-        aria-label={label}
-        title={label}
-        disabled={disabled}
-        onClick={() => onChange(applied)}
-      >
-        <Icon name={icon} size="sm" />
-        <span className="btn-color__swatch" style={{ background: applied }} aria-hidden="true" />
-      </button>
+      <Tooltip label={label}>
+        <button
+          type="button"
+          className="btn btn--icon btn-color__icon"
+          data-testid={`ribbon-color-${id}-apply`}
+          aria-label={label}
+          disabled={disabled}
+          onClick={() => onChange(applied)}
+        >
+          <Icon name={icon} size="sm" />
+          <span className="btn-color__swatch" style={{ background: applied }} aria-hidden="true" />
+        </button>
+      </Tooltip>
       <label className="btn-color__picker" title={`${label} — choose color`}>
         <Icon name="arrow_drop_down" size="sm" />
         <input

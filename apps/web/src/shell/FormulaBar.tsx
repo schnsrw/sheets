@@ -11,6 +11,7 @@ import { useUniverAPI } from '../use-univer';
 import { useActiveCellState } from '../hooks/useActiveCellState';
 import { commitToActiveCell } from './cell-actions';
 import { Icon } from './Icon';
+import { Tooltip } from './Tooltip';
 import {
   extractFunctionFragment,
   suggestFunctions,
@@ -151,41 +152,44 @@ export function FormulaBar() {
 
 
       <div className="formula-bar__actions" role="group" aria-label="Formula bar actions">
-        <button
-          type="button"
-          className="btn btn--icon formula-bar__action"
-          data-testid="formula-cancel"
-          aria-label="Cancel"
-          title="Cancel (Esc)"
-          disabled={!editing}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={revert}
-        >
-          <Icon name="close" size="sm" />
-        </button>
-        <button
-          type="button"
-          className="btn btn--icon formula-bar__action"
-          data-testid="formula-commit"
-          aria-label="Enter"
-          title="Enter (↵)"
-          disabled={!editing}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            commit();
-            inputRef.current?.blur();
-          }}
-        >
-          <Icon name="check" size="sm" />
-        </button>
-        <span
-          className="formula-bar__fx"
-          data-testid="formula-fx"
-          aria-label="Insert function"
-          title="Insert function"
-        >
-          fx
-        </span>
+        <Tooltip label="Cancel (Esc)">
+          <button
+            type="button"
+            className="btn btn--icon formula-bar__action"
+            data-testid="formula-cancel"
+            aria-label="Cancel"
+            disabled={!editing}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={revert}
+          >
+            <Icon name="close" size="sm" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Enter (↵)">
+          <button
+            type="button"
+            className="btn btn--icon formula-bar__action"
+            data-testid="formula-commit"
+            aria-label="Enter"
+            disabled={!editing}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              commit();
+              inputRef.current?.blur();
+            }}
+          >
+            <Icon name="check" size="sm" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Insert function">
+          <span
+            className="formula-bar__fx"
+            data-testid="formula-fx"
+            aria-label="Insert function"
+          >
+            fx
+          </span>
+        </Tooltip>
       </div>
 
       <input

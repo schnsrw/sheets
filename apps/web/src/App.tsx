@@ -10,21 +10,29 @@ import { UniverSheet } from './UniverSheet';
 import { emptyWorkbook } from './snapshot';
 import { UniverRoot } from './UniverRoot';
 import { useWorkbookGrowth } from './hooks/useWorkbookGrowth';
-import { WorkbookContext, type WorkbookCtxValue } from './workbook-context';
+import { WorkbookContext, type WorkbookCtxValue, type WorkbookFormat } from './workbook-context';
 import { UIContext, type UICtxValue } from './ui-context';
 
 export function App() {
   const [snapshot, setSnapshot] = useState<IWorkbookData>(() => emptyWorkbook());
   const [formulaBarVisible, setFormulaBarVisible] = useState(true);
   const [tablesPanelVisible, setTablesPanelVisible] = useState(false);
+  // What File → Save should write to. Set on Open from the file extension;
+  // null while editing an empty / unsaved workbook (in which case Save
+  // defaults to .xlsx).
+  const [sourceFormat, setSourceFormat] = useState<WorkbookFormat | null>(null);
 
-  const replaceWorkbook = useCallback((next: IWorkbookData) => {
-    setSnapshot(next);
-  }, []);
+  const replaceWorkbook = useCallback(
+    (next: IWorkbookData, format?: WorkbookFormat | null) => {
+      setSnapshot(next);
+      if (format !== undefined) setSourceFormat(format);
+    },
+    [],
+  );
 
   const wbValue: WorkbookCtxValue = useMemo(
-    () => ({ snapshot, replaceWorkbook }),
-    [snapshot, replaceWorkbook],
+    () => ({ snapshot, replaceWorkbook, sourceFormat }),
+    [snapshot, replaceWorkbook, sourceFormat],
   );
 
   const uiValue: UICtxValue = useMemo(

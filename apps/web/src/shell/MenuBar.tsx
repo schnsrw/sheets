@@ -86,50 +86,76 @@ export function MenuBar() {
   // Intercept Ctrl/Cmd+P globally — the default would print the whole web
   // page (chrome + grid). We print only the active sheet via an offscreen
   // iframe instead. Capture-phase so we beat browser shortcuts on focused
-  // inputs as well.
+  // inputs as well. Same hook owns Ctrl/Cmd+S → Save (in source format).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'p' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
-        e.preventDefault();
-        if (api) printActiveSheet(api);
+      const mod = e.metaKey || e.ctrlKey;
+      const k = e.key.toLowerCase();
+      if (mod && !e.altKey) {
+        if (k === 'p' && !e.shiftKey) {
+          e.preventDefault();
+          if (api) printActiveSheet(api);
+        } else if (k === 's' && !e.shiftKey) {
+          e.preventDefault();
+          void handleSave();
+        }
       }
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
-  }, [api]);
+    // handleSave reads workbook.sourceFormat + workbook.snapshot.name from
+    // context; api in deps re-binds the handler when the workbook is swapped.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, workbook.sourceFormat, workbook.snapshot.name]);
 
-  const handleNew = () => workbook.replaceWorkbook(emptyWorkbook());
+  const handleNew = () => workbook.replaceWorkbook(emptyWorkbook(), null);
   const handleOpen = async () => {
     try {
       const file = await pickXlsxFile();
       if (!file) return;
       const data = await openXlsx(file);
-      console.info('[open-xlsx] replacing active workbook', data.id);
-      workbook.replaceWorkbook(data);
-      console.info('[open-xlsx] done');
+      const lower = file.name.toLowerCase();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let format: 'xlsx' | 'ods' | 'csv' | 'tsv' = 'xlsx';
+      if (lower.endsWith('.ods')) format = 'ods';
+      else if (lower.endsWith('.csv')) format = 'csv';
+      else if (lower.endsWith('.tsv') || lower.endsWith('.tab')) format = 'tsv';
+      console.info('[open] replacing active workbook', data.id, 'as', format);
+      workbook.replaceWorkbook(data, format);
+      console.info('[open] done');
     } catch (err) {
-      // Surface failures from the xlsx parser / replace flow so they aren't
+      // Surface failures from the parser / replace flow so they aren't
       // swallowed by React's unhandled-rejection silence on event handlers.
-      console.error('[open-xlsx] failed', err);
+      console.error('[open] failed', err);
       window.alert(`Could not open this file: ${(err as Error)?.message ?? String(err)}`);
     }
   };
-  const handleSaveAs = async () => {
+
+  // Save writes back in whatever format the file was opened from, falling
+  // back to xlsx for a fresh / empty workbook. Mirrors Excel & LibreOffice.
+  const handleSave = async () => {
     if (!api) return;
-    await saveAsXlsx(api, workbook.snapshot.name || 'workbook');
+    const name = workbook.snapshot.name || 'workbook';
+    switch (workbook.sourceFormat) {
+      case 'ods':
+        await saveAsOds(api, name);
+        return;
+      case 'csv':
+        await saveAsCsv(api, name);
+        return;
+      case 'tsv':
+        await saveAsTsv(api, name);
+        return;
+      case 'xlsx':
+      default:
+        await saveAsXlsx(api, name);
+    }
   };
-  const handleSaveAsOds = async () => {
-    if (!api) return;
-    await saveAsOds(api, workbook.snapshot.name || 'workbook');
-  };
-  const handleSaveAsCsv = async () => {
-    if (!api) return;
-    await saveAsCsv(api, workbook.snapshot.name || 'workbook');
-  };
-  const handleSaveAsTsv = async () => {
-    if (!api) return;
-    await saveAsTsv(api, workbook.snapshot.name || 'workbook');
-  };
+
+  const handleExportXlsx = async () => api && saveAsXlsx(api, workbook.snapshot.name || 'workbook');
+  const handleExportOds = async () => api && saveAsOds(api, workbook.snapshot.name || 'workbook');
+  const handleExportCsv = async () => api && saveAsCsv(api, workbook.snapshot.name || 'workbook');
+  const handleExportTsv = async () => api && saveAsTsv(api, workbook.snapshot.name || 'workbook');
 
   const menus: Record<MenuId, { label: string; items: MenuItem[] }> = {
     file: {
@@ -137,10 +163,12 @@ export function MenuBar() {
       items: [
         { kind: 'item', id: 'new', label: 'New', icon: 'add', shortcut: 'Ctrl+N', onClick: handleNew },
         { kind: 'item', id: 'open', label: 'Open', icon: 'folder_open', shortcut: 'Ctrl+O', onClick: handleOpen },
-        { kind: 'item', id: 'save-as', label: 'Save As .xlsx', icon: 'save', shortcut: 'Ctrl+Shift+S', onClick: handleSaveAs },
-        { kind: 'item', id: 'save-as-ods', label: 'Save As .ods', icon: 'save_alt', onClick: handleSaveAsOds },
-        { kind: 'item', id: 'save-as-csv', label: 'Save As .csv', icon: 'description', onClick: handleSaveAsCsv },
-        { kind: 'item', id: 'save-as-tsv', label: 'Save As .tsv', icon: 'description', onClick: handleSaveAsTsv },
+        { kind: 'item', id: 'save', label: 'Save', icon: 'save', shortcut: 'Ctrl+S', onClick: handleSave },
+        { kind: 'separator', id: 'sep-export' },
+        { kind: 'item', id: 'export-xlsx', label: 'Export as .xlsx', icon: 'description', onClick: handleExportXlsx },
+        { kind: 'item', id: 'export-ods', label: 'Export as .ods', icon: 'description', onClick: handleExportOds },
+        { kind: 'item', id: 'export-csv', label: 'Export as .csv', icon: 'description', onClick: handleExportCsv },
+        { kind: 'item', id: 'export-tsv', label: 'Export as .tsv', icon: 'description', onClick: handleExportTsv },
         { kind: 'separator', id: 'sep-1' },
         { kind: 'item', id: 'print', label: 'Print', icon: 'print', shortcut: 'Ctrl+P', onClick: () => api && printActiveSheet(api) },
         { kind: 'separator', id: 'sep-2' },

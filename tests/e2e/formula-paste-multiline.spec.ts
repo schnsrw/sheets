@@ -43,9 +43,23 @@ test.describe('Formula bar multi-line paste', () => {
     // by spaces.
     await expect(input).toHaveValue(/=IF\(\s+1>0,\s+"yes",\s+"no"\s+\)/);
     // Commit and verify the cell holds a valid IF formula that
-    // evaluates to "yes".
+    // evaluates to "yes". Formula compute runs in a Web Worker, so
+    // poll for the cached value to populate instead of reading
+    // immediately after Enter (the test was racy locally — passed
+    // on CI where the worker round-trip is slower than the assert).
     await input.press('Enter');
     await selectRange(page, 'A1');
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+        const cd = ws.getRange('A1').getCellData();
+        return typeof cd?.f === 'string' && String(cd?.v ?? '') === 'yes';
+      },
+      null,
+      { timeout: 5_000 },
+    );
     const cd = await readCell(page, 'A1');
     expect(typeof cd?.f).toBe('string');
     expect(cd.f).toContain('IF');

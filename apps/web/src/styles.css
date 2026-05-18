@@ -1274,6 +1274,44 @@ button {
   background: var(--color-accent-soft);
 }
 
+/* "Hidden sheets" button on the sheet-tabs strip, only shown when at
+   least one sheet is hidden. Mirrors Excel's right-click → Unhide
+   affordance but inline so keyboard users don't need to discover it
+   via a context menu. */
+.sheet-tabs__hidden {
+  position: relative;
+  margin-left: 2px;
+}
+.sheet-tabs__hidden-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+}
+.sheet-tabs__hidden-menu {
+  position: absolute;
+  bottom: calc(var(--sheet-tabs-h) + 4px);
+  left: 36px;
+  min-width: 180px;
+  z-index: 30;
+}
+.menu__label {
+  padding: 6px 12px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
 /* Hover-revealed × on each tab */
 .sheet-tab__close {
   display: inline-flex;

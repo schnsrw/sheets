@@ -128,6 +128,42 @@ test.describe('Excel-paste merge hook', () => {
     expect(params.ranges[0].endColumn).toBe(6);
   });
 
+  test('row-height hook emits set-worksheet-row-height with parsed heights', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hook = (window as any).__pasteRowHeightHook__ as
+        | ((
+            to: { range: { rows: number[]; cols: number[] }; unitId: string; subUnitId: string },
+            rowProperties: Record<string, string>[],
+            payload: unknown,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ) => { undos: any[]; redos: any[] })
+        | undefined;
+      if (!hook) return { found: false };
+      const api = window.__univerAPI!;
+      const wb = api.getActiveWorkbook()!;
+      const pasteTo = {
+        range: { rows: [3, 4, 5], cols: [0] },
+        unitId: wb.getId(),
+        subUnitId: wb.getActiveSheet()!.getSheetId(),
+      };
+      const rowProperties = [
+        { height: '40' },
+        { height: '24px' }, // strips px
+        { height: 'auto' }, // skipped
+      ];
+      return { found: true, mutations: hook(pasteTo, rowProperties, {}) };
+    });
+    expect(r.found).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m = (r as any).mutations as { redos: any[] };
+    expect(m.redos).toHaveLength(1);
+    expect(m.redos[0].id).toBe('sheet.mutation.set-worksheet-row-height');
+    expect(m.redos[0].params.rowHeight).toEqual({ 3: 40, 4: 24 });
+    expect(m.redos[0].params.ranges[0].startRow).toBe(3);
+    expect(m.redos[0].params.ranges[0].endRow).toBe(4);
+  });
+
   test('col-width hook is a no-op when nothing parseable comes in', async ({ page }) => {
     const r = await page.evaluate(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

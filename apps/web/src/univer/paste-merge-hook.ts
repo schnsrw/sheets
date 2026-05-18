@@ -144,9 +144,55 @@ export function registerPasteMergeHook(api: FUniver): (() => void) | null {
     };
   };
 
+  // Row heights — symmetrical to col widths. The upstream sheets-ui
+  // dispatcher used to call `onPasteRows` with no rowProperties
+  // argument (a real bug — `rowProperties` IS parsed from the HTML
+  // but never forwarded). We carry a pnpm patch
+  // (`patches/@univerjs__sheets-ui@0.22.1.patch`) that adds the
+  // second/third args. With the patch applied, this hook receives
+  // the same shape as onPasteColumns.
+  const onPasteRows: ClipboardHook['onPasteRows'] = (
+    pasteTo,
+    rowProperties,
+    _payload,
+  ) => {
+    if (!Array.isArray(rowProperties) || rowProperties.length === 0) {
+      return { undos: [], redos: [] };
+    }
+    const rows = pasteTo.range.rows;
+    const heightsByRow: Record<number, number> = {};
+    let any = false;
+    for (let i = 0; i < rowProperties.length; i++) {
+      const destRow = rows[i];
+      if (destRow === undefined) continue;
+      const raw = rowProperties[i]?.height;
+      if (typeof raw !== 'string' && typeof raw !== 'number') continue;
+      const n = Math.round(Number.parseFloat(String(raw)));
+      if (!Number.isFinite(n) || n <= 0) continue;
+      heightsByRow[destRow] = n;
+      any = true;
+    }
+    if (!any) return { undos: [], redos: [] };
+    const destRowIndices = Object.keys(heightsByRow).map((k) => Number(k));
+    const startRow = Math.min(...destRowIndices);
+    const endRow = Math.max(...destRowIndices);
+    const params = {
+      unitId: pasteTo.unitId,
+      subUnitId: pasteTo.subUnitId,
+      ranges: [{ startRow, endRow, startColumn: 0, endColumn: 0 }],
+      rowHeight: heightsByRow,
+    };
+    return {
+      redos: [{ id: 'sheet.mutation.set-worksheet-row-height', params }],
+      undos: [],
+    };
+  };
+
   if (import.meta.env.DEV) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).__pasteColWidthHook__ = onPasteColumns;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).__pasteRowHeightHook__ = onPasteRows;
   }
 
   const mergeDisposable = svc.addClipboardHook({
@@ -159,14 +205,22 @@ export function registerPasteMergeHook(api: FUniver): (() => void) | null {
     priority: 1000,
     onPasteColumns,
   });
+  const rowHeightDisposable = svc.addClipboardHook({
+    id: 'casual-sheets-paste-row-heights',
+    priority: 1000,
+    onPasteRows,
+  });
   return () => {
     mergeDisposable.dispose();
     colWidthDisposable.dispose();
+    rowHeightDisposable.dispose();
     if (import.meta.env.DEV) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (globalThis as any).__pasteMergeHook__;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (globalThis as any).__pasteColWidthHook__;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (globalThis as any).__pasteRowHeightHook__;
     }
   };
 }
@@ -201,6 +255,13 @@ type ClipboardHook = {
   onPasteColumns?: (
     pasteTo: PasteTarget,
     colProperties: ColProperty[],
+    payload: unknown,
+  ) => { undos: MutationInfo[]; redos: MutationInfo[] };
+  // Upstream sheets-ui originally called this with only `pasteTo`; our
+  // patch adds the extra args matching onPasteColumns.
+  onPasteRows?: (
+    pasteTo: PasteTarget,
+    rowProperties: ColProperty[],
     payload: unknown,
   ) => { undos: MutationInfo[]; redos: MutationInfo[] };
 };

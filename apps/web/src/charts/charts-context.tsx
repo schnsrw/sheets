@@ -1,18 +1,24 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
+import { useUniverAPI } from '../use-univer';
+import { useWorkbook } from '../use-workbook';
+import { readChartsFromSnapshot } from './resources';
 import type { ChartModel } from './types';
 
 /**
- * In-memory chart store. P0 — non-persistent; P1 mirrors into
- * `IWorkbookData.resources['CASUAL_CHARTS']` so the model round-
- * trips through xlsx + collab via the existing hidden-sheet
- * resource mechanism. Splitting persistence out of P0 lets us
- * validate the rendering + insertion flow without committing to
- * the resource schema yet.
- *
- * The store keeps charts keyed by id (`ChartModel.id`). Removal
- * by id; updates by replace. No mutation in place — every change
- * produces a new model object so React's effect deps work.
+ * Chart store mirrored into `IWorkbookData.resources['__casual_sheets_charts__']`
+ * at save time and re-hydrated when the active workbook changes. The store
+ * keeps charts keyed by id (`ChartModel.id`); removal by id, updates by
+ * replace — every change produces a new model object so React effect deps
+ * work for downstream consumers (ChartLayer, ChartOverlay).
  */
 type ChartsCtxValue = {
   charts: ChartModel[];
@@ -33,7 +39,34 @@ export function useCharts(): ChartsCtxValue {
 }
 
 export function ChartsProvider({ children }: { children: ReactNode }) {
-  const [charts, setCharts] = useState<ChartModel[]>([]);
+  const api = useUniverAPI();
+  const { meta, snapshotRef } = useWorkbook();
+  const [charts, setCharts] = useState<ChartModel[]>(() =>
+    snapshotRef.current ? readChartsFromSnapshot(snapshotRef.current) : [],
+  );
+
+  // Re-hydrate every time the workbook is replaced (Open / New / collab
+  // remote-snapshot). Mirrors the outline-context rehydrate path — the
+  // snapshot lives on `snapshotRef.current` only for the brief window
+  // between replaceWorkbook and the post-render flush, which is exactly
+  // the window we need to read it from here. Fall back to `wb.save()`
+  // (deep clone) on rare misses where the ref was already cleared.
+  const lastRevisionRef = useRef(meta.revision);
+  useEffect(() => {
+    if (lastRevisionRef.current === meta.revision) return;
+    lastRevisionRef.current = meta.revision;
+    const snap = snapshotRef.current;
+    if (!snap) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wb = api?.getActiveWorkbook?.() as any;
+      const fresh = wb?.save?.();
+      setCharts(fresh ? readChartsFromSnapshot(fresh) : []);
+      return;
+    }
+    setCharts(readChartsFromSnapshot(snap));
+    // snapshotRef is a stable ref object — safe to exclude from deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta.revision, api]);
 
   const insert = useCallback((chart: ChartModel) => {
     setCharts((prev) => [...prev, chart]);

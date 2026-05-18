@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import type { IStyleData, IWorkbookData } from '@univerjs/core';
 import { univerStyleToExcel } from './style-mapping';
 import { writeOutlineIntoSnapshot } from '../outline/resources';
+import { writeChartsIntoSnapshot } from '../charts/resources';
 import { RESOURCES_SHEET } from './constants';
 import type { ExportExtras } from './export';
 
@@ -188,6 +189,10 @@ export async function workbookDataToXlsxImpl(
 
   if (extras.outline && Object.keys(extras.outline).length > 0) {
     writeOutlineIntoSnapshot(data, extras.outline);
+  }
+
+  if (extras.charts && extras.charts.length > 0) {
+    writeChartsIntoSnapshot(data, extras.charts);
   }
 
   if (Array.isArray(data.resources) && data.resources.length > 0) {

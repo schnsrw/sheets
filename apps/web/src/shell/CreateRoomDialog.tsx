@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
+import { useCharts } from '../charts/charts-context';
 import { exportCurrentWorkbookAsXlsxBlob, loadSpreadsheetFile } from './file-actions';
 
 type Role = 'write' | 'view';
@@ -33,6 +34,7 @@ type Created = {
 export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
   const api = useUniverAPI();
   const workbook = useWorkbook();
+  const { charts } = useCharts();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
@@ -73,7 +75,7 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
         const roomId = body.roomId;
         const wb = api.getActiveWorkbook();
         try {
-          const blob = await exportCurrentWorkbookAsXlsxBlob(api);
+          const blob = await exportCurrentWorkbookAsXlsxBlob(api, { charts });
           if (blob) {
             const form = new FormData();
             form.append('file', blob, 'seed.xlsx');

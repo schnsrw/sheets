@@ -1201,6 +1201,171 @@ button {
   color: var(--color-danger, #c4321a);
 }
 
+/* Charts panel — Selection-Pane equivalent for charts on the active sheet.
+   Same chrome as the Tables panel for visual coherence; only the row
+   layout differs (chart name + icon + meta + delete, no theme swatches). */
+.charts-panel {
+  width: 320px;
+  flex: 0 0 320px;
+  background: var(--color-surface-alt);
+  border-top: 1px solid var(--color-divider);
+  border-left: 1px solid var(--color-divider);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.charts-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-divider);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.charts-panel__close {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.charts-panel__close:hover {
+  background: var(--color-surface-strip);
+  color: var(--color-text);
+}
+.charts-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.charts-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  padding: 24px 16px;
+  gap: 6px;
+}
+.charts-panel__empty-icon {
+  color: var(--color-text-disabled);
+  margin-bottom: 4px;
+}
+.charts-panel__empty-title {
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium, 500);
+}
+.charts-panel__empty-body {
+  margin: 0 0 8px;
+}
+.charts-panel__empty-cta {
+  width: 100%;
+  margin-top: 4px;
+}
+.charts-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.charts-panel__row {
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name delete'
+    'meta delete';
+  row-gap: 6px;
+  column-gap: 8px;
+  align-items: center;
+}
+.charts-panel__name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+.charts-panel__type-icon {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+}
+.charts-panel__name-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.charts-panel__name-input {
+  flex: 1;
+  font: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--color-accent);
+  border-radius: 3px;
+  background: var(--color-surface);
+}
+.charts-panel__meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+.charts-panel__type-label {
+  color: var(--color-text);
+}
+.charts-panel__range {
+  font-family:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.charts-panel__delete {
+  grid-area: delete;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  align-self: start;
+}
+.charts-panel__delete:hover {
+  background: var(--color-danger-soft, #fde7e7);
+  color: var(--color-danger, #c4321a);
+}
+.charts-panel__add-row {
+  list-style: none;
+}
+.charts-panel__add {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 /* Univer side panels — Comments, Data Validation, Conditional Formatting,
    etc. all mount into Univer's right-sidebar slot. Give them a slightly
    different tint so they read as a separate surface from the white grid. */
@@ -1998,6 +2163,93 @@ button {
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
+}
+
+/* Insert Chart dialog — Excel's "Insert Chart" minimal slice: chart-type
+   picker + source-range A1 input. Uses the same visual chrome as the
+   Page Setup dialog above so dialogs in this app feel coherent. */
+.insert-chart { display: grid; gap: 18px; }
+.insert-chart__group { border: 0; padding: 0; margin: 0; }
+.insert-chart__legend {
+  font-size: 12px;
+  font-weight: var(--weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-soft, var(--color-text));
+  margin-bottom: 8px;
+  padding: 0;
+}
+.insert-chart__types {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.insert-chart__type {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: var(--weight-medium, 500);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.insert-chart__type .material-symbols-outlined {
+  font-size: 28px;
+  color: var(--color-text-secondary);
+}
+.insert-chart__type:hover {
+  background: var(--color-hover);
+}
+.insert-chart__type--active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-soft, transparent);
+}
+.insert-chart__type--active .material-symbols-outlined {
+  color: var(--color-accent);
+}
+.insert-chart__type input[type='radio'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+.insert-chart__range {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  font-family:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+.insert-chart__range:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+.insert-chart__error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-danger, #c4321a);
+}
+.insert-chart__hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
 }
 
 .page-setup__note {

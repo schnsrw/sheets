@@ -150,6 +150,12 @@ if (isDesktop) {
         }
         return written;
       },
+      // Profile exposed to the editor so it can show a local-user chip
+      // in place of the collab Share button.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async getProfile(): Promise<any> {
+        return await inv('get_profile');
+      },
     };
   } else {
     type RequestMethod = 'loadDocument' | 'save' | 'saveAs';

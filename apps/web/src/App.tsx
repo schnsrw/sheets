@@ -28,6 +28,7 @@ import { BusyProvider } from './busy-context';
 import { ChartsProvider } from './charts/charts-context';
 import { ChartLayer } from './charts/ChartLayer';
 import { ChartsPanel } from './shell/ChartsPanel';
+import { PivotsProvider } from './pivots/pivots-context';
 
 export function App() {
   // Snapshot lives in a ref, NOT React state — see workbook-context.tsx.
@@ -164,6 +165,7 @@ export function App() {
         <LoadingContext.Provider value={loadingValue}>
         <BusyProvider>
         <ChartsProvider>
+        <PivotsProvider>
           <OutlineProvider>
             <GrowthDriver />
             <FileDropDriver />
@@ -193,6 +195,7 @@ export function App() {
             <LoadingOverlay />
             <ChartLayer />
           </OutlineProvider>
+        </PivotsProvider>
         </ChartsProvider>
         </BusyProvider>
         </LoadingContext.Provider>

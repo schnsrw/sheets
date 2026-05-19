@@ -29,6 +29,10 @@ import {
 } from '../charts/insert-chart';
 import { InsertChartDialog } from '../charts/InsertChartDialog';
 import { nextChartName } from '../charts/naming';
+import { usePivots } from '../pivots/pivots-context';
+import { InsertPivotDialog } from '../pivots/InsertPivotDialog';
+import { applyPivot } from '../pivots/apply';
+import { newPivotId } from '../pivots/types';
 import { useOutlineActions } from '../outline/use-outline-actions';
 import { useOutline } from '../outline/outline-context';
 import {
@@ -130,20 +134,33 @@ export function MenuBar() {
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [showInsertChart, setShowInsertChart] = useState(false);
   const [insertChartDefault, setInsertChartDefault] = useState('A1');
+  const [showInsertPivot, setShowInsertPivot] = useState(false);
+  const [insertPivotDefault, setInsertPivotDefault] = useState('A1');
+  const pivots = usePivots();
 
-  // Toolbar's Insert > Chart button lives in a sibling component;
-  // it can't reach this dialog state directly, so we dispatch a
-  // DOM CustomEvent from the toolbar and open the dialog here.
-  // Same pattern keeps both surfaces in sync without lifting state.
+  // Toolbar's Insert > Chart / Pivot buttons live in a sibling component;
+  // they can't reach this dialog state directly, so we dispatch DOM
+  // CustomEvents from the toolbar and open the dialogs here. Same pattern
+  // keeps both surfaces in sync without lifting state.
   useEffect(() => {
-    const handler = () => {
+    const openChart = () => {
       if (!api) return;
       const sel = getActiveSelectionRange(api);
       setInsertChartDefault(sel ? rangeToA1(sel) : 'A1');
       setShowInsertChart(true);
     };
-    document.addEventListener('casual-open-insert-chart', handler);
-    return () => document.removeEventListener('casual-open-insert-chart', handler);
+    const openPivot = () => {
+      if (!api) return;
+      const sel = getActiveSelectionRange(api);
+      setInsertPivotDefault(sel ? rangeToA1(sel) : 'A1:C10');
+      setShowInsertPivot(true);
+    };
+    document.addEventListener('casual-open-insert-chart', openChart);
+    document.addEventListener('casual-open-insert-pivot', openPivot);
+    return () => {
+      document.removeEventListener('casual-open-insert-chart', openChart);
+      document.removeEventListener('casual-open-insert-pivot', openPivot);
+    };
   }, [api]);
   // Ctrl++ / Ctrl+- → Excel's Insert / Delete chooser modals. `null`
   // when closed; `'insert'` / `'delete'` when open.
@@ -351,7 +368,11 @@ export function MenuBar() {
         return;
       case 'xlsx':
       default:
-        await saveAsXlsx(api, name, { outline: outline.state, charts: charts.charts });
+        await saveAsXlsx(api, name, {
+          outline: outline.state,
+          charts: charts.charts,
+          pivots: pivots.pivots,
+        });
     }
   };
 
@@ -360,6 +381,7 @@ export function MenuBar() {
     saveAsXlsx(api, workbook.meta.name || 'workbook', {
       outline: outline.state,
       charts: charts.charts,
+      pivots: pivots.pivots,
     });
   const handleExportOds = async () => api && saveAsOds(api, workbook.meta.name || 'workbook');
   const handleExportCsv = async () => api && saveAsCsv(api, workbook.meta.name || 'workbook');
@@ -489,6 +511,21 @@ export function MenuBar() {
             setShowInsertChart(true);
           },
         },
+        {
+          kind: 'item',
+          id: 'insert-pivot',
+          label: 'PivotTable…',
+          icon: 'pivot_table_chart',
+          // Open a configuration dialog (source range + target cell +
+          // row field + value field + aggregation), compute the pivot,
+          // and write the result as cells at the target location.
+          onClick: () => {
+            if (!api) return;
+            const sel = getActiveSelectionRange(api);
+            setInsertPivotDefault(sel ? rangeToA1(sel) : 'A1:C10');
+            setShowInsertPivot(true);
+          },
+        },
         { kind: 'separator', id: 'sep-objects' },
         { kind: 'item', id: 'insert-image', label: 'Image…', icon: 'image', run: insertImage },
         { kind: 'item', id: 'insert-link', label: 'Hyperlink…', icon: 'link', shortcut: 'Ctrl+K', run: insertHyperlink },
@@ -506,6 +543,9 @@ export function MenuBar() {
             { kind: 'item', id: 'insert-col-right', label: 'Column right',  icon: 'keyboard_tab',          run: insertColumnRight },
           ],
         },
+        { kind: 'separator', id: 'sep-autofit' },
+        { kind: 'item', id: 'autofit-col', label: 'Auto-fit column width', icon: 'settings_ethernet', run: autoFitColumns },
+        { kind: 'item', id: 'autofit-row', label: 'Auto-fit row height', icon: 'height', run: autoFitRows },
         { kind: 'separator', id: 'sep-date' },
         { kind: 'item', id: 'insert-today', label: "Today's date", icon: 'today', shortcut: 'Ctrl+;', run: insertTodayDate },
         { kind: 'item', id: 'insert-time', label: 'Current time', icon: 'schedule', shortcut: 'Ctrl+Shift+:', run: insertCurrentTime },
@@ -648,6 +688,42 @@ export function MenuBar() {
               charts.insert({ ...model, title: name });
             }
             setShowInsertChart(false);
+          }}
+        />
+      )}
+
+      {showInsertPivot && api && (
+        <InsertPivotDialog
+          api={api}
+          defaultSourceA1={insertPivotDefault}
+          onCancel={() => setShowInsertPivot(false)}
+          onConfirm={({ source, target, rowFieldColumn, valueFieldColumn, aggregation }) => {
+            const wb = api.getActiveWorkbook();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ws = wb?.getActiveSheet() as any;
+            if (!wb || !ws) {
+              setShowInsertPivot(false);
+              return;
+            }
+            const sheetId = ws.getSheetId();
+            const model = {
+              id: newPivotId(),
+              sourceSheetId: sheetId,
+              source,
+              targetSheetId: sheetId,
+              target,
+              // Column indices in the dialog are relative to the source range's
+              // left edge; the model stores absolute column offsets within the
+              // range too. The dialog already gives us the in-range index, which
+              // matches what compute.ts expects.
+              rows: [{ column: rowFieldColumn }],
+              cols: [],
+              values: [{ column: valueFieldColumn, agg: aggregation }],
+              title: `PivotTable ${pivots.pivots.length + 1}`,
+            };
+            pivots.insert(model);
+            applyPivot(api, model);
+            setShowInsertPivot(false);
           }}
         />
       )}

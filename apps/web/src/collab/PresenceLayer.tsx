@@ -68,24 +68,12 @@ export function PresenceLayer() {
     hostRef.current = document.querySelector('[data-testid="univer-host"]') as HTMLElement | null;
   }, []);
 
-  // Subscribe to Univer's facade Scroll event so we can track the data
-  // area offset. Without this the cursor sticks to its *content* position
-  // (e.g. row 4) and detaches visually when the user scrolls.
-  useEffect(() => {
-    if (!api) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anyApi = api as any;
-    const ev = anyApi.Event?.Scroll;
-    if (!ev || typeof anyApi.addEvent !== 'function') return;
-    const sub = anyApi.addEvent(ev, (p: { scrollX?: number; scrollY?: number }) => {
-      scrollRef.current = {
-        x: typeof p.scrollX === 'number' ? p.scrollX : 0,
-        y: typeof p.scrollY === 'number' ? p.scrollY : 0,
-      };
-      scrollTickRef.current += 1;
-    }) as { dispose?: () => void } | undefined;
-    return () => sub?.dispose?.();
-  }, [api]);
+  // Scroll offset is read inline in `recompute` via `getScrollState()` —
+  // we used to subscribe to `Event.Scroll` here, but that event doesn't
+  // fire on `scrollToCell` (programmatic scrolls leak through) and the
+  // facade-side listener registration races the render lifecycle so
+  // even wheel scrolls would silently no-op until the next remount.
+  // Polling the worksheet directly per frame is cheap and authoritative.
 
   useEffect(() => {
     if (!api) return;
@@ -140,8 +128,32 @@ export function PresenceLayer() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const activeSheetId = (activeSheet as any)?.getSheetId?.() ?? (activeSheet as any)?.getId?.() ?? '';
 
-      const sx = scrollRef.current.x;
-      const sy = scrollRef.current.y;
+      // See header note — poll `getScrollState()` and derive the pixel
+      // offset from the cell currently at viewport top-left.
+      let sx = 0;
+      let sy = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scrollState = (activeSheet as any)?.getScrollState?.() as
+        | { sheetViewStartRow?: number; sheetViewStartColumn?: number; offsetX?: number; offsetY?: number }
+        | undefined;
+      if (scrollState) {
+        try {
+          const r = scrollState.sheetViewStartRow ?? 0;
+          const c = scrollState.sheetViewStartColumn ?? 0;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const topLeft = (activeSheet as any).getRange(r, c).getCellRect();
+          if (topLeft) {
+            sx = topLeft.left + (scrollState.offsetX ?? 0);
+            sy = topLeft.top + (scrollState.offsetY ?? 0);
+          }
+        } catch {
+          /* skeleton not ready — leave scroll at 0 this frame */
+        }
+      }
+      if (sx !== scrollRef.current.x || sy !== scrollRef.current.y) {
+        scrollRef.current = { x: sx, y: sy };
+        scrollTickRef.current += 1;
+      }
 
       const next: Rect[] = [];
       for (const peer of peers) {

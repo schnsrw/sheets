@@ -29,3 +29,17 @@ export type ChartModel = {
 export function newChartId(): string {
   return `ch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
+
+/**
+ * Plugin-resource name we use when stashing chart models in
+ * `IWorkbookData.resources`. Mirrors `OUTLINE_RESOURCE_NAME` — survives
+ * xlsx via the hidden `__casual_sheets_resources__` sheet and survives
+ * collab via Univer's snapshot-load path.
+ */
+export const CHARTS_RESOURCE_NAME = '__casual_sheets_charts__';
+
+/** Versioned envelope so a future schema change can be detected. */
+export type ChartsResourceV1 = {
+  v: 1;
+  charts: ChartModel[];
+};

@@ -54,6 +54,7 @@ test.describe('Charts P0 — ECharts overlay', () => {
 
     await page.getByTestId('menubar-insert').click();
     await page.getByTestId('menu-item-insert-chart').click();
+    await page.getByTestId('insert-chart-confirm').click();
 
     // ChartLayer mounts an overlay per chart; ECharts seeds a canvas
     // inside. Both should exist within a couple of frames.
@@ -78,6 +79,7 @@ test.describe('Charts P0 — ECharts overlay', () => {
     });
     await page.getByTestId('menubar-insert').click();
     await page.getByTestId('menu-item-insert-chart').click();
+    await page.getByTestId('insert-chart-confirm').click();
     await expect(page.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
     // Insert a second sheet + switch to it. Chart should disappear.

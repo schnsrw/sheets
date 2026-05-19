@@ -27,6 +27,7 @@ import { LoadingContext, type LoadingCtxValue, type LoadingState } from './loadi
 import { BusyProvider } from './busy-context';
 import { ChartsProvider } from './charts/charts-context';
 import { ChartLayer } from './charts/ChartLayer';
+import { ChartsPanel } from './shell/ChartsPanel';
 
 export function App() {
   // Snapshot lives in a ref, NOT React state — see workbook-context.tsx.
@@ -47,6 +48,7 @@ export function App() {
   const [formulaBarVisible, setFormulaBarVisible] = useState(true);
   const [tablesPanelVisible, setTablesPanelVisible] = useState(false);
   const [outlinePanelVisible, setOutlinePanelVisible] = useState(false);
+  const [chartsPanelVisible, setChartsPanelVisible] = useState(false);
   const [shareRoomOpen, setShareRoomOpen] = useState(false);
   const [loading, setLoading] = useState<LoadingState | null>(null);
 
@@ -121,9 +123,11 @@ export function App() {
       toggleTablesPanel: () => setTablesPanelVisible((v) => !v),
       outlinePanelVisible,
       toggleOutlinePanel: () => setOutlinePanelVisible((v) => !v),
+      chartsPanelVisible,
+      toggleChartsPanel: () => setChartsPanelVisible((v) => !v),
       openShareRoom: () => setShareRoomOpen(true),
     }),
-    [formulaBarVisible, tablesPanelVisible, outlinePanelVisible],
+    [formulaBarVisible, tablesPanelVisible, outlinePanelVisible, chartsPanelVisible],
   );
 
   return (
@@ -151,6 +155,7 @@ export function App() {
                   </main>
                   {tablesPanelVisible && <TablesPanel />}
                   {outlinePanelVisible && <OutlinePanel />}
+                  {chartsPanelVisible && <ChartsPanel />}
                 </div>
                 <SheetTabs />
                 {shareRoomOpen && (

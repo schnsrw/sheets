@@ -1,5 +1,6 @@
 import type { IWorkbookData } from '@univerjs/core';
 import type { OutlineState } from '../outline/types';
+import type { ChartModel } from '../charts/types';
 import { timeItAsync } from '../perf';
 import { serializeXlsxInWorker } from './serialize-in-worker';
 
@@ -26,6 +27,10 @@ export type ExportExtras = {
    *  group boundaries) AND ExcelJS row/col `outlineLevel`+`collapsed` (so
    *  Excel renders the native +/- gutter when the file is opened there). */
   outline?: OutlineState;
+  /** Chart models stashed under `__casual_sheets_charts__`. Native xlsx
+   *  chart encoding is deferred to Charts P5 — for v0.1.1 charts survive
+   *  *our* round-trip but appear blank when opened in Excel. */
+  charts?: ChartModel[];
 };
 
 /**

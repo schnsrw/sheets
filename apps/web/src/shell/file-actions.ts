@@ -6,6 +6,7 @@ import { workbookDataToXlsx, xlsxToWorkbookData } from '../xlsx';
 import { timeIt } from '../perf';
 import type { ExportExtras } from '../xlsx/export';
 import type { OutlineState } from '../outline/types';
+import type { ChartModel } from '../charts/types';
 import {
   csvToWorkbookData,
   odsToWorkbookData,
@@ -127,6 +128,8 @@ export async function loadSpreadsheetFile(
 export type SaveOptions = {
   /** Outline / group state to fold into the xlsx — see ExportExtras.outline. */
   outline?: OutlineState;
+  /** Chart models to fold into the xlsx — see ExportExtras.charts. */
+  charts?: ChartModel[];
 };
 
 export async function saveAsXlsx(
@@ -143,6 +146,7 @@ export async function saveAsXlsx(
   const extras: ExportExtras = {
     ...collectExportExtras(snapshot),
     ...(options.outline ? { outline: options.outline } : {}),
+    ...(options.charts && options.charts.length > 0 ? { charts: options.charts } : {}),
   };
   const blob = await workbookDataToXlsx(snapshot, extras);
   const finalName = ensureExt(filename, 'xlsx');
@@ -166,6 +170,7 @@ export async function exportCurrentWorkbookAsXlsxBlob(
   const extras: ExportExtras = {
     ...collectExportExtras(snapshot),
     ...(options.outline ? { outline: options.outline } : {}),
+    ...(options.charts && options.charts.length > 0 ? { charts: options.charts } : {}),
   };
   return workbookDataToXlsx(snapshot, extras);
 }

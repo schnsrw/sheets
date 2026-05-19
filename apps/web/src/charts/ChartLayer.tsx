@@ -46,22 +46,12 @@ export function ChartLayer() {
     hostRef.current = document.querySelector('[data-testid="univer-host"]') as HTMLElement | null;
   }, []);
 
-  useEffect(() => {
-    if (!api) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ev = (api as any).Event?.Scroll;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (!ev || typeof (api as any).addEvent !== 'function') return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sub = (api as any).addEvent(ev, (p: { scrollX?: number; scrollY?: number }) => {
-      scrollRef.current = {
-        x: typeof p.scrollX === 'number' ? p.scrollX : 0,
-        y: typeof p.scrollY === 'number' ? p.scrollY : 0,
-      };
-      scrollTickRef.current += 1;
-    }) as { dispose?: () => void };
-    return () => sub.dispose?.();
-  }, [api]);
+  // The chart's screen position is the cell's canvas-local rect minus
+  // the viewport scroll offset. `Event.Scroll` would be the natural
+  // hook, but it doesn't fire on programmatic scrolls (scrollToCell)
+  // and the registration timing is fragile against lifecycle stages.
+  // `getScrollState()` is the authoritative read — poll it every
+  // animation frame and diff. Cheap (a few number reads) and correct.
 
   useEffect(() => {
     if (!api) return;
@@ -86,8 +76,6 @@ export function ChartLayer() {
       const canvasRect = canvas.getBoundingClientRect();
       const dx = canvasRect.left - hostRect.left;
       const dy = canvasRect.top - hostRect.top;
-      const sx = scrollRef.current.x;
-      const sy = scrollRef.current.y;
 
       const wb = api.getActiveWorkbook();
       if (!wb) {
@@ -97,6 +85,36 @@ export function ChartLayer() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const activeSheet = wb.getActiveSheet() as any;
       const activeSheetId = activeSheet?.getSheetId?.();
+
+      // Read viewport scroll directly from the worksheet — each frame
+      // is cheap (a handful of property reads) and dodges Univer's
+      // flaky `Event.Scroll` dispatch (doesn't fire on `scrollToCell`,
+      // and the listener registration races the render lifecycle).
+      // Cell rects come back canvas-local + pre-scroll; we convert by
+      // asking for the rect of the cell currently at viewport top-left
+      // — that rect's `top/left` IS the scroll offset to subtract.
+      let sx = 0;
+      let sy = 0;
+      const scrollState = activeSheet?.getScrollState?.() as
+        | { sheetViewStartRow?: number; sheetViewStartColumn?: number; offsetX?: number; offsetY?: number }
+        | undefined;
+      if (scrollState) {
+        try {
+          const r = scrollState.sheetViewStartRow ?? 0;
+          const c = scrollState.sheetViewStartColumn ?? 0;
+          const topLeft = activeSheet.getRange(r, c).getCellRect();
+          if (topLeft) {
+            sx = topLeft.left + (scrollState.offsetX ?? 0);
+            sy = topLeft.top + (scrollState.offsetY ?? 0);
+          }
+        } catch {
+          /* skeleton not ready — leave scroll at 0 this frame */
+        }
+      }
+      if (sx !== scrollRef.current.x || sy !== scrollRef.current.y) {
+        scrollRef.current = { x: sx, y: sy };
+        scrollTickRef.current += 1;
+      }
 
       const out: RenderedChart[] = [];
       for (const c of charts) {

@@ -21,7 +21,13 @@ import { openBugReport } from './report-bug';
 import { useCollab } from '../collab/collab-context';
 import { useLoading } from '../loading-context';
 import { useCharts } from '../charts/charts-context';
-import { buildChartModelFromActiveSelection } from '../charts/insert-chart';
+import {
+  buildChartModelForRange,
+  getActiveSelectionRange,
+  rangeToA1,
+} from '../charts/insert-chart';
+import { InsertChartDialog } from '../charts/InsertChartDialog';
+import { nextChartName } from '../charts/naming';
 import { useOutlineActions } from '../outline/use-outline-actions';
 import { useOutline } from '../outline/outline-context';
 import {
@@ -115,6 +121,8 @@ export function MenuBar() {
   const [showProperties, setShowProperties] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPageSetup, setShowPageSetup] = useState(false);
+  const [showInsertChart, setShowInsertChart] = useState(false);
+  const [insertChartDefault, setInsertChartDefault] = useState('A1');
 
   const onClose = () => setOpen(null);
 
@@ -279,12 +287,16 @@ export function MenuBar() {
         return;
       case 'xlsx':
       default:
-        await saveAsXlsx(api, name, { outline: outline.state });
+        await saveAsXlsx(api, name, { outline: outline.state, charts: charts.charts });
     }
   };
 
   const handleExportXlsx = async () =>
-    api && saveAsXlsx(api, workbook.meta.name || 'workbook', { outline: outline.state });
+    api &&
+    saveAsXlsx(api, workbook.meta.name || 'workbook', {
+      outline: outline.state,
+      charts: charts.charts,
+    });
   const handleExportOds = async () => api && saveAsOds(api, workbook.meta.name || 'workbook');
   const handleExportCsv = async () => api && saveAsCsv(api, workbook.meta.name || 'workbook');
   const handleExportTsv = async () => api && saveAsTsv(api, workbook.meta.name || 'workbook');
@@ -393,13 +405,14 @@ export function MenuBar() {
           id: 'insert-chart',
           label: 'Chart',
           icon: 'bar_chart',
-          // P0: bare column chart from the active selection. P1 will
-          // swap this for a real dialog (range picker + type picker).
+          // Excel-style: open a dialog (chart type + source range)
+          // pre-filled from the active selection. Insert anchors the
+          // chart 2 rows below the source, snapped to the cell grid.
           onClick: () => {
             if (!api) return;
-            const model = buildChartModelFromActiveSelection(api, 'bar');
-            if (!model) return;
-            charts.insert(model);
+            const sel = getActiveSelectionRange(api);
+            setInsertChartDefault(sel ? rangeToA1(sel) : 'A1');
+            setShowInsertChart(true);
           },
         },
         { kind: 'item', id: 'insert-image', label: 'Image', icon: 'image', run: insertImage },
@@ -445,6 +458,7 @@ export function MenuBar() {
         { kind: 'separator', id: 'sep-3' },
         { kind: 'item', id: 'tables-panel', label: ui.tablesPanelVisible ? 'Hide Tables panel' : 'Tables panel', icon: 'table_rows', onClick: ui.toggleTablesPanel },
         { kind: 'item', id: 'outline-panel', label: ui.outlinePanelVisible ? 'Hide Outline panel' : 'Outline panel', icon: 'list', onClick: ui.toggleOutlinePanel },
+        { kind: 'item', id: 'charts-panel', label: ui.chartsPanelVisible ? 'Hide Charts panel' : 'Charts panel', icon: 'bar_chart', onClick: ui.toggleChartsPanel },
         { kind: 'item', id: 'comments-panel', label: 'Comments panel', icon: 'forum', run: toggleCommentPanel },
       ],
     },
@@ -510,6 +524,22 @@ export function MenuBar() {
       )}
 
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+
+      {showInsertChart && api && (
+        <InsertChartDialog
+          api={api}
+          defaultSourceA1={insertChartDefault}
+          onCancel={() => setShowInsertChart(false)}
+          onConfirm={({ source, type }) => {
+            const model = buildChartModelForRange(api, source, type);
+            if (model) {
+              const name = nextChartName(charts.charts);
+              charts.insert({ ...model, title: name });
+            }
+            setShowInsertChart(false);
+          }}
+        />
+      )}
 
       {showPageSetup && (
         <PageSetupDialog

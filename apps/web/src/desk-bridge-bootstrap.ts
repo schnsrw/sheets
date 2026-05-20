@@ -47,6 +47,8 @@ if (isDesktop) {
         loadDocument(p?: string): Promise<ArrayBuffer>;
         save(bytes: ArrayBuffer): Promise<string | null>;
         saveAs(name: string, bytes: ArrayBuffer): Promise<string | null>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        getProfile?: () => Promise<any>;
       }
     | undefined;
 
@@ -93,7 +95,6 @@ if (isDesktop) {
     bridge = {
       isDesktop: true,
       get filePath() { return filePath; },
-      // @ts-expect-error getter+setter on the same name
       set filePath(v: string | null) { filePath = v; },
       async loadDocument(p?: string): Promise<ArrayBuffer> {
         const path = p ?? filePath;

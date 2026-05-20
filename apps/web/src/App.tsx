@@ -103,11 +103,12 @@ export function App() {
       if (lower.endsWith('.ods')) format = 'ods';
       else if (lower.endsWith('.csv')) format = 'csv';
       else if (lower.endsWith('.tsv') || lower.endsWith('.tab')) format = 'tsv';
+      const startedAt = Date.now();
       try {
-        setLoading({ fileName, phase: 'reading' });
+        setLoading({ fileName, phase: 'reading', startedAt });
         const buffer = await bridge.loadDocument();
         if (cancelled) return;
-        setLoading({ fileName, phase: 'parsing' });
+        setLoading({ fileName, phase: 'parsing', startedAt });
         let data: IWorkbookData;
         if (format === 'ods') data = await odsToWorkbookData(buffer);
         else if (format === 'csv') data = await csvToWorkbookData(buffer);
@@ -115,13 +116,13 @@ export function App() {
         else data = await xlsxToWorkbookData(buffer);
         if (cancelled) return;
         data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab)$/i, '');
-        setLoading({ fileName, phase: 'mounting' });
+        setLoading({ fileName, phase: 'mounting', startedAt });
         replaceWorkbook(data, format);
         setLoading(null);
       } catch (err) {
         console.error('deskApp load failed', err);
         if (!cancelled) {
-          setLoading({ fileName, phase: 'reading', error: String(err) });
+          setLoading({ fileName, phase: 'reading', startedAt, error: String(err) });
         }
       }
     })();

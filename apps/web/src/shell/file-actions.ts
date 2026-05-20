@@ -154,7 +154,7 @@ export async function saveAsXlsx(
   };
   const blob = await workbookDataToXlsx(snapshot, extras);
   const finalName = ensureExt(filename, 'xlsx');
-  triggerDownload(blob, finalName);
+  await triggerDownload(blob, finalName);
   toast(api, `Saved as ${finalName}`);
 }
 
@@ -275,7 +275,7 @@ export async function saveAsOds(api: FUniver, filename = 'workbook.ods') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToOds(snapshot);
   const finalName = ensureExt(filename, 'ods');
-  triggerDownload(blob, finalName);
+  await triggerDownload(blob, finalName);
   toast(api, `Saved as ${finalName}`);
 }
 
@@ -285,7 +285,7 @@ export async function saveAsCsv(api: FUniver, filename = 'workbook.csv') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToDelimited(snapshot, 'csv');
   const finalName = ensureExt(filename, 'csv');
-  triggerDownload(blob, finalName);
+  await triggerDownload(blob, finalName);
   toast(api, `Saved as ${finalName}`);
 }
 
@@ -295,7 +295,7 @@ export async function saveAsTsv(api: FUniver, filename = 'workbook.tsv') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToDelimited(snapshot, 'tsv');
   const finalName = ensureExt(filename, 'tsv');
-  triggerDownload(blob, finalName);
+  await triggerDownload(blob, finalName);
   toast(api, `Saved as ${finalName}`);
 }
 
@@ -304,7 +304,33 @@ function ensureExt(name: string, ext: string): string {
   return re.test(name) ? name : `${name.replace(/\.(xlsx|ods)$/i, '')}.${ext}`;
 }
 
-function triggerDownload(blob: Blob, filename: string) {
+async function triggerDownload(blob: Blob, filename: string) {
+  // Tauri shell: route every save through the desk bridge so it
+  // overwrites the bound file path on disk instead of producing a
+  // phantom browser download in ~/Downloads. The bridge handles both
+  // Save (overwrite filePath) and Save As (prompt). Web mode falls
+  // through to the original `<a download>` flow.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bridge = typeof window !== 'undefined' ? (window as any).__deskApp__ : undefined;
+  if (bridge?.isDesktop) {
+    const buffer = await blob.arrayBuffer();
+    try {
+      // bridge.save: if filePath is bound → overwrite that path;
+      //              if not → calls saveAs (file picker).
+      // We pass `filename` only as the suggested name for the Save As
+      // dialog — it has no effect when the document already has a
+      // bound path.
+      if (bridge.filePath) {
+        await bridge.save(buffer);
+      } else {
+        await bridge.saveAs(filename, buffer);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('desktop save failed', err);
+    }
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

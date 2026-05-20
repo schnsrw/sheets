@@ -47,6 +47,15 @@ export function useAutosave(): void {
     let cancelled = false;
     let debounce: ReturnType<typeof setTimeout> | null = null;
     let tick: ReturnType<typeof setInterval> | null = null;
+    // Univer fires a handful of structural mutations as the workbook
+    // mounts — initial sheet activation, default freeze, etc. — that
+    // aren't actual user edits. Ignore everything within a short
+    // grace window so the autosave slot from a *previous* session
+    // isn't immediately overwritten by an empty Untitled snapshot on
+    // page load (the restore prompt would then show "Untitled" or
+    // never appear at all).
+    const MOUNT_GRACE_MS = 1_000;
+    const mountTime = Date.now();
 
     const persist = async (reason: 'debounce' | 'tick' | 'pagehide') => {
       if (cancelled) return;
@@ -75,6 +84,8 @@ export function useAutosave(): void {
     };
 
     const subscription = cmdSvc.onMutationExecutedForCollab((info, options) => {
+      // Skip the mount-grace window (see MOUNT_GRACE_MS above).
+      if (Date.now() - mountTime < MOUNT_GRACE_MS) return;
       // `fromCollab` mutations are remote replays — they don't dirty
       // the user's local copy in the autosave sense (the source of
       // truth is the room). Same as the collab bridge skip.

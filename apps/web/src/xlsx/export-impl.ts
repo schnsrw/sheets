@@ -219,6 +219,12 @@ export async function workbookDataToXlsxImpl(
     writePivotsIntoSnapshot(data, extras.pivots);
   }
 
+  // Lift Univer's defined-name resource into xlsx-native `<definedName>`
+  // entries so the named ranges survive a round-trip through Microsoft
+  // Excel (which ignores our hidden sidecar). We still ship the sidecar
+  // below for our own re-open path; this is the foreign-reader leg.
+  writeDefinedNamesToXlsx(wb, data);
+
   if (Array.isArray(data.resources) && data.resources.length > 0) {
     const meta = wb.addWorksheet(RESOURCES_SHEET);
     meta.state = 'veryHidden';
@@ -233,4 +239,33 @@ export async function workbookDataToXlsxImpl(
   return new Blob([buf], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
+}
+
+const DEFINED_NAMES_RESOURCE = 'SHEET_DEFINED_NAME_PLUGIN';
+function writeDefinedNamesToXlsx(wb: ExcelJS.Workbook, data: IWorkbookData): void {
+  const res = data.resources?.find((r) => r.name === DEFINED_NAMES_RESOURCE);
+  if (!res?.data) return;
+  let map: Record<string, { name?: string; formulaOrRefString?: string }>;
+  try {
+    map = JSON.parse(res.data);
+  } catch {
+    return;
+  }
+  for (const entry of Object.values(map ?? {})) {
+    const name = entry?.name;
+    const ref = entry?.formulaOrRefString;
+    if (!name || !ref) continue;
+    // Multi-range defined names come back as a comma-joined string —
+    // split and add each separately so ExcelJS encodes them correctly.
+    for (const piece of ref.split(',')) {
+      const cleaned = piece.trim();
+      if (!cleaned) continue;
+      try {
+        wb.definedNames.add(cleaned, name);
+      } catch {
+        /* Invalid ref strings (unbounded, references to gone sheets,
+         * etc.) shouldn't kill the export — skip the bad entry. */
+      }
+    }
+  }
 }

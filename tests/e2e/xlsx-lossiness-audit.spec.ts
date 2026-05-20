@@ -474,6 +474,7 @@ test.describe('xlsx round-trip lossiness audit', () => {
     lock('Sheet props', 'frozen rows');
     lock('Sheet props', 'frozen columns');
     lock('Sheet props', 'hidden sheet survives');
+    lock('Defined names', 'RevenueRange');
     // Note: hyperlinks ARE preserved by our pipeline, but the encoding
     // lives in `cell.p.body.customRanges` (per xlsx-hyperlinks.spec.ts),
     // not in the `cell.value.hyperlink` shape ExcelJS exposes after the

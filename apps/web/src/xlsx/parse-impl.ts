@@ -77,6 +77,53 @@ function readResourcesSheet(ws: ExcelJS.Worksheet): IWorkbookData['resources'] {
   return undefined;
 }
 
+/**
+ * Pull `<definedName>` entries out of the xlsx workbook part and merge
+ * them into the SHEET_DEFINED_NAME_PLUGIN resource Univer reads on
+ * load. Our own sidecar (`__casual_sheets_resources__`) round-trips the
+ * full Univer shape (id, comment, hidden, etc.); xlsx-native defined
+ * names only carry `name` + `ranges`, so we synthesise the missing
+ * fields on the fly. Skipped when the sidecar already provided the
+ * resource — it has the richer payload.
+ */
+const DEFINED_NAMES_RESOURCE = 'SHEET_DEFINED_NAME_PLUGIN';
+function mergeDefinedNamesFromXlsx(
+  wb: ExcelJS.Workbook,
+  resources: IWorkbookData['resources'],
+): IWorkbookData['resources'] {
+  const existing = resources?.find((r) => r.name === DEFINED_NAMES_RESOURCE);
+  if (existing) return resources;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const model = (wb.definedNames as any).model as
+    | Array<{ name: string; ranges: string[] }>
+    | undefined;
+  if (!model?.length) return resources;
+
+  const map: Record<string, {
+    id: string;
+    name: string;
+    formulaOrRefString: string;
+  }> = {};
+  let i = 0;
+  for (const dn of model) {
+    if (!dn?.name || !Array.isArray(dn.ranges) || dn.ranges.length === 0) continue;
+    const id = `dn-${i++}`;
+    // Multi-range defined names get comma-joined; Univer's formula
+    // engine accepts that shape (range A, range B → "A,B").
+    map[id] = {
+      id,
+      name: dn.name,
+      formulaOrRefString: dn.ranges.join(','),
+    };
+  }
+  if (Object.keys(map).length === 0) return resources;
+
+  const next = [...(resources ?? [])];
+  next.push({ name: DEFINED_NAMES_RESOURCE, data: JSON.stringify(map) });
+  return next;
+}
+
 function lettersToCol(letters: string): number {
   let col = 0;
   for (let i = 0; i < letters.length; i++) {
@@ -118,6 +165,13 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
       break;
     }
   }
+
+  // Mirror xlsx-native defined names into the Univer plugin resource so
+  // a file authored in real Excel keeps its named ranges. The hidden
+  // sidecar (`__casual_sheets_resources__`) carries the full Univer
+  // shape on our own round-trip — only fall back to xlsx defined names
+  // when the sidecar didn't already register them.
+  resources = mergeDefinedNamesFromXlsx(wb, resources);
 
   for (const ws of wb.worksheets) {
     if (ws.name === RESOURCES_SHEET) continue;

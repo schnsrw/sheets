@@ -251,25 +251,31 @@ test.describe('Editing cells', () => {
       ws.getRange('A2').setValue({ v: 'a' });
       ws.getRange('A1:A2').activate();
     });
+    // toggleFilter awaits the lazy sheets-filter plugin. First call on
+    // a fresh page can take a beat — poll instead of a fixed wait.
     await page.keyboard.press('Control+Shift+L');
-    await page.waitForTimeout(150);
-    let has = await page.evaluate(() => {
-      const api = window.__univerAPI!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      return Boolean(ws.getFilter?.());
-    });
-    expect(has).toBe(true);
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+        return Boolean(ws.getFilter?.());
+      },
+      null,
+      { timeout: 5_000 },
+    );
     // Toggle off.
     await page.keyboard.press('Control+Shift+L');
-    await page.waitForTimeout(150);
-    has = await page.evaluate(() => {
-      const api = window.__univerAPI!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      return Boolean(ws.getFilter?.());
-    });
-    expect(has).toBe(false);
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+        return !ws.getFilter?.();
+      },
+      null,
+      { timeout: 5_000 },
+    );
   });
 
   test.fixme('Ctrl+Alt+L — Re-apply filter', async ({ page }) => {
@@ -590,16 +596,23 @@ test.describe('Cells, rows, columns', () => {
       ws.getRange('A2:A2').activate();
     });
     await page.keyboard.press('Control+9');
-    await page.waitForTimeout(120);
-    let hidden = await page.evaluate(() => {
-      const api = window.__univerAPI!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      return ws.getRowHeight(1) === 0 || (ws.getRowVisible?.(1) === false);
-    });
-    expect(hidden).toBe(true);
-    // Unhide via Ctrl+Shift+9. The action needs the hidden row(s) inside
-    // the selection — re-select the same row range and dispatch.
+    // Source of truth is the snapshot: SetRowHiddenCommand sets hd=1
+    // on the affected rows. getRowHeight() returns the configured row
+    // height (unchanged when hidden); getRowVisible isn't on every
+    // facade build. The snapshot is what we actually round-trip.
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const snap: any = api.getActiveWorkbook()!.save();
+        const sheetId = snap.sheetOrder[0];
+        return snap.sheets[sheetId].rowData?.[1]?.hd === 1;
+      },
+      null,
+      { timeout: 3_000 },
+    );
+
+    // Unhide via Ctrl+Shift+9.
     await page.evaluate(() => {
       const api = window.__univerAPI!;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -607,14 +620,17 @@ test.describe('Cells, rows, columns', () => {
       ws.getRange('A1:A3').activate();
     });
     await page.keyboard.press('Control+Shift+9');
-    await page.waitForTimeout(120);
-    hidden = await page.evaluate(() => {
-      const api = window.__univerAPI!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      return ws.getRowHeight(1) === 0 || (ws.getRowVisible?.(1) === false);
-    });
-    expect(hidden).toBe(false);
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const snap: any = api.getActiveWorkbook()!.save();
+        const sheetId = snap.sheetOrder[0];
+        return snap.sheets[sheetId].rowData?.[1]?.hd !== 1;
+      },
+      null,
+      { timeout: 3_000 },
+    );
   });
 
   test('Ctrl+0 / Ctrl+Shift+0 — hide & unhide columns', async ({ page }) => {
@@ -626,14 +642,18 @@ test.describe('Cells, rows, columns', () => {
       ws.getRange('B1:B1').activate();
     });
     await page.keyboard.press('Control+0');
-    await page.waitForTimeout(120);
-    let hidden = await page.evaluate(() => {
-      const api = window.__univerAPI!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      return ws.getColumnWidth(1) === 0 || (ws.getColumnVisible?.(1) === false);
-    });
-    expect(hidden).toBe(true);
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const snap: any = api.getActiveWorkbook()!.save();
+        const sheetId = snap.sheetOrder[0];
+        return snap.sheets[sheetId].columnData?.[1]?.hd === 1;
+      },
+      null,
+      { timeout: 3_000 },
+    );
+
     await page.evaluate(() => {
       const api = window.__univerAPI!;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -641,14 +661,17 @@ test.describe('Cells, rows, columns', () => {
       ws.getRange('A1:C1').activate();
     });
     await page.keyboard.press('Control+Shift+0');
-    await page.waitForTimeout(120);
-    hidden = await page.evaluate(() => {
-      const api = window.__univerAPI!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      return ws.getColumnWidth(1) === 0 || (ws.getColumnVisible?.(1) === false);
-    });
-    expect(hidden).toBe(false);
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const snap: any = api.getActiveWorkbook()!.save();
+        const sheetId = snap.sheetOrder[0];
+        return snap.sheets[sheetId].columnData?.[1]?.hd !== 1;
+      },
+      null,
+      { timeout: 3_000 },
+    );
   });
 
   test.fixme('Shift+F8 — Add non-adjacent range to selection (multi-range mode)', async ({ page }) => {

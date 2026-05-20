@@ -372,7 +372,11 @@ export function unhideSelectedColumns(api: FUniver) {
   const endColumn = startColumn + range.getWidth() - 1;
   const maxRow =
     (sheet as unknown as { getMaxRows?: () => number }).getMaxRows?.() ?? 1;
-  api.executeCommand('sheet.command.set-specific-cols-visible', {
+  // Univer's "show specific cols" command id is `set-col-visible-on-cols`
+  // (asymmetric with the row variant `set-specific-rows-visible`). Using
+  // the wrong id silently no-ops the unhide. Verified against
+  // vendor/univer/packages/sheets/src/commands/commands/set-col-visible.command.ts:49.
+  api.executeCommand('sheet.command.set-col-visible-on-cols', {
     unitId: wb.getId(),
     subUnitId: sheet.getSheetId(),
     ranges: [{ startRow: 0, endRow: Math.max(0, maxRow - 1), startColumn, endColumn, rangeType: 2 }],
@@ -816,23 +820,39 @@ export function setZoom(api: FUniver, ratio: number) {
 }
 
 export async function toggleFilter(api: FUniver): Promise<void> {
-  // sheets-filter is lazy-loaded; await before touching the facade or
-  // the `createFilter` augmentation is missing on the first call from
-  // a fresh page. ensurePluginByName is idempotent.
+  // sheets-filter is lazy-loaded; await before touching the facade.
   await ensurePluginByName('filter');
+  const wb = api.getActiveWorkbook();
   const sheet = activeSheet(api);
   const range = activeRange(api);
-  if (!sheet || !range) return;
+  if (!wb || !sheet || !range) return;
 
-  // sheets-filter facade augmentations.
-  const sheetWithFilter = sheet as unknown as { getFilter?: () => { remove: () => void } | null };
+  // Dispatch the underlying commands directly rather than through the
+  // facade's createFilter / remove(). The facade uses syncExecuteCommand
+  // which returns false silently when the plugin's command handlers
+  // haven't finished registering after a fresh dynamic import. The
+  // async executeCommand path waits for the dispatch and surfaces the
+  // result. Command ids verified against
+  // vendor/univer/packages/sheets-filter/src/commands/commands/sheets-filter.command.ts.
+  const sheetWithFilter = sheet as unknown as { getFilter?: () => unknown };
   const existing = sheetWithFilter.getFilter?.();
   if (existing) {
-    existing.remove();
+    await api.executeCommand('sheet.command.remove-sheet-filter', {
+      unitId: wb.getId(),
+      subUnitId: sheet.getSheetId(),
+    });
     return;
   }
-  const rangeWithCreateFilter = range as unknown as { createFilter?: () => unknown };
-  rangeWithCreateFilter.createFilter?.();
+  await api.executeCommand('sheet.command.set-filter-range', {
+    unitId: wb.getId(),
+    subUnitId: sheet.getSheetId(),
+    range: {
+      startRow: range.getRow(),
+      startColumn: range.getColumn(),
+      endRow: range.getRow() + range.getHeight() - 1,
+      endColumn: range.getColumn() + range.getWidth() - 1,
+    },
+  });
 }
 
 /* ── Formulas tab — force recalc ────────────────────────────────────────── */

@@ -93,9 +93,10 @@ test.describe('Data menu', () => {
   });
 
   test('Conditional Formatting opens the panel', async ({ page }) => {
+    // Polish #5 moved Conditional Formatting from Data to Format.
     const fired = await clickMenuItemFiresCommand(
       page,
-      'data',
+      'format',
       'conditional-formatting',
       'conditional.formatting',
     );

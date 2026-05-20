@@ -100,6 +100,8 @@ test.describe('Insert via menu bar', () => {
     await selectRange(page, 'A1');
 
     await page.getByTestId('menubar-insert').click();
+    // Polish #5 moved row/column inserters into a "Rows & columns" submenu.
+    await page.getByTestId('menu-item-insert-rowcol').hover();
     await page.getByTestId('menu-item-insert-row-above').click();
 
     const a1 = await readCell(page, 'A1');
@@ -118,6 +120,7 @@ test.describe('Insert via menu bar', () => {
     await selectRange(page, 'A1');
 
     await page.getByTestId('menubar-insert').click();
+    await page.getByTestId('menu-item-insert-rowcol').hover();
     await page.getByTestId('menu-item-insert-col-right').click();
 
     const b1 = await readCell(page, 'B1');
@@ -177,7 +180,9 @@ test.describe('Toolbar — AutoSum and sort', () => {
       ws.getRange('A3').setValue({ v: 2 });
     });
     await selectRange(page, 'A1:A3');
-    await page.getByTestId('ribbon-btn-sort-asc').click();
+    // Sort moved into the Sort & Filter dropdown — open via caret + choose item.
+    await page.getByTestId('ribbon-dropdown-sort-filter-caret').click();
+    await page.getByTestId('ribbon-dropdown-sort-filter-item-sort-asc').click();
 
     const values = await page.evaluate(() => {
       const api = window.__univerAPI!;

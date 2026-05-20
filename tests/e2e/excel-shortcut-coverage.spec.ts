@@ -698,9 +698,10 @@ test.describe('Calculating', () => {
       const api = window.__univerAPI!;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ws: any = api.getActiveWorkbook()!.getActiveSheet();
-      // The formula gets written to A4 (one cell below the multi-cell selection).
-      const cell = ws.getRange('A4').getValue();
-      return typeof cell === 'object' && cell !== null && 'f' in cell ? cell.f : '';
+      // The formula gets written to A4. getValue() returns the *result*
+      // (60) so we read the raw cell object to inspect the formula text.
+      const data = ws.getRange('A4').getCellData();
+      return data?.f ?? '';
     });
     expect(formula).toBe('=SUM(A1:A3)');
   });

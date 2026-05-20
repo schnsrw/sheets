@@ -9,7 +9,7 @@ test.describe('Tables panel', () => {
 
   test('opens from Data menu and shows the empty state initially', async ({ page }) => {
     await expect(page.getByTestId('tables-panel')).toHaveCount(0);
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-tables-panel').click();
     await expect(page.getByTestId('tables-panel')).toBeVisible();
     await expect(page.getByTestId('tables-panel')).toContainText(/no tables on this sheet/i);
@@ -29,7 +29,7 @@ test.describe('Tables panel', () => {
     await page.getByTestId('ribbon-dropdown-format-as-table-apply').click();
     await page.waitForTimeout(600);
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-tables-panel').click();
 
     const panel = page.getByTestId('tables-panel');
@@ -56,7 +56,7 @@ test.describe('Tables panel', () => {
     await page.waitForTimeout(600);
 
     // Open the panel.
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-tables-panel').click();
     const panel = page.getByTestId('tables-panel');
     await expect(panel).toBeVisible();

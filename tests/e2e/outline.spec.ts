@@ -51,7 +51,10 @@ const openDataMenu = async (page: Page) => {
 };
 
 const openOutlinePanel = async (page: Page) => {
-  await openDataMenu(page);
+  // Outline panel moved from Data to View in Polish #5 — only the
+  // group/ungroup operations remained on Data.
+  await page.getByTestId('menubar-view').click();
+  await expect(page.getByTestId('menubar-view-popup')).toBeVisible();
   await page.getByTestId('menu-item-outline-panel').click();
   await expect(page.getByTestId('outline-panel')).toBeVisible();
 };

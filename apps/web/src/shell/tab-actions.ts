@@ -283,12 +283,44 @@ export function copyFromAbove(api: FUniver, mode: 'formula' | 'value') {
   }
 }
 
+/**
+ * Hide whatever row(s) the active selection touches. Excel's Ctrl+9
+ * doesn't require the user to select full rows first — a single-cell
+ * selection still hides the row containing that cell. Univer's command
+ * filters its `selections` to `rangeType === ROW` only, so we explicitly
+ * pass a ROW-typed range derived from the cell selection.
+ */
 export function hideSelectedRows(api: FUniver) {
-  api.executeCommand('sheet.command.set-rows-hidden');
+  const wb = api.getActiveWorkbook();
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!wb || !sheet || !range) return;
+  const startRow = range.getRow();
+  const endRow = startRow + range.getHeight() - 1;
+  const maxCol =
+    (sheet as unknown as { getMaxColumns?: () => number }).getMaxColumns?.() ?? 1;
+  api.executeCommand('sheet.command.set-rows-hidden', {
+    unitId: wb.getId(),
+    subUnitId: sheet.getSheetId(),
+    // rangeType: 1 === RANGE_TYPE.ROW
+    ranges: [{ startRow, endRow, startColumn: 0, endColumn: Math.max(0, maxCol - 1), rangeType: 1 }],
+  });
 }
 
 export function unhideSelectedRows(api: FUniver) {
-  api.executeCommand('sheet.command.set-selected-rows-visible');
+  const wb = api.getActiveWorkbook();
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!wb || !sheet || !range) return;
+  const startRow = range.getRow();
+  const endRow = startRow + range.getHeight() - 1;
+  const maxCol =
+    (sheet as unknown as { getMaxColumns?: () => number }).getMaxColumns?.() ?? 1;
+  api.executeCommand('sheet.command.set-specific-rows-visible', {
+    unitId: wb.getId(),
+    subUnitId: sheet.getSheetId(),
+    ranges: [{ startRow, endRow, startColumn: 0, endColumn: Math.max(0, maxCol - 1), rangeType: 1 }],
+  });
 }
 
 /**
@@ -313,12 +345,38 @@ export function showAllRows(api: FUniver) {
   });
 }
 
+/** Mirror of hideSelectedRows for columns — Ctrl+0 path. */
 export function hideSelectedColumns(api: FUniver) {
-  api.executeCommand('sheet.command.set-col-hidden');
+  const wb = api.getActiveWorkbook();
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!wb || !sheet || !range) return;
+  const startColumn = range.getColumn();
+  const endColumn = startColumn + range.getWidth() - 1;
+  const maxRow =
+    (sheet as unknown as { getMaxRows?: () => number }).getMaxRows?.() ?? 1;
+  api.executeCommand('sheet.command.set-col-hidden', {
+    unitId: wb.getId(),
+    subUnitId: sheet.getSheetId(),
+    // rangeType: 2 === RANGE_TYPE.COLUMN
+    ranges: [{ startRow: 0, endRow: Math.max(0, maxRow - 1), startColumn, endColumn, rangeType: 2 }],
+  });
 }
 
 export function unhideSelectedColumns(api: FUniver) {
-  api.executeCommand('sheet.command.set-selected-cols-visible');
+  const wb = api.getActiveWorkbook();
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!wb || !sheet || !range) return;
+  const startColumn = range.getColumn();
+  const endColumn = startColumn + range.getWidth() - 1;
+  const maxRow =
+    (sheet as unknown as { getMaxRows?: () => number }).getMaxRows?.() ?? 1;
+  api.executeCommand('sheet.command.set-specific-cols-visible', {
+    unitId: wb.getId(),
+    subUnitId: sheet.getSheetId(),
+    ranges: [{ startRow: 0, endRow: Math.max(0, maxRow - 1), startColumn, endColumn, rangeType: 2 }],
+  });
 }
 
 export function insertImage(api: FUniver) {
@@ -757,7 +815,11 @@ export function setZoom(api: FUniver, ratio: number) {
   });
 }
 
-export function toggleFilter(api: FUniver) {
+export async function toggleFilter(api: FUniver): Promise<void> {
+  // sheets-filter is lazy-loaded; await before touching the facade or
+  // the `createFilter` augmentation is missing on the first call from
+  // a fresh page. ensurePluginByName is idempotent.
+  await ensurePluginByName('filter');
   const sheet = activeSheet(api);
   const range = activeRange(api);
   if (!sheet || !range) return;

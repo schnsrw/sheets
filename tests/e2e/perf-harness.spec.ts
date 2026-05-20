@@ -20,8 +20,9 @@ test('perf harness records snapshot-save + export-xlsx', async ({ page, baseURL 
   });
   const downloadPromise = page.waitForEvent('download');
   await page.getByTestId('menubar-file').click();
-  await page.getByTestId('menu-item-export').hover();
-  await page.getByTestId('menu-item-export-xlsx').click();
+  // Polish #5 renamed Export → Save as (submenu) with id 'save-as'.
+  await page.getByTestId('menu-item-save-as').hover();
+  await page.getByTestId('menu-item-save-as-xlsx').click();
   await downloadPromise;
 
   // Read out the perf buffer.

@@ -82,7 +82,7 @@ test.describe('Charts P1 — insert dialog + panel + persistence', () => {
     await expect(page.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
     // Open the Charts panel via the View menu.
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     const panel = page.getByTestId('charts-panel');
     await expect(panel).toBeVisible();
@@ -97,7 +97,7 @@ test.describe('Charts P1 — insert dialog + panel + persistence', () => {
     await page.getByTestId('insert-chart-confirm').click();
     await expect(page.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await page.getByLabel(/^Delete Chart 1$/).click();
     await expect(page.getByTestId('chart-overlay')).toHaveCount(0);

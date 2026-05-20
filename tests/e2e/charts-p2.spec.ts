@@ -158,7 +158,7 @@ test.describe('Charts P2 — Excel-style chart interactions', () => {
     await input.fill('Revenue chart');
     await input.press('Enter');
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('Revenue chart')).toBeVisible();
   });
@@ -172,7 +172,7 @@ test.describe('Charts P2 — Excel-style chart interactions', () => {
     await page.getByTestId('insert-chart-type-line').click();
     await page.getByTestId('insert-chart-confirm').click();
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('Line')).toBeVisible();
   });

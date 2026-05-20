@@ -64,6 +64,107 @@ export function insertNewSheet(api: FUniver) {
   wb.insertSheet();
 }
 
+/** Excel's Ctrl+Space — extend the current selection to span every row
+ *  of every column it touches. No-op if there's no active range. */
+export function selectEntireColumns(api: FUniver) {
+  const range = activeRange(api);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheet = activeSheet(api) as any;
+  if (!range || !sheet) return;
+  const startColumn = range.getColumn();
+  const endColumn = startColumn + range.getWidth() - 1;
+  const maxRow = Number(sheet.getMaxRows?.() ?? 1024) - 1;
+  sheet
+    .getRange({ startRow: 0, endRow: maxRow, startColumn, endColumn })
+    .activate();
+}
+
+/** Excel's Shift+Space — extend the current selection to span every
+ *  column of every row it touches. */
+export function selectEntireRows(api: FUniver) {
+  const range = activeRange(api);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheet = activeSheet(api) as any;
+  if (!range || !sheet) return;
+  const startRow = range.getRow();
+  const endRow = startRow + range.getHeight() - 1;
+  const maxCol = Number(sheet.getMaxColumns?.() ?? 128) - 1;
+  sheet
+    .getRange({ startRow, endRow, startColumn: 0, endColumn: maxCol })
+    .activate();
+}
+
+/** Excel's F2 — enter edit mode on the active cell. Dispatches the
+ *  Univer command that the canvas listens for. */
+export function enterCellEditMode(api: FUniver) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  void (api as any).executeCommand?.('sheet.operation.start-edit', {});
+}
+
+/** Insert/Delete cells with one of the four Excel directions. The
+ *  shift-cells variants leave neighbouring rows/cols untouched and
+ *  push only the target range — Excel's Ctrl+Shift+= submenu. */
+export type CellsOpDirection = 'shift-right' | 'shift-down' | 'entire-row' | 'entire-column';
+
+export async function insertCellsAt(api: FUniver, dir: CellsOpDirection): Promise<void> {
+  const range = activeRange(api);
+  const wb = api.getActiveWorkbook();
+  if (!range || !wb) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheet = activeSheet(api) as any;
+  if (dir === 'entire-row') {
+    insertRowAbove(api);
+    return;
+  }
+  if (dir === 'entire-column') {
+    insertColumnLeft(api);
+    return;
+  }
+  const cmd =
+    dir === 'shift-down'
+      ? 'sheet.command.insert-range-move-down'
+      : 'sheet.command.insert-range-move-right';
+  await api.executeCommand(cmd, {
+    unitId: wb.getId(),
+    subUnitId: sheet?.getSheetId?.(),
+    range: rangeBox(range),
+  });
+}
+
+export async function deleteCellsAt(api: FUniver, dir: CellsOpDirection): Promise<void> {
+  const range = activeRange(api);
+  const wb = api.getActiveWorkbook();
+  if (!range || !wb) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheet = activeSheet(api) as any;
+  if (dir === 'entire-row') {
+    deleteSelectedRow(api);
+    return;
+  }
+  if (dir === 'entire-column') {
+    deleteSelectedColumn(api);
+    return;
+  }
+  const cmd =
+    dir === 'shift-down'
+      ? 'sheet.command.delete-range-move-up'
+      : 'sheet.command.delete-range-move-left';
+  await api.executeCommand(cmd, {
+    unitId: wb.getId(),
+    subUnitId: sheet?.getSheetId?.(),
+    range: rangeBox(range),
+  });
+}
+
+function rangeBox(range: FRange) {
+  return {
+    startRow: range.getRow(),
+    startColumn: range.getColumn(),
+    endRow: range.getRow() + range.getHeight() - 1,
+    endColumn: range.getColumn() + range.getWidth() - 1,
+  };
+}
+
 /** Switch to the previous visible sheet — Ctrl+PageUp in Excel. Skips
  *  hidden sheets (matches Excel's behavior). No-op if already on the
  *  first visible sheet. */
@@ -156,6 +257,30 @@ export function insertCurrentTime(api: FUniver) {
   const pad = (n: number) => n.toString().padStart(2, '0');
   const v = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   range.setValue({ v });
+}
+
+/**
+ * Ctrl+' / Ctrl+Shift+' — copy from the cell directly above into the active
+ * cell. The Ctrl+' variant copies the formula (preserving the `=…`), the
+ * Ctrl+Shift+' variant copies the computed value (no formula). No-op on row 1.
+ */
+export function copyFromAbove(api: FUniver, mode: 'formula' | 'value') {
+  const sheet = activeSheet(api);
+  const range = activeRange(api);
+  if (!sheet || !range) return;
+  const row = range.getRow();
+  if (row <= 0) return;
+  const col = range.getColumn();
+  const above = sheet.getRange(row - 1, col).getCellData();
+  if (!above) return;
+  const target = sheet.getRange(row, col);
+  if (mode === 'formula' && typeof above.f === 'string' && above.f.length > 0) {
+    target.setValue({ f: above.f });
+  } else {
+    // Value mode (or formula mode with no formula above) — strip the formula
+    // and write the evaluated value so the new cell holds the literal.
+    target.setValue({ v: above.v ?? null });
+  }
 }
 
 export function hideSelectedRows(api: FUniver) {
@@ -646,4 +771,22 @@ export function toggleFilter(api: FUniver) {
   }
   const rangeWithCreateFilter = range as unknown as { createFilter?: () => unknown };
   rangeWithCreateFilter.createFilter?.();
+}
+
+/* ── Formulas tab — force recalc ────────────────────────────────────────── */
+
+/**
+ * Excel's F9 — re-run the whole dependency graph even for cells whose
+ * inputs didn't change. Useful after editing a volatile UDF or when a
+ * referenced external source has refreshed and the engine missed it.
+ *
+ * The mutation id is the one engine-formula listens on internally
+ * (`vendor/univer/packages/engine-formula/src/commands/mutations/
+ * set-formula-calculation.mutation.ts:83`); passing `forceCalculation`
+ * skips the dependency short-circuit.
+ */
+export function forceRecalculate(api: FUniver) {
+  api.executeCommand('formula.mutation.set-formula-calculation-start', {
+    forceCalculation: true,
+  });
 }

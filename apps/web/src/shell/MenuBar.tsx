@@ -126,6 +126,70 @@ type MenuItem =
       items: MenuItem[];
     };
 
+type SheetRange = {
+  startRow: number;
+  endRow: number;
+  startColumn: number;
+  endColumn: number;
+};
+
+function normalizeRange(range: SheetRange): SheetRange {
+  return {
+    startRow: range.startRow,
+    endRow: range.endRow,
+    startColumn: range.startColumn,
+    endColumn: range.endColumn,
+  };
+}
+
+function sameRange(a: SheetRange, b: SheetRange): boolean {
+  return (
+    a.startRow === b.startRow &&
+    a.endRow === b.endRow &&
+    a.startColumn === b.startColumn &&
+    a.endColumn === b.endColumn
+  );
+}
+
+function primaryFor(range: SheetRange) {
+  return {
+    actualRow: range.startRow,
+    actualColumn: range.startColumn,
+    isMerged: false,
+    isMergedMainCell: false,
+    startRow: range.startRow,
+    startColumn: range.startColumn,
+    endRow: range.startRow,
+    endColumn: range.startColumn,
+    rangeType: 0,
+  };
+}
+
+function getSelectionRanges(api: FUniver): SheetRange[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheet = api.getActiveWorkbook()?.getActiveSheet() as any;
+  if (!sheet) return [];
+  const list = sheet.getSelection?.()?.getActiveRangeList?.();
+  if (Array.isArray(list) && list.length > 0) {
+    return list
+      .map((range) => range?.getRange?.())
+      .filter((range): range is SheetRange => !!range)
+      .map(normalizeRange);
+  }
+  const active = sheet.getActiveRange?.();
+  const range = active?.getRange?.();
+  return range ? [normalizeRange(range)] : [];
+}
+
+function broadcastAddToSelectionMode(active: boolean): void {
+  document.body.dataset.addToSelectionMode = active ? 'true' : 'false';
+  document.dispatchEvent(
+    new CustomEvent('casual-add-to-selection-mode-changed', {
+      detail: { active },
+    }),
+  );
+}
+
 function openContextMenuForActiveCell(api: FUniver): void {
   const canvas = document.querySelector('[id^="univer-sheet-main-canvas_"]') as HTMLCanvasElement | null;
   if (!canvas) return;
@@ -222,6 +286,9 @@ export function MenuBar() {
   const [insertChartDefault, setInsertChartDefault] = useState('A1');
   const [showInsertPivot, setShowInsertPivot] = useState(false);
   const [insertPivotDefault, setInsertPivotDefault] = useState('A1');
+  const addToSelectionModeRef = useRef(false);
+  const selectionRangesRef = useRef<SheetRange[]>([]);
+  const syntheticSelectionRef = useRef(false);
   const pivots = usePivots();
 
   // Toolbar's Insert > Chart / Pivot buttons live in a sibling component;
@@ -248,6 +315,7 @@ export function MenuBar() {
       document.removeEventListener('casual-open-insert-pivot', openPivot);
     };
   }, [api]);
+
   // Ctrl++ / Ctrl+- → Excel's Insert / Delete chooser modals. `null`
   // when closed; `'insert'` / `'delete'` when open.
   const [cellsOp, setCellsOp] = useState<'insert' | 'delete' | null>(null);
@@ -328,6 +396,11 @@ export function MenuBar() {
           if (inTextInput) return;
           e.preventDefault();
           if (api) insertHyperlink(api);
+        } else if (k === 'a' && e.shiftKey) {
+          // Ctrl+Shift+A — insert current function's argument template.
+          if (inTextInput) return;
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent('casual-insert-function-args'));
         } else if (e.code === 'Digit1' && !e.shiftKey) {
           // Ctrl+1 — Excel-style Format Cells dialog.
           if (inTextInput) return;
@@ -385,6 +458,17 @@ export function MenuBar() {
         if (inTextInput) return;
         e.preventDefault();
         if (api) openContextMenuForActiveCell(api);
+      } else if (e.key === 'F3' && e.shiftKey && !mod && !e.altKey) {
+        // Shift+F3 — Insert Function dialog.
+        if (inTextInput) return;
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('casual-open-insert-function'));
+      } else if (e.key === 'F8' && e.shiftKey && !mod && !e.altKey) {
+        // Shift+F8 — Excel's sticky "Add to Selection" mode.
+        e.preventDefault();
+        addToSelectionModeRef.current = !addToSelectionModeRef.current;
+        if (api) selectionRangesRef.current = getSelectionRanges(api);
+        broadcastAddToSelectionMode(addToSelectionModeRef.current);
       }
       if (e.key === 'F2' && !mod && !e.shiftKey && !e.altKey) {
         // F2 — drop the active cell into edit mode without clearing
@@ -548,13 +632,90 @@ export function MenuBar() {
         }
       }
     };
-    window.addEventListener('keydown', onKey, { capture: true });
-    return () => window.removeEventListener('keydown', onKey, { capture: true });
+    document.addEventListener('keydown', onKey, { capture: true });
+    return () => document.removeEventListener('keydown', onKey, { capture: true });
     // handleSave / handleNew / handleOpen read workbook.meta + api
     // from context; api in deps re-binds the handler when the
     // workbook is swapped.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, workbook.meta]);
+
+  useEffect(() => {
+    if (!api) return;
+    selectionRangesRef.current = getSelectionRanges(api);
+    const onAddSelectionA1 = (event: Event) => {
+      if (!addToSelectionModeRef.current) return;
+      const target = (event as CustomEvent<{ target?: string }>).detail?.target?.trim();
+      if (!target) return;
+      const wb = api.getActiveWorkbook();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sheet = wb?.getActiveSheet() as any;
+      if (!wb || !sheet) return;
+      try {
+        const nextRange = normalizeRange(sheet.getRange(target).getRange());
+        const next = [...selectionRangesRef.current];
+        if (!next.some((existing) => sameRange(existing, nextRange))) next.push(nextRange);
+        selectionRangesRef.current = next;
+        api.executeCommand('sheet.operation.set-selections', {
+          unitId: wb.getId(),
+          subUnitId: sheet.getSheetId(),
+          selections: next.map((range, index) => ({
+            range,
+            primary: index === next.length - 1 ? primaryFor(range) : null,
+            style: null,
+          })),
+        });
+      } catch {
+        /* invalid name-box target */
+      }
+    };
+    const disposable = api.addEvent(api.Event.CommandExecuted, (e) => {
+      const id = (e as { id?: string }).id;
+      if (id !== 'sheet.operation.set-selections') return;
+      const current = getSelectionRanges(api);
+      if (syntheticSelectionRef.current) {
+        selectionRangesRef.current = current;
+        return;
+      }
+      if (!addToSelectionModeRef.current) {
+        selectionRangesRef.current = current;
+        return;
+      }
+      const next = [...selectionRangesRef.current];
+      for (const range of current) {
+        if (!next.some((existing) => sameRange(existing, range))) next.push(range);
+      }
+      if (next.length === selectionRangesRef.current.length) {
+        selectionRangesRef.current = current;
+        return;
+      }
+      const wb = api.getActiveWorkbook();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sheet = wb?.getActiveSheet() as any;
+      if (!wb || !sheet) return;
+      syntheticSelectionRef.current = true;
+      queueMicrotask(() => {
+        api.executeCommand('sheet.operation.set-selections', {
+          unitId: wb.getId(),
+          subUnitId: sheet.getSheetId(),
+          selections: next.map((range, index) => ({
+            range,
+            primary: index === next.length - 1 ? primaryFor(range) : null,
+            style: null,
+          })),
+        });
+        queueMicrotask(() => {
+          syntheticSelectionRef.current = false;
+          selectionRangesRef.current = next;
+        });
+      });
+    });
+    document.addEventListener('casual-add-selection-a1', onAddSelectionA1);
+    return () => {
+      disposable.dispose();
+      document.removeEventListener('casual-add-selection-a1', onAddSelectionA1);
+    };
+  }, [api]);
 
   const handleNew = () => workbook.replaceWorkbook(emptyWorkbook(), null);
   const handleOpen = async () => {
@@ -780,6 +941,14 @@ export function MenuBar() {
         },
         { kind: 'separator', id: 'sep-objects' },
         { kind: 'item', id: 'insert-image', label: 'Image…', icon: 'image', run: insertImage },
+        {
+          kind: 'item',
+          id: 'insert-function',
+          label: 'Function…',
+          icon: 'functions',
+          shortcut: 'Shift+F3',
+          onClick: () => document.dispatchEvent(new CustomEvent('casual-open-insert-function')),
+        },
         { kind: 'item', id: 'insert-link', label: 'Hyperlink…', icon: 'link', shortcut: 'Ctrl+K', run: insertHyperlink },
         { kind: 'item', id: 'insert-comment', label: 'Comment', icon: 'comment', shortcut: 'Shift+F2', run: insertComment },
         { kind: 'separator', id: 'sep-rowcol' },

@@ -5,6 +5,8 @@ import { createRequire } from 'node:module';
 import { waitForUniver } from './_helpers';
 
 const require = createRequire(import.meta.url);
+type OdsModule = typeof import('../../apps/web/src/ods');
+type OdsWorkbookData = Parameters<OdsModule['workbookDataToOds']>[0];
 // `@e965/xlsx` is installed in the `apps/web` workspace, not the repo root.
 // Resolve from there so Playwright can run this spec from the monorepo root.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -263,7 +265,7 @@ test.describe('ods round-trip lossiness audit', () => {
     const gotWb = readOdsWorkbook(Buffer.from(result.bytes));
     const probes = compareWorkbooks(referenceWb, gotWb, result.snapshot);
     const styleRoundTrip = await page.evaluate(async () => {
-      const snapshot = {
+      const snapshot: OdsWorkbookData = {
         id: 'audit-style-1',
         rev: 1,
         name: 'wb',
@@ -294,7 +296,7 @@ test.describe('ods round-trip lossiness audit', () => {
           },
         },
       };
-      const blob = await window.__odsAudit!.workbookDataToOds(snapshot as any);
+      const blob = await window.__odsAudit!.workbookDataToOds(snapshot);
       const reloaded = await window.__odsAudit!.odsToWorkbookData(await blob.arrayBuffer());
       const sheetId = reloaded.sheetOrder[0];
       const cell = reloaded.sheets[sheetId]?.cellData?.[0]?.[0];

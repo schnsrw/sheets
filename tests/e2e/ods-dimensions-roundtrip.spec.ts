@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { waitForUniver } from './_helpers';
 
+type OdsModule = typeof import('../../apps/web/src/ods');
+type OdsWorkbookData = Parameters<OdsModule['workbookDataToOds']>[0];
+
 declare global {
   interface Window {
     __odsDims?: typeof import('../../apps/web/src/ods');
@@ -20,7 +23,7 @@ test.describe('ods dimensions round-trip', () => {
 
   test('snapshot row heights and column widths survive ods export and import', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const snapshot = {
+      const snapshot: OdsWorkbookData = {
         id: 'wb-dims-1',
         rev: 1,
         name: 'wb',
@@ -47,7 +50,7 @@ test.describe('ods dimensions round-trip', () => {
         },
       };
 
-      const blob = await window.__odsDims!.workbookDataToOds(snapshot as any);
+      const blob = await window.__odsDims!.workbookDataToOds(snapshot);
       const buf = await blob.arrayBuffer();
       const reloaded = await window.__odsDims!.odsToWorkbookData(buf);
       const sheetId = reloaded.sheetOrder[0];

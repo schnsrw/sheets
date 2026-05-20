@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { waitForUniver } from './_helpers';
 
+type OdsModule = typeof import('../../apps/web/src/ods');
+type OdsWorkbookData = Parameters<OdsModule['workbookDataToOds']>[0];
+
 declare global {
   interface Window {
     __odsStyles?: typeof import('../../apps/web/src/ods');
@@ -20,7 +23,7 @@ test.describe('ods style subset round-trip', () => {
 
   test('font, fill, alignment, and number format survive ods export and import', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const snapshot = {
+      const snapshot: OdsWorkbookData = {
         id: 'wb-style-1',
         rev: 1,
         name: 'wb',
@@ -52,7 +55,7 @@ test.describe('ods style subset round-trip', () => {
         },
       };
 
-      const blob = await window.__odsStyles!.workbookDataToOds(snapshot as any);
+      const blob = await window.__odsStyles!.workbookDataToOds(snapshot);
       const buf = await blob.arrayBuffer();
       const reloaded = await window.__odsStyles!.odsToWorkbookData(buf);
       const sheetId = reloaded.sheetOrder[0];

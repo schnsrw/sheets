@@ -81,8 +81,18 @@ type CellStyleMeta = {
   stylesByName: Record<string, IStyleData>;
   refsBySheetName: Record<string, Record<number, Record<number, string>>>;
 };
+type ZipContainer = {
+  FullPaths: string[];
+  FileIndex: Array<{ content?: unknown }>;
+};
+type SnapshotCell = {
+  v?: string | number | boolean;
+  f?: string;
+  s?: string | IStyleData;
+  p?: ICellData['p'];
+};
 
-function getZipEntry(cfb: XLSX.CFB$Container, path: string): { content?: unknown } | undefined {
+function getZipEntry(cfb: ZipContainer, path: string): { content?: unknown } | undefined {
   const fullPath = cfb.FullPaths.find((p: string) => p === `Root Entry/${path}`);
   if (!fullPath) return undefined;
   const idx = cfb.FullPaths.indexOf(fullPath);
@@ -319,7 +329,7 @@ function readCellStyles(buffer: ArrayBuffer, format: TabularFormat): CellStyleMe
   }
 }
 
-function upsertZipText(cfb: XLSX.CFB$Container, path: string, text: string): void {
+function upsertZipText(cfb: ZipContainer, path: string, text: string): void {
   const existing = getZipEntry(cfb, path);
   if (existing) XLSX.CFB.utils.cfb_del(cfb, path);
   XLSX.CFB.utils.cfb_add(cfb, path, encodeZipText(text));
@@ -631,7 +641,7 @@ function mergeNotesFromOds(
       for (let c = range.s.c; c <= range.e.c; c++) {
         const addr = XLSX.utils.encode_cell({ r, c });
         const cell = sheet[addr];
-        const text = cell?.c?.map((entry) => entry.t ?? '').join('\n') ?? '';
+        const text = cell?.c?.map((entry: XLSX.Comment) => entry.t).join('\n') ?? '';
         if (!text) continue;
         noteData[sheetId] ??= {};
         noteData[sheetId][r] ??= {};
@@ -900,10 +910,7 @@ export async function workbookDataToOds(data: IWorkbookData): Promise<Blob> {
     if (!wsd) continue;
     const sheet: XLSX.WorkSheet = {};
 
-    const cellData = (wsd.cellData ?? {}) as Record<
-      string,
-      Record<string, { v?: string | number | boolean; f?: string; s?: string | IStyleData }>
-    >;
+    const cellData = (wsd.cellData ?? {}) as Record<string, Record<string, SnapshotCell>>;
     let maxRow = 0;
     let maxCol = 0;
     for (const rKey of Object.keys(cellData)) {

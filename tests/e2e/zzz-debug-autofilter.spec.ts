@@ -10,7 +10,9 @@ test('debug autofilter with console capture', async ({ page }) => {
   await waitForUniver(page);
   await mainCanvas(page).first().click({ position: { x: 200, y: 200 } });
   await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const api = (window as any).__univerAPI!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ws: any = api.getActiveWorkbook()!.getActiveSheet();
     ws.getRange('A1').setValue({ v: 'h1' });
     ws.getRange('A2').setValue({ v: 'a' });

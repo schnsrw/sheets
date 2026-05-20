@@ -6,7 +6,7 @@ re-parse the result with SheetJS, and compare feature-by-feature.
 
 Legend: `✅` survived · `⚠️` partial · `❌` dropped
 
-**Totals**: 17 ✅ · 0 ⚠️ · 0 ❌ (of 17 probes)
+**Totals**: 22 ✅ · 0 ⚠️ · 0 ❌ (of 22 probes)
 
 ## Parser constraints
 
@@ -75,3 +75,23 @@ Legend: `✅` survived · `⚠️` partial · `❌` dropped
 | column B width | `77` | `77` | ✅ |
 | row 1 height | `24` | `24` | ✅ |
 | row 2 height | `18` | `18` | ✅ |
+
+## Styles · font
+
+| Probe | Reference | Actual | Status |
+| --- | --- | --- | --- |
+| bold preserved | `1` | `1` | ✅ |
+| font color preserved | `"#ff0000"` | `"#ff0000"` | ✅ |
+
+## Styles · fill
+
+| Probe | Reference | Actual | Status |
+| --- | --- | --- | --- |
+| fill color preserved | `"#00ff00"` | `"#00ff00"` | ✅ |
+
+## Styles · alignment
+
+| Probe | Reference | Actual | Status |
+| --- | --- | --- | --- |
+| horizontal alignment preserved | `2` | `2` | ✅ |
+| vertical alignment preserved | `2` | `2` | ✅ |

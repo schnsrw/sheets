@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { waitForUniver } from './_helpers';
 
+type OdsModule = typeof import('../../apps/web/src/ods');
+type OdsWorkbookData = Parameters<OdsModule['workbookDataToOds']>[0];
+
 declare global {
   interface Window {
     __odsFreeze?: typeof import('../../apps/web/src/ods');
@@ -20,7 +23,7 @@ test.describe('ods freeze panes round-trip', () => {
 
   test('snapshot freeze metadata survives ods export and import', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const snapshot = {
+      const snapshot: OdsWorkbookData = {
         id: 'wb-freeze-1',
         rev: 1,
         name: 'wb',
@@ -40,7 +43,7 @@ test.describe('ods freeze panes round-trip', () => {
         },
       };
 
-      const blob = await window.__odsFreeze!.workbookDataToOds(snapshot as any);
+      const blob = await window.__odsFreeze!.workbookDataToOds(snapshot);
       const buf = await blob.arrayBuffer();
       const reloaded = await window.__odsFreeze!.odsToWorkbookData(buf);
       const sheetId = reloaded.sheetOrder[0];

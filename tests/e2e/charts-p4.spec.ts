@@ -85,7 +85,7 @@ test.describe('Charts P4 — Format chart dialog', () => {
     await openFormatDialog(page);
     await page.getByTestId('format-chart-title-input').fill('Quarterly revenue');
     await page.getByTestId('format-chart-apply').click();
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('Quarterly revenue')).toBeVisible();
   });

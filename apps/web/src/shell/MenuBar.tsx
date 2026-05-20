@@ -174,6 +174,19 @@ export function MenuBar() {
 
   const onClose = () => setOpen(null);
 
+  // Keep the keyboard handler's view of mutable callbacks fresh. The
+  // useEffect below intentionally captures `api` + `workbook.meta` in
+  // its deps (re-binding on workbook swap), but `handleSave`/`handleNew`/
+  // `handleOpen` close over context state (charts, outline, pivots) that
+  // updates more often than the deps fire. Without this ref, Ctrl+S
+  // would serialize a stale view — e.g., an empty charts list right
+  // after inserting a chart.
+  const handlersRef = useRef({
+    save: async () => {},
+    new: () => {},
+    open: async () => {},
+  });
+
   // Intercept Ctrl/Cmd+P globally — the default would print the whole web
   // page (chrome + grid). We print only the active sheet via an offscreen
   // iframe instead. Capture-phase so we beat browser shortcuts on focused
@@ -196,17 +209,17 @@ export function MenuBar() {
           if (api) setShowPageSetup(true);
         } else if (k === 's' && !e.shiftKey) {
           e.preventDefault();
-          void handleSave();
+          void handlersRef.current.save();
         } else if (k === 'n' && !e.shiftKey) {
           // Ctrl+N — new workbook. Browser default would open a new
           // window which is almost never what an Excel user wants.
           e.preventDefault();
-          handleNew();
+          handlersRef.current.new();
         } else if (k === 'o' && !e.shiftKey) {
           // Ctrl+O — open. Browser default is a no-op for users with
           // no app handler; we replace it with the file picker.
           e.preventDefault();
-          void handleOpen();
+          void handlersRef.current.open();
         } else if (k === 'f' && !e.shiftKey) {
           // Skip when focus is in a plain text input — browsers expect
           // Ctrl+F to do in-page find there. The find dialog is for the
@@ -396,7 +409,7 @@ export function MenuBar() {
       if (mod && e.shiftKey && !e.altKey && k === 'l') {
         if (inTextInput) return;
         e.preventDefault();
-        if (api) toggleFilter(api);
+        if (api) void toggleFilter(api);
       }
       // ── Outline border: Ctrl+Shift+& (US) / Ctrl+Shift+7 ────────
       // Both map to Excel's "outside border". US keyboards report
@@ -510,6 +523,17 @@ export function MenuBar() {
       charts: charts.charts,
       pivots: pivots.pivots,
     });
+
+  // Keep the keyboard-listener's handlers in sync with the latest
+  // closure after every render. See `handlersRef` declaration above
+  // for the rationale.
+  handlersRef.current = {
+    save: handleSave,
+    new: () => {
+      handleNew();
+    },
+    open: handleOpen,
+  };
   const handleExportOds = async () => api && saveAsOds(api, workbook.meta.name || 'workbook');
   const handleExportCsv = async () => api && saveAsCsv(api, workbook.meta.name || 'workbook');
   const handleExportTsv = async () => api && saveAsTsv(api, workbook.meta.name || 'workbook');

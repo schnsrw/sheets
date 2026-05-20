@@ -76,7 +76,7 @@ test.describe('Charts P3 — chart-type catalog', () => {
     await page.getByTestId('insert-chart-confirm').click();
     await expect(page.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('Stacked Column')).toBeVisible();
   });
@@ -91,7 +91,7 @@ test.describe('Charts P3 — chart-type catalog', () => {
     await expect(overlay).toBeVisible({ timeout: 5_000 });
     await expect(overlay.locator('canvas')).toHaveCount(1, { timeout: 5_000 });
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('100% Stacked Bar')).toBeVisible();
   });
@@ -104,7 +104,7 @@ test.describe('Charts P3 — chart-type catalog', () => {
     await page.getByTestId('insert-chart-confirm').click();
     await expect(page.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('Doughnut')).toBeVisible();
   });
@@ -117,7 +117,7 @@ test.describe('Charts P3 — chart-type catalog', () => {
     await page.getByTestId('insert-chart-confirm').click();
     await expect(page.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
-    await page.getByTestId('menubar-data').click();
+    await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-charts-panel').click();
     await expect(page.getByTestId('charts-panel').getByText('Area', { exact: true })).toBeVisible();
   });

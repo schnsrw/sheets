@@ -121,7 +121,7 @@ test('chart insert in browser A appears in browser B within 3s', async ({ baseUR
   await expect(pageB.getByTestId('chart-overlay')).toBeVisible({ timeout: 5_000 });
 
   // Open B's Charts panel — should also list "Chart 1".
-  await pageB.getByTestId('menubar-data').click();
+  await pageB.getByTestId('menubar-view').click();
   await pageB.getByTestId('menu-item-charts-panel').click();
   await expect(pageB.getByTestId('charts-panel').getByText('Chart 1')).toBeVisible();
 

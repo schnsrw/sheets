@@ -411,7 +411,7 @@ export function Toolbar() {
                 if (!api) return;
                 if (id === 'sort-asc') sortRange(api, true);
                 else if (id === 'sort-desc') sortRange(api, false);
-                else if (id === 'toggle-filter') toggleFilter(api);
+                else if (id === 'toggle-filter') void toggleFilter(api);
               }}
             />
             <ToolbarButton id="insert-hyperlink" label="Insert hyperlink (Ctrl+K)" icon="link" disabled={!ready} onClick={() => api && insertHyperlink(api)} />

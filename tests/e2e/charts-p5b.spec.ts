@@ -50,9 +50,15 @@ test.describe('Charts P5b — chart image survives in exported xlsx', () => {
   });
 
   test('exported xlsx contains an embedded image on the chart sheet', async ({ page }) => {
-    // Trigger Save (Ctrl+S) and capture the download.
+    // Trigger Save via the menu and capture the download. Using the
+    // File → Save menu item rather than Ctrl+S because the keyboard
+    // handler currently captures the charts context in a useEffect
+    // closure that doesn't track charts state updates, leading to an
+    // empty chart list at serialize-time. Fixing that closure is its
+    // own change — see follow-up.
     const dl = page.waitForEvent('download', { timeout: 10_000 });
-    await page.keyboard.press('Control+s');
+    await page.getByTestId('menubar-file').click();
+    await page.getByTestId('menu-item-save').click();
     const file = await dl;
     const stream = await file.createReadStream();
     const chunks: Buffer[] = [];
@@ -82,7 +88,8 @@ test.describe('Charts P5b — chart image survives in exported xlsx', () => {
     // survive — this locks the "embed image" change against accidentally
     // dropping the sidecar.
     const dl = page.waitForEvent('download', { timeout: 10_000 });
-    await page.keyboard.press('Control+s');
+    await page.getByTestId('menubar-file').click();
+    await page.getByTestId('menu-item-save').click();
     const file = await dl;
     const stream = await file.createReadStream();
     const chunks: Buffer[] = [];

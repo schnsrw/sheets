@@ -47,15 +47,19 @@ export function useAutosave(): void {
     let cancelled = false;
     let debounce: ReturnType<typeof setTimeout> | null = null;
     let tick: ReturnType<typeof setInterval> | null = null;
-    // Univer fires a handful of structural mutations as the workbook
-    // mounts — initial sheet activation, default freeze, etc. — that
-    // aren't actual user edits. Ignore everything within a short
-    // grace window so the autosave slot from a *previous* session
-    // isn't immediately overwritten by an empty Untitled snapshot on
-    // page load (the restore prompt would then show "Untitled" or
-    // never appear at all).
-    const MOUNT_GRACE_MS = 1_000;
-    const mountTime = Date.now();
+    // Only persist after the user has actually interacted. Univer
+    // fires a stream of structural mutations during mount + background
+    // services (formula resize, lazy plugin init, etc.) that aren't
+    // edits — without this guard, navigating to a fresh page would
+    // overwrite any previously-saved autosave slot with the empty
+    // Untitled snapshot, and the restore banner would show "Untitled"
+    // (or never appear at all) on the next visit. Pointerdown /
+    // keydown / wheel on the document are the same signals
+    // browsers use to allow autoplay / Notification permission etc.
+    let userInteracted = false;
+    const markInteracted = () => { userInteracted = true; };
+    window.addEventListener('pointerdown', markInteracted, { capture: true });
+    window.addEventListener('keydown', markInteracted, { capture: true });
 
     const persist = async (reason: 'debounce' | 'tick' | 'pagehide') => {
       if (cancelled) return;
@@ -84,8 +88,9 @@ export function useAutosave(): void {
     };
 
     const subscription = cmdSvc.onMutationExecutedForCollab((info, options) => {
-      // Skip the mount-grace window (see MOUNT_GRACE_MS above).
-      if (Date.now() - mountTime < MOUNT_GRACE_MS) return;
+      // Require a real user interaction before any mutation can mark
+      // the workbook dirty — see `userInteracted` above.
+      if (!userInteracted) return;
       // `fromCollab` mutations are remote replays — they don't dirty
       // the user's local copy in the autosave sense (the source of
       // truth is the room). Same as the collab bridge skip.
@@ -117,6 +122,8 @@ export function useAutosave(): void {
       if (tick) clearInterval(tick);
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('beforeunload', onPageHide);
+      window.removeEventListener('pointerdown', markInteracted, { capture: true });
+      window.removeEventListener('keydown', markInteracted, { capture: true });
     };
     // workbook.meta is captured fresh on each save; not a dep to avoid
     // re-subscribing on every name edit.

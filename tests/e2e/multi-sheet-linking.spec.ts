@@ -25,7 +25,7 @@ test.describe('Cross-sheet references', () => {
   });
 
   test('=Sheet2!A1 evaluates to the referenced cell', async ({ page }) => {
-    const result = await page.evaluate(async () => {
+    await page.evaluate(() => {
       const api = window.__univerAPI!;
       const wb = api.getActiveWorkbook()!;
       wb.insertSheet();
@@ -34,8 +34,25 @@ test.describe('Cross-sheet references', () => {
       s2.getRange('A1').setValue({ v: 42 });
       wb.setActiveSheet(s1);
       s1.getRange('A1').setValue({ f: `=${s2.getSheetName()}!A1` });
-      // Formula compute runs in the worker — give it a beat.
-      await new Promise((r) => setTimeout(r, 300));
+    });
+    // Formula compute runs async in the formula worker — poll the cell
+    // until either the cached value lands or the budget expires. A fixed
+    // 300 ms wait was racy under CI load.
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        const wb = api.getActiveWorkbook()!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const s1: any = wb.getSheets()[0];
+        return s1.getRange('A1').getCellData()?.v === 42;
+      },
+      null,
+      { timeout: 5_000 },
+    );
+    const result = await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s1: any = api.getActiveWorkbook()!.getSheets()[0];
       return s1.getRange('A1').getCellData();
     });
     expect(result?.f).toBe('=Sheet2!A1');

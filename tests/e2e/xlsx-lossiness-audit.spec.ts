@@ -180,12 +180,15 @@ function compareWorkbooks(ref: ExcelJS.Workbook, got: ExcelJS.Workbook): Probe[]
     matcher: (r: unknown, a: unknown) => boolean | 'partial' = (r, a) => Object.is(r, a) || JSON.stringify(r) === JSON.stringify(a),
   ) => probes.push({ category, what, reference, actual, result: matcher(reference, actual) });
 
-  // Sheet identity.
+  // Sheet identity — ignore our internal `__casual_sheets_resources__`
+  // sidecar (it's veryHidden in xlsx, never visible to Excel users).
+  const visibleSheets = (wb: ExcelJS.Workbook) =>
+    wb.worksheets.filter((s) => s.name !== '__casual_sheets_resources__');
   push(
     'Sheets',
     'sheet order + names',
-    ref.worksheets.map((s) => s.name),
-    got.worksheets.map((s) => s.name),
+    visibleSheets(ref).map((s) => s.name),
+    visibleSheets(got).map((s) => s.name),
   );
 
   const refData = ref.getWorksheet('Data');

@@ -409,7 +409,8 @@ export function MenuBar() {
       if (mod && e.shiftKey && !e.altKey && k === 'l') {
         if (inTextInput) return;
         e.preventDefault();
-        if (api) void toggleFilter(api);
+        console.log('[debug] Ctrl+Shift+L fired, api:', !!api);
+        if (api) void toggleFilter(api).then(() => console.log('[debug] toggleFilter resolved')).catch((e) => console.log('[debug] toggleFilter rejected', e));
       }
       // ── Outline border: Ctrl+Shift+& (US) / Ctrl+Shift+7 ────────
       // Both map to Excel's "outside border". US keyboards report

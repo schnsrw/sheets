@@ -855,6 +855,27 @@ export async function toggleFilter(api: FUniver): Promise<void> {
   });
 }
 
+/**
+ * Excel's Ctrl+Alt+L — re-apply the active filter. After editing cells
+ * inside a filtered range, rows that no longer match the criteria stay
+ * visible until the filter is re-evaluated. This re-runs that pass.
+ *
+ * Command id verified against
+ * vendor/univer/packages/sheets-filter/src/commands/commands/sheets-filter.command.ts:282.
+ * The handler resolves its target sheet from the instance service when
+ * params are omitted. No-ops cleanly when the sheet has no filter.
+ */
+export async function reapplyFilter(api: FUniver): Promise<void> {
+  await ensurePluginByName('filter');
+  const wb = api.getActiveWorkbook();
+  const sheet = activeSheet(api);
+  if (!wb || !sheet) return;
+  await api.executeCommand('sheet.command.re-calc-filter', {
+    unitId: wb.getId(),
+    subUnitId: sheet.getSheetId(),
+  });
+}
+
 /* ── Formulas tab — force recalc ────────────────────────────────────────── */
 
 /**

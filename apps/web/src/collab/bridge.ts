@@ -79,7 +79,7 @@ const LOG_KEY = 'ops';
  * silent corruption from a mutation that secretly references local
  * state (selections, render skeletons, etc.).
  */
-const SYNCED_MUTATIONS: ReadonlySet<string> = new Set([
+export const SYNCED_MUTATIONS: ReadonlySet<string> = new Set([
   // Cell-level — values, formulas, styles, rich text.
   'sheet.mutation.set-range-values',
   'sheet.mutation.set-style',
@@ -188,7 +188,7 @@ const SYNCED_MUTATIONS: ReadonlySet<string> = new Set([
  *  ops (insert-row / move-range / sort) need their own factories and
  *  are out of scope for v1 revert.
  */
-const REVERTABLE_MUTATIONS: ReadonlySet<string> = new Set([
+export const REVERTABLE_MUTATIONS: ReadonlySet<string> = new Set([
   'sheet.mutation.set-range-values',
 ]);
 

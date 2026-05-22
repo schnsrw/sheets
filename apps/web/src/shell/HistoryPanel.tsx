@@ -1,22 +1,26 @@
 import { useEffect, useState } from 'react';
-import * as Y from 'yjs';
+import type * as Y from 'yjs';
 import { useCollab } from '../collab/collab-context';
 import { usePresence } from '../collab/presence-context';
 import { useUniverAPI } from '../use-univer';
+import { useLocalHistory } from './local-history';
 import { Icon } from './Icon';
 
 /**
- * Live co-edit history side panel. Reads the bridge's Yjs op-log
- * (`doc.getArray('ops')`) and renders entries as "who changed what
- * when". Session-scoped: when the tab closes the panel forgets, by
- * design — we don't want a side channel for persisted change history
- * that survives past the live room.
+ * Session history side panel. Drives off two different sources depending
+ * on mode:
  *
- * v1 is read-only. Revert is a planned follow-up; the data shape on
- * disk (clientId + mutation id + params + timestamp) is sufficient to
- * issue an inverse mutation, but the inverse-mutation factory work
- * (especially for structural ops like insert-row that need OT) is
- * out of scope for this panel pass.
+ *   - **Co-edit room**: reads the bridge's Yjs op-log
+ *     (`doc.getArray('ops')`) — shared across peers, scoped to the
+ *     live room.
+ *   - **Solo session**: reads an in-memory ring fed by the local
+ *     ICommandService (see `useLocalHistory`). Same record shape;
+ *     same revert path; entries don't survive a refresh.
+ *
+ * Revert works for both sources: cell-value (set-range-values) entries
+ * carry undo params captured before the redo ran. Structural ops
+ * (insert-row, move-range, …) need their own inverse factories and
+ * stay non-revertable for v1; they still render in the timeline.
  */
 
 type LogRecord = {
@@ -26,7 +30,7 @@ type LogRecord = {
   kind?: 'snapshot';
   p?: unknown;
   /** Captured undo params (set for REVERTABLE_MUTATIONS in
-   *  bridge.ts). When present, Revert is enabled. */
+   *  bridge.ts / local-history.ts). When present, Revert is enabled. */
   u?: unknown;
 };
 
@@ -34,46 +38,37 @@ export function HistoryPanel() {
   const { doc, roomId } = useCollab();
   const { me, peers } = usePresence();
   const api = useUniverAPI();
-  const [entries, setEntries] = useState<LogRecord[]>([]);
+  const [collabEntries, setCollabEntries] = useState<LogRecord[]>([]);
   const [reverting, setReverting] = useState<number | null>(null);
 
-  // Subscribe to the op-log array. Re-snapshot on every change; the
-  // array is small enough (capped by compaction) that a full re-read
-  // per change is fine, and avoids the bookkeeping of incremental
-  // diffs against React state.
+  // Collab op-log subscription. Inactive when there is no Yjs doc.
   useEffect(() => {
     if (!doc) {
-      setEntries([]);
+      setCollabEntries([]);
       return;
     }
     const log = doc.getArray<LogRecord>('ops');
-    const snapshot = () => setEntries(log.toArray());
+    const snapshot = () => setCollabEntries(log.toArray());
     snapshot();
     const observer = (_ev: Y.YArrayEvent<LogRecord>) => snapshot();
     log.observe(observer);
     return () => log.unobserve(observer);
   }, [doc]);
 
-  if (!roomId) {
-    return (
-      <aside className="side-panel" data-testid="history-panel" aria-label="Session history">
-        <header className="side-panel__header">
-          <Icon name="history" size="sm" />
-          <h2 className="side-panel__title">History</h2>
-        </header>
-        <div className="side-panel__empty">
-          History is only available inside a co-edit room. Share the workbook to start a session.
-        </div>
-      </aside>
-    );
-  }
+  // Local mutation feed — only active in solo sessions. The hook
+  // returns an empty array when api is null, so it's safe to call
+  // unconditionally and pick the right source after.
+  const localEntries = useLocalHistory(roomId ? null : api);
+  const entries: LogRecord[] = roomId ? collabEntries : localEntries;
 
   // Build a clientId → name lookup. The local doc's clientId is on
-  // the Yjs doc itself; peer names come from awareness.
+  // the Yjs doc itself; peer names come from awareness. Solo mode has
+  // only the `me` slot keyed by the placeholder client id used by
+  // useLocalHistory.
   const clientNames = new Map<string, string>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const myCid = doc ? String((doc as any).clientID) : '';
-  if (me) clientNames.set(myCid, `${me.name} (you)`);
+  const myCid = doc ? String((doc as any).clientID) : 'me';
+  clientNames.set(myCid, me ? `${me.name} (you)` : 'You');
   for (const p of peers) clientNames.set(String(p.clientId), p.name);
 
   // Render newest first — humans scan downward from the top.

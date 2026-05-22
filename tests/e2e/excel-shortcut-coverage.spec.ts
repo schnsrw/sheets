@@ -294,9 +294,31 @@ test.describe('Editing cells', () => {
     expect(values.map(String)).toEqual(['h1', 'a']);
   });
 
-  test.fixme('Ctrl+Alt+L — Re-apply filter', async ({ page }) => {
+  test('Ctrl+Alt+L — Re-apply filter', async ({ page }) => {
     await setup(page);
+    await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+      ws.getRange('A1').setValue({ v: 'h1' });
+      ws.getRange('A2').setValue({ v: 'a' });
+      ws.getRange('A1:A2').activate();
+    });
+    // Lay down a filter first so re-calc has something to act on.
+    await page.keyboard.press('Control+Shift+L');
+    await page.waitForTimeout(250);
+    // re-calc-filter is a no-op-safe smoke: dispatch it and assert the
+    // workbook survives intact (the filter read model isn't a stable
+    // facade surface across builds — see the toggle test above).
     await page.keyboard.press('Control+Alt+L');
+    await page.waitForTimeout(250);
+    const values = await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+      return [ws.getRange('A1').getValue(), ws.getRange('A2').getValue()];
+    });
+    expect(values.map(String)).toEqual(['h1', 'a']);
   });
 });
 

@@ -1,22 +1,41 @@
 import type { Univer } from '@univerjs/core';
+import { CommandType, ICommandService } from '@univerjs/core';
 import { IMenuManagerService, MenuItemType, ContextMenuGroup, ContextMenuPosition } from '@univerjs/ui';
 
 /**
  * Augments Univer's built-in cell context menu with operations we want there
- * but that the stock sheets-ui schema only puts on the ribbon — e.g. Merge.
+ * but that the stock sheets-ui schema only puts on the ribbon — e.g. Merge —
+ * plus thin proxy commands for our own dialogs (e.g. Paste Special).
  *
  * Univer doesn't expose its menu-item factories from `@univerjs/sheets-ui`
- * publicly, so we register thin proxy factories that point at the public
- * command ids:
- *   - sheet.command.add-worksheet-merge-all  (reads current selection)
- *   - sheet.command.remove-worksheet-merge   (reads current selection)
- *
- * Both commands resolve their target range from the selection manager, so we
- * don't need to construct params here.
+ * publicly, so we register proxy factories pointing at command ids. For
+ * commands Univer already has (merge), we just register the menu entry.
+ * For our dialog hooks (paste-special), we register a tiny custom command
+ * here whose handler dispatches a DOM event the React shell listens for.
  */
+
+const CASUAL_PASTE_SPECIAL_COMMAND_ID = 'casual.command.open-paste-special';
+
 export function extendContextMenu(univer: Univer): void {
   const injector = univer.__getInjector();
   const menuMgr = injector.get(IMenuManagerService);
+  const commandService = injector.get(ICommandService);
+
+  // Register the open-paste-special command exactly once. The handler
+  // dispatches a DOM event that the React MenuBar listens for and uses
+  // to show <PasteSpecialDialog>. Going through a DOM event keeps the
+  // Univer DI graph and React state cleanly separated — no shared store,
+  // no facade-injection from React into Univer.
+  if (!commandService.hasCommand(CASUAL_PASTE_SPECIAL_COMMAND_ID)) {
+    commandService.registerCommand({
+      id: CASUAL_PASTE_SPECIAL_COMMAND_ID,
+      type: CommandType.OPERATION,
+      handler: () => {
+        document.dispatchEvent(new CustomEvent('casual-open-paste-special'));
+        return true;
+      },
+    });
+  }
 
   menuMgr.mergeMenu({
     [ContextMenuPosition.MAIN_AREA]: {
@@ -37,6 +56,19 @@ export function extendContextMenu(univer: Univer): void {
             type: MenuItemType.BUTTON,
             icon: 'CancelMergeSingle',
             title: 'Unmerge',
+          }),
+        },
+      },
+      // Add Paste Special to the QUICK group so it sits beside Cut /
+      // Copy / Paste at the top of the menu — matches Excel's placement.
+      [ContextMenuGroup.QUICK]: {
+        [CASUAL_PASTE_SPECIAL_COMMAND_ID]: {
+          order: 50,
+          menuItemFactory: () => ({
+            id: CASUAL_PASTE_SPECIAL_COMMAND_ID,
+            type: MenuItemType.BUTTON,
+            icon: 'PasteSpecial',
+            title: 'Paste Special…',
           }),
         },
       },

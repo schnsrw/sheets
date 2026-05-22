@@ -156,6 +156,38 @@ export function pasteFormattingOnly(api: FUniver) {
   api.executeCommand('sheet.command.paste-format');
 }
 
+/**
+ * Excel's Paste Special. Each mode maps to one of Univer's predefined
+ * paste hooks — the base `univer.command.paste` command accepts a
+ * `value` param naming the hook (see
+ * vendor/univer/packages/sheets-ui/src/commands/commands/clipboard.command.ts
+ * and the PREDEFINED_HOOK_NAME_PASTE table in clipboard.service.ts).
+ *
+ * Every mode resolves to a normal `set-range-values` / `set-style`
+ * mutation, so co-edit propagation and xlsx round-trip are automatic —
+ * no special handling needed.
+ */
+export type PasteSpecialMode =
+  | 'all'
+  | 'formulas'
+  | 'values'
+  | 'formats'
+  | 'col-widths'
+  | 'no-borders';
+
+const PASTE_HOOK_VALUE: Record<PasteSpecialMode, string> = {
+  all: 'default-paste',
+  formulas: 'special-paste-formula',
+  values: 'special-paste-value',
+  formats: 'special-paste-format',
+  'col-widths': 'special-paste-col-width',
+  'no-borders': 'special-paste-besides-border',
+};
+
+export function pasteSpecial(api: FUniver, mode: PasteSpecialMode) {
+  api.executeCommand('univer.command.paste', { value: PASTE_HOOK_VALUE[mode] });
+}
+
 /* ── Number format helpers ──────────────────────────────────────────────── */
 
 export const NUMBER_FORMAT_PATTERNS = {

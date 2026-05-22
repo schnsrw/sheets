@@ -13,6 +13,11 @@ export type UICtxValue = {
    *  the active room's Yjs op-log, who issued it, and when. */
   historyPanelVisible: boolean;
   toggleHistoryPanel: () => void;
+  /** Classic File / Edit / View menu bar. Default hidden in favour of
+   *  the tabbed ribbon (Excel-faithful). Persists across reloads via
+   *  localStorage so users who turn it back on keep it. */
+  menuBarVisible: boolean;
+  toggleMenuBar: () => void;
   /** Show the "Share for co-editing" dialog. Lifted to app scope so the
    *  titlebar's primary Share button can open it without coupling to MenuBar. */
   openShareRoom: () => void;

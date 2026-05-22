@@ -20,6 +20,7 @@ import {
 import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
 import { PageSetupDialog } from './PageSetupDialog';
 import { InsertCellsDialog } from './InsertCellsDialog';
+import { PasteSpecialDialog } from './PasteSpecialDialog';
 import { openBugReport } from './report-bug';
 import { useCollab } from '../collab/collab-context';
 import { useLoading } from '../loading-context';
@@ -46,11 +47,13 @@ import {
   openFindReplace,
   paste as actPaste,
   pasteFormattingOnly,
+  pasteSpecial,
   redo,
   setBorders,
   setNumberFormatByKey,
   undo,
   type NumberFormatKey,
+  type PasteSpecialMode,
 } from './home-tab-actions';
 import {
   applyAutoFunction,
@@ -94,6 +97,7 @@ import {
   splitTextToColumns,
   toggleCommentPanel,
   toggleFilter,
+  reapplyFilter,
   toggleGridlines,
   unfreezePanes,
   unhideSelectedColumns,
@@ -338,17 +342,30 @@ export function MenuBar() {
       setInsertPivotDefault(sel ? rangeToA1(sel) : 'A1:C10');
       setShowInsertPivot(true);
     };
+    const openPasteSpecial = () => setShowPasteSpecial(true);
+    const openInsertCells = () => setCellsOp('insert');
+    const openDeleteCells = () => setCellsOp('delete');
+    const openFormatCells = () => setShowFormatCells(true);
     document.addEventListener('casual-open-insert-chart', openChart);
     document.addEventListener('casual-open-insert-pivot', openPivot);
+    document.addEventListener('casual-open-paste-special', openPasteSpecial);
+    document.addEventListener('casual-open-insert-cells', openInsertCells);
+    document.addEventListener('casual-open-delete-cells', openDeleteCells);
+    document.addEventListener('casual-open-format-cells', openFormatCells);
     return () => {
       document.removeEventListener('casual-open-insert-chart', openChart);
       document.removeEventListener('casual-open-insert-pivot', openPivot);
+      document.removeEventListener('casual-open-paste-special', openPasteSpecial);
+      document.removeEventListener('casual-open-insert-cells', openInsertCells);
+      document.removeEventListener('casual-open-delete-cells', openDeleteCells);
+      document.removeEventListener('casual-open-format-cells', openFormatCells);
     };
   }, [api]);
 
   // Ctrl++ / Ctrl+- → Excel's Insert / Delete chooser modals. `null`
   // when closed; `'insert'` / `'delete'` when open.
   const [cellsOp, setCellsOp] = useState<'insert' | 'delete' | null>(null);
+  const [showPasteSpecial, setShowPasteSpecial] = useState(false);
 
   const onClose = () => setOpen(null);
 
@@ -628,8 +645,25 @@ export function MenuBar() {
       if (mod && e.shiftKey && !e.altKey && k === 'l') {
         if (inTextInput) return;
         e.preventDefault();
-        console.log('[debug] Ctrl+Shift+L fired, api:', !!api);
-        if (api) void toggleFilter(api).then(() => console.log('[debug] toggleFilter resolved')).catch((e) => console.log('[debug] toggleFilter rejected', e));
+        if (api) void toggleFilter(api);
+      }
+      // ── Re-apply filter: Ctrl+Alt+L ─────────────────────────────
+      // Excel's "re-evaluate the active filter" — rows edited to no
+      // longer match stay visible until this runs. Distinguished from
+      // Ctrl+Shift+L (toggle filter) by the Alt modifier.
+      if (mod && e.altKey && !e.shiftKey && k === 'l') {
+        if (inTextInput) return;
+        e.preventDefault();
+        if (api) void reapplyFilter(api);
+      }
+      // ── Paste Special: Ctrl+Alt+V ───────────────────────────────
+      // Excel's Paste Special chooser. Opens the dialog rather than
+      // pasting blindly — the mode (values / formulas / formats / …)
+      // changes the result enough to warrant a confirm step.
+      if (mod && e.altKey && !e.shiftKey && k === 'v') {
+        if (inTextInput) return;
+        e.preventDefault();
+        setShowPasteSpecial(true);
       }
       // ── Outline border: Ctrl+Shift+& (US) / Ctrl+Shift+7 ────────
       // Both map to Excel's "outside border". US keyboards report
@@ -912,6 +946,7 @@ export function MenuBar() {
         { kind: 'item', id: 'copy', label: 'Copy', icon: 'content_copy', shortcut: 'Ctrl+C', run: actCopy },
         { kind: 'item', id: 'paste', label: 'Paste', icon: 'content_paste', shortcut: 'Ctrl+V', run: actPaste },
         { kind: 'item', id: 'paste-format', label: 'Paste formatting only', icon: 'content_paste', shortcut: 'Ctrl+Shift+V', run: pasteFormattingOnly },
+        { kind: 'item', id: 'paste-special', label: 'Paste Special…', icon: 'content_paste_go', shortcut: 'Ctrl+Alt+V', onClick: () => setShowPasteSpecial(true) },
         { kind: 'separator', id: 'sep-find' },
         { kind: 'item', id: 'find-replace', label: 'Find & Replace…', icon: 'search', shortcut: 'Ctrl+F', run: openFindReplace },
         { kind: 'separator', id: 'sep-cells' },
@@ -1256,6 +1291,16 @@ export function MenuBar() {
             setCellsOp(null);
             if (!api) return;
             void (op === 'insert' ? insertCellsAt(api, dir) : deleteCellsAt(api, dir));
+          }}
+        />
+      )}
+
+      {showPasteSpecial && (
+        <PasteSpecialDialog
+          onCancel={() => setShowPasteSpecial(false)}
+          onConfirm={(mode: PasteSpecialMode) => {
+            setShowPasteSpecial(false);
+            if (api) pasteSpecial(api, mode);
           }}
         />
       )}

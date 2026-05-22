@@ -90,11 +90,12 @@
   /* Layout */
   --titlebar-h: 40px;
   --menubar-h: 28px;
-  /* Static 2-row ribbon — 28 px button row × 2 + 2 px gap + 8 px padding
-     = 66 px. Group labels are hidden in the toolbar so we don't need
-     extra room for them. RibbonGroup uses explicit row1/row2 slots so
-     each group's layout is hand-designed (not flex-wrap guessing). */
-  --toolbar-h: 66px;
+  /* Tabbed ribbon: tab strip on top swaps the group set below. The tabs
+     row is intentionally compact (Excel-faithful) at 26 px; the body
+     keeps the existing 2-row layout at 66 px. */
+  --ribbon-tabs-h: 26px;
+  --toolbar-body-h: 66px;
+  --toolbar-h: calc(var(--ribbon-tabs-h) + var(--toolbar-body-h));
   --formula-bar-h: 26px;
   --sheet-tabs-h: 28px;
   --statusbar-h: 24px;
@@ -152,12 +153,17 @@ button {
   border-radius: var(--radius-sm);
 }
 
-/* Material Symbols Outlined — single source of icon truth. */
+/* Material Symbols Outlined — single source of icon truth.
+   Sized to Material's recommended scale: 16 (sm) / 20 (md) / 24 (lg).
+   Excel-faithful ribbon buttons read better at 20 in the small rows and
+   24 in primary actions; previous 18 felt cramped. The variable-font
+   `opsz` axis is bumped in lockstep so stroke optical weight matches
+   the glyph size. */
 .icon {
   font-family: "Material Symbols Outlined";
   font-weight: normal;
   font-style: normal;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
@@ -173,12 +179,12 @@ button {
     "FILL" 0,
     "wght" 400,
     "GRAD" 0,
-    "opsz" 20;
+    "opsz" 24;
 }
 
-.icon--sm { font-size: 16px; }
-.icon--lg { font-size: 22px; }
-.icon--filled { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 20; }
+.icon--sm { font-size: 16px; font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20; }
+.icon--lg { font-size: 24px; font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 28; }
+.icon--filled { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    App shell — strict grid, only the grid row stretches.
@@ -226,6 +232,39 @@ button {
     'sheettabs';
 }
 
+/* Menu bar hidden — gives the pure tabbed-ribbon (Excel) layout. The
+   menu-bar component is still mounted (its keydown handlers must keep
+   firing); just removed from layout via grid + display:none. */
+.app--no-menubar {
+  grid-template-rows:
+    var(--titlebar-h)
+    var(--toolbar-h)
+    var(--formula-bar-h)
+    minmax(0, 1fr)
+    var(--sheet-tabs-h);
+  grid-template-areas:
+    'titlebar'
+    'toolbar'
+    'formulabar'
+    'gridrow'
+    'sheettabs';
+}
+.app--no-menubar.app--no-formula-bar {
+  grid-template-rows:
+    var(--titlebar-h)
+    var(--toolbar-h)
+    minmax(0, 1fr)
+    var(--sheet-tabs-h);
+  grid-template-areas:
+    'titlebar'
+    'toolbar'
+    'gridrow'
+    'sheettabs';
+}
+.app--no-menubar > .menubar {
+  display: none;
+}
+
 .app > .title-bar  { grid-area: titlebar; }
 .app > .menubar    { grid-area: menubar; }
 .app > .toolbar    { grid-area: toolbar; }
@@ -234,13 +273,21 @@ button {
 .app > .sheet-tabs { grid-area: sheettabs; }
 
 /* ── Menu bar (Google-Sheets style top dropdowns) ───────────────────────── */
+/* The menu bar sits between the title bar and the ribbon tab strip.
+   With the tabbed ribbon present, this row would otherwise compete
+   visually with the tabs for "primary nav" perception. The fix:
+   visually tie the menu bar to the title bar above it (same bg + same
+   border treatment) so the eye reads two layers — "app chrome" (title +
+   menus) and "ribbon" (tabs + body) — instead of three competing nav
+   strips. Items get a quieter color treatment and a subtle text-shadow
+   so they read as secondary, with the ribbon tabs dominant. */
 .menubar {
   display: flex;
   align-items: stretch;
   height: var(--menubar-h);
   padding: 0 var(--space-3);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   font-size: var(--text-sm);
   z-index: 3;
 }
@@ -249,25 +296,26 @@ button {
   display: inline-flex;
   align-items: center;
   height: 100%;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-3);
   font-family: inherit;
-  font-size: var(--text-sm);
-  color: var(--color-text);
+  font-size: 12px;
+  color: var(--color-text-secondary);
   background: transparent;
   border: 0;
   cursor: pointer;
   border-radius: var(--radius-sm);
   margin: var(--space-1) 0;
-  transition: background var(--motion-fast) var(--ease-out);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
 
-.menubar__item:hover,
-.menubar__item--open {
+.menubar__item:hover {
   background: var(--color-hover);
+  color: var(--color-text);
 }
 
 .menubar__item--open {
   background: var(--color-pressed);
+  color: var(--color-text);
 }
 
 /* ── Toolbar — zone 1 (cool grey). The bg shift vs white menubar above
@@ -276,6 +324,7 @@ button {
 .toolbar {
   position: relative; /* anchors the overflow chevron buttons */
   display: flex;
+  flex-direction: column;
   align-items: stretch;
   height: var(--toolbar-h);
   background: var(--color-surface-alt);
@@ -287,6 +336,71 @@ button {
      dense toolbar exceeds the viewport and breaks the scroll-clip
      contract we rely on for the overflow chevrons. `min-width: 0`
      lets the grid cell shrink so the inner scroller can engage. */
+  min-width: 0;
+}
+
+/* ── Ribbon tabs ─────────────────────────────────────────────────────
+   Excel-style tab strip across the top of the toolbar. Each tab swaps
+   the group set rendered in the body below. The active tab gets a
+   coloured underline + bold weight; inactive tabs are plain text that
+   subtly highlight on hover. Wraps in `position: relative` so the
+   strip layout doesn't collide with the absolute overflow chevrons
+   on the body row. */
+.ribbon-tabs {
+  display: flex;
+  align-items: stretch;
+  height: var(--ribbon-tabs-h);
+  padding: 0 var(--space-5);
+  gap: 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--color-surface-alt);
+  flex-shrink: 0;
+}
+.ribbon-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: var(--weight-medium, 500);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  border-radius: 0;
+}
+.ribbon-tabs__tab:hover {
+  color: var(--color-text);
+}
+.ribbon-tabs__tab--active {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold, 600);
+}
+.ribbon-tabs__tab--active::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 2px 2px 0 0;
+}
+.ribbon-tabs__tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* ── Toolbar body — the group row that lives under the tabs.
+   Inherits the existing single-row scroll behaviour; only its height
+   changed (to make room for the tab strip stacked above it).        */
+.toolbar__body {
+  position: relative;
+  flex: 1 1 auto;
+  height: var(--toolbar-body-h);
+  display: flex;
+  align-items: stretch;
   min-width: 0;
 }
 
@@ -441,8 +555,9 @@ button {
   cursor: not-allowed;
 }
 .toolbar .btn--big .icon {
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 32;
 }
 .toolbar .btn__big-label {
   font-size: 11px;
@@ -2954,6 +3069,24 @@ button {
   width: 16px;
   height: 16px;
   accent-color: var(--color-accent);
+}
+.cells-op__label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cells-op__label-main {
+  font-size: 13px;
+  font-weight: var(--weight-medium, 500);
+}
+.cells-op__label-hint {
+  font-size: 11px;
+  font-weight: var(--weight-regular, 400);
+  color: var(--color-text-muted);
+}
+.cells-op__option--active .cells-op__label-hint {
+  color: var(--color-accent);
+  opacity: 0.8;
 }
 
 .page-setup__note {

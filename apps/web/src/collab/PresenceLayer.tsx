@@ -91,6 +91,15 @@ export function PresenceLayer() {
 
   useEffect(() => {
     if (!api) return;
+    // No peers → nothing to draw. Skip the rAF loop entirely instead of
+    // spinning getCellRect / getScrollState work every frame for an empty
+    // overlay. This is the common case: every single-user session has
+    // zero peers. The effect re-runs when `peers` changes, so the loop
+    // starts as soon as someone joins.
+    if (peers.length === 0) {
+      if (rectsRef.current.length) setRects([]);
+      return;
+    }
     let raf = 0;
     const tick = () => {
       // Recompute every animation frame. Univer scrolls the grid by

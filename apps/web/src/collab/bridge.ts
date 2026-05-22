@@ -82,6 +82,32 @@ const SYNCED_MUTATIONS: ReadonlySet<string> = new Set([
   'sheet.mutation.add-hyper-link',
   'sheet.mutation.remove-hyper-link',
   'sheet.mutation.update-hyper-link',
+  // Tab colour — picks up the right-click "Tab color" menu.
+  'sheet.mutation.set-tab-color',
+  // Move + sort. Without these, a peer's cut-and-paste-cell-block or
+  // sort-range action silently doesn't appear on receivers.
+  'sheet.mutation.move-range',
+  'sheet.mutation.reorder-range',
+  // Per-row / per-column metadata (height, custom style, colData).
+  // The narrower set-worksheet-row-height / set-worksheet-col-width
+  // are already allowlisted; these are the broader resource-style
+  // mutations Univer emits for "Format → Row/Column" operations.
+  'sheet.mutation.set-row-data',
+  'sheet.mutation.set-col-data',
+  'sheet.mutation.set-worksheet-default-style',
+  // Format-as-table / sheets-table — adds/removes named tables and
+  // their config. Picked up so the table chrome appears on both peers.
+  'sheet.mutation.add-table',
+  'sheet.mutation.delete-table',
+  'sheet.mutation.set-sheet-table',
+  'sheet.mutation.set-table-filter',
+  // Autofilter (sheets-filter).
+  'sheet.mutation.set-filter-criteria',
+  'sheet.mutation.set-filter-range',
+  'sheet.mutation.remove-filter',
+  // Notes (sheets-note) — the small cell-corner indicator + popup.
+  'sheet.mutation.update-note',
+  'sheet.mutation.remove-note',
 ]);
 
 type MutationRecord = {

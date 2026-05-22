@@ -74,3 +74,45 @@ When a fix lands:
 
 Issues marked `wontfix-v1` are deferred to a future architectural pass and
 should stay in the table so a future engineer doesn't rediscover them.
+
+## Cross-peer mutation sync gaps (audit Nov 2026)
+
+Inventory of every `sheet.mutation.*` id Univer 0.22.x emits vs our
+`SYNCED_MUTATIONS` allowlist in `apps/web/src/collab/bridge.ts`.
+Generated via `grep -roh 'sheet\.mutation\.[a-z0-9-]\+' node_modules/@univerjs/*/lib/cjs/index.js`.
+
+### Synced (will propagate to peers)
+
+Cell-level: set-range-values, set-style. Row/col structure:
+insert-row, insert-col, remove-row, remove-col, move-rows, move-cols,
+set-row-hidden, set-row-visible, set-col-hidden, set-col-visible,
+set-worksheet-row-height, set-worksheet-row-is-auto-height,
+set-worksheet-col-width, set-row-data, set-col-data,
+set-worksheet-default-style. Merges: add-worksheet-merge,
+remove-worksheet-merge. Sheets: insert-sheet, remove-sheet,
+set-worksheet-name, set-worksheet-order, set-worksheet-hidden,
+set-tab-color. Freeze: set-frozen. Move/sort: move-range,
+reorder-range. Hyperlinks: add/remove/update-hyper-link. Tables:
+add-table, delete-table, set-sheet-table, set-table-filter.
+Filter: set-filter-criteria, set-filter-range, remove-filter.
+Notes: update-note, remove-note.
+
+### Deferred / not yet synced
+
+| Mutation(s) | Feature | Why deferred |
+|---|---|---|
+| add-conditional-rule, set-conditional-rule, delete-conditional-rule, move-conditional-rule | Conditional formatting | Rules live in workbook resources too — sync needs both the mutation AND a resource-channel like charts. |
+| set-drawing-apply | Insert image / shape | Drawings package has its own resource model + many mutations not in this list. Separate sync surface. |
+| add-range-protection, set-range-protection, delete-range-protection, add-worksheet-protection, set-worksheet-protection, delete-worksheet-protection, set-worksheet-permission-points | Range/sheet protection | Security-adjacent; needs auth-model design before propagation. |
+| add-range-theme, set-range-theme, remove-range-theme, register/unregister/delete-worksheet-range-theme-style, set-worksheet-range-theme-style | Range themes | Rare power-user feature. |
+| set-workbook-name, set-worksheet-column-count, set-worksheet-row-count, set-worksheet-right-to-left | Workbook/sheet metadata | Rarely changed mid-session; could add to allowlist trivially. |
+| set-worksheet-row-auto-height, mark-dirty-filter-change, re-calc-filter, data-validation-formula-mark-dirty | Internal recompute markers | These are emit-side-effects of other mutations; following user-action mutations is enough. |
+| toggle-gridlines, set-gridlines-color | Gridlines | Low-impact visual; could add easily. |
+| update-note-position, toggle-note-popup | Note position / popup state | Cosmetic; cross-peer sync would actively be wrong (where I open a note popup is local UI state). |
+| copy-worksheet-end | Internal copy-worksheet finalisation | Already covered by insert-sheet + set-range-values that precede it. |
+
+If a deferred row becomes a user-visible problem, the fix template is the
+same as for hide/show (#22): add the mutation id to `SYNCED_MUTATIONS` and,
+if any React-side state subscribes to a facade event that fires only on the
+COMMAND path, mirror via `CommandExecuted` for the mutation id (see
+`useSheets.ts` `SHEET_LIST_MUTATIONS`).

@@ -40,6 +40,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
 
+  unit:
+    # Fast pure-function tests for bridge helpers, deep unitId rewrite,
+    # etc. Lives in apps/**/src/**/*.unit.test.ts and runs under Node's
+    # built-in test runner via tsx — no extra runner installed. Keep
+    # this job's wall-clock under ~30 s so it pings PR authors fast.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
+
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -71,5 +87,99 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  e2e-prod:
+    # Runs a subset of the e2e suite against the built docker image
+    # (single port 3000, Fastify serves web + api + WS). The dev-server
+    # path in `e2e` above does NOT exercise the prod bundle and misses
+    # prod-only bugs: minified service identifiers tripping the redi
+    # injector on startup, dev-only globals like __univerAPI being
+    # absent, the canvas-id race, etc. — every one of those shipped
+    # today before this job existed. Keep this fast: only the specs
+    # tagged for the docker config.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      # Build the prod docker image with this commit's source. Compose
+      # builds locally via the Dockerfile, then `up -d` boots the image
+      # plus the redis sidecar. We let the image use its embedded tag
+      # (schnsrw/casual-sheets:0.0.4) without pushing.
+      - name: Build & start docker stack
+        run: docker compose up -d --build
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/health >/dev/null; then
+              echo "ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "stack never became healthy"; docker compose logs --tail=200; exit 1
+      - name: Run prod-bundle specs
+        # These all exercise prod-bundle-only code paths or assert
+        # against the actual built docker image:
+        #   - coedit-cell-edit: editor-flow regression (catches the
+        #     issue-29 bridge bug via real F2 + keyboard typing, not
+        #     programmatic setValue)
+        #   - coedit-view-only: WorkbookEditablePermission gate
+        #   - coedit-divergence: state-vector mismatch → amber pill
+        #   - coedit-insert-sheet: peer A adds a sheet → peer B's
+        #     tab strip refreshes (catches the SheetCreated event
+        #     vs CommandExecuted-mutation gap)
+        #   - coedit-sheet-ops: rename + hide/show + download
+        #     cross-peer regression (mutation-id fallback in
+        #     useSheets, live state in File→Download)
+        #   - coedit-cursor-math: zoom + frozen-pane cursor
+        #     coordinate transform regressions
+        #   - coedit-conditional-formatting: CF rule added by peer A
+        #     appears on peer B (lazy-plugin gate verified)
+        #   - coedit-synced-mutations: tab colour + move-range +
+        #     reorder-range cross-peer regressions (lockdown for the
+        #     SYNCED_MUTATIONS additions)
+        #   - coedit-data-validation: DV rule added by peer A appears
+        #     on peer B (lazy-plugin gate verified for the
+        #     `data-validation.mutation.*` prefix)
+        #   - coedit-workbook-metadata: workbook rename + gridlines
+        #     toggle + row-count grow propagate (workbook/worksheet
+        #     metadata additions in SYNCED_MUTATIONS)
+        #   - coedit-drawings: skipped (documents a real bridge bug —
+        #     json1 apply throws on the joiner because the unit isn't
+        #     yet registered in SheetDrawingService at replay time;
+        #     reactivate once the bridge pre-replay hook lands)
+        # coedit-regression.spec.ts is NOT here — it spawns its own
+        # standalone server on port 3058 and would conflict with the
+        # docker stack. It stays on the dev-server e2e job.
+        run: pnpm exec playwright test -c playwright.docker.config.ts tests/e2e/coedit-cell-edit.spec.ts tests/e2e/coedit-view-only.spec.ts tests/e2e/coedit-divergence.spec.ts tests/e2e/coedit-insert-sheet.spec.ts tests/e2e/coedit-sheet-ops.spec.ts tests/e2e/coedit-cursor-math.spec.ts tests/e2e/coedit-conditional-formatting.spec.ts tests/e2e/coedit-synced-mutations.spec.ts tests/e2e/coedit-data-validation.spec.ts tests/e2e/coedit-workbook-metadata.spec.ts tests/e2e/coedit-drawings.spec.ts
+      - name: Capture container logs on failure
+        if: failure()
+        run: docker compose logs --tail=500
+      - name: Tear down
+        if: always()
+        run: docker compose down
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-prod
           path: playwright-report/
           retention-days: 7

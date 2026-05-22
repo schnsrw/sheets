@@ -19,6 +19,7 @@ import {
   setUniverForLazyLoad,
 } from './univer/lazy-plugins';
 import { installDevHelpers } from './univer/dev-helpers';
+import { disableUniverZoomShortcut } from './univer/disable-zoom-shortcut';
 import { registerPasteMergeHook } from './univer/paste-merge-hook';
 import { timeIt, timeItAsync } from './perf';
 import { WorkbookContext } from './workbook-context';
@@ -61,6 +62,7 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
 
     let teardownDevHelpers: (() => void) | null = null;
     let teardownPasteMergeHook: (() => void) | null = null;
+    let teardownZoomShortcut: (() => void) | null = null;
     let raf = 0;
     let cancelled = false;
     void (async () => {
@@ -87,6 +89,10 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
 
       raf = requestAnimationFrame(() => setReady(true));
       teardownDevHelpers = installDevHelpers(api);
+      // Override Univer's Ctrl+- / Ctrl+= zoom shortcuts so our
+      // Excel-style Insert/Delete-cells dialogs aren't fighting a
+      // simultaneous canvas zoom.
+      teardownZoomShortcut = disableUniverZoomShortcut(api);
 
       // Idle-load every remaining lazy plugin so the user finds them
       // ready when they reach the Insert / Data / Format tabs. The
@@ -110,6 +116,7 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       queueMicrotask(() => toDispose.dispose());
       teardownDevHelpers?.();
       teardownPasteMergeHook?.();
+      teardownZoomShortcut?.();
     };
     // Mount Univer exactly once. Snapshot changes are handled by the swap
     // effect below — recreating Univer per snapshot would race React's render.
@@ -120,9 +127,19 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
   // the next snapshot from React state — it lives on `ctx.snapshotRef`
   // for the brief window between replaceWorkbook and this effect, then
   // gets cleared so the workbook tree is GC-eligible.
+  //
+  // CRITICAL: swaps are serialised through `swapChainRef`. Without that,
+  // back-to-back replaceWorkbook calls (e.g. owner loads seed → bridge
+  // immediately replays a compaction snapshot with the same workbook
+  // id) start two concurrent async swaps. Both await eager-plugins,
+  // both read `current` before either dispose runs, then both call
+  // createUnit with the same id — Univer throws
+  // "cannot create a unit with the same unit id: wb-...".
   const lastRevisionRef = useRef<number>(revision);
+  const swapChainRef = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     if (lastRevisionRef.current === revision) return;
+    lastRevisionRef.current = revision; // claim this revision immediately so retries don't re-fire
     const api = apiRef.current;
     if (!api) {
       console.warn('[open-xlsx] swap aborted: api not ready yet');
@@ -133,8 +150,6 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       console.warn('[open-xlsx] swap aborted: snapshotRef is empty for revision', revision);
       return;
     }
-    const current = api.getActiveWorkbook() as unknown as FWorkbook | null;
-    const currentId = current?.getId();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apiAny = api as any;
     const createSheet = apiAny.createUniverSheet as
@@ -145,28 +160,45 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       console.warn('[open-xlsx] swap aborted: createUniverSheet missing on facade');
       return;
     }
-    console.info('[open-xlsx] swapping unit', { from: currentId, to: snapshot.id });
-    // Eager-load any plugin the new snapshot needs BEFORE swap, then
-    // run the swap synchronously inside a timed block. The await is
-    // unavoidable for fresh feature plugins — but most opens hit
-    // ones we've already loaded (cached `loaded` set), so this is
-    // effectively a no-op fast path after warm-up.
-    void (async () => {
+    // Chain onto the in-flight swap so two revisions back-to-back run
+    // sequentially. .catch swallows the previous error to keep the
+    // chain alive — the previous swap already reported via the loading
+    // overlay.
+    swapChainRef.current = swapChainRef.current.catch(() => undefined).then(async () => {
       try {
         const u = univerRef.current;
         if (u) {
           await timeItAsync('eager-plugins', () => eagerLoadForSnapshot(u, snapshot));
         }
         timeIt('swap-unit', () => {
-          if (currentId) disposeUnit?.call(api, currentId);
+          // Re-read `current` HERE, AFTER eager-load + after any
+          // previous chained swap completed. Reading it before the
+          // chain wait would give us a stale unit id that the previous
+          // swap already disposed.
+          const current = api.getActiveWorkbook() as unknown as FWorkbook | null;
+          const currentId = current?.getId();
+          // Defensive: if a unit with the snapshot's id already exists
+          // (e.g. someone called replaceWorkbook twice with the same
+          // data), dispose it first so createUnit doesn't collide.
+          if (currentId && currentId !== snapshot.id) {
+            disposeUnit?.call(api, currentId);
+          }
+          if (snapshot.id && currentId !== snapshot.id) {
+            // Dispose any orphaned unit holding the target id.
+            try {
+              disposeUnit?.call(api, snapshot.id);
+            } catch {
+              /* fine — unit didn't exist */
+            }
+          } else if (currentId === snapshot.id) {
+            // Same id as the current unit — dispose it explicitly so
+            // createUnit gets a clean slot.
+            disposeUnit?.call(api, currentId);
+          }
           createSheet.call(api, snapshot);
         });
-        lastRevisionRef.current = revision;
-        console.info('[open-xlsx] swap complete');
+        console.info('[open-xlsx] swap complete', { to: snapshot.id });
       } catch (err) {
-        // Surface to the loading overlay so a failed swap doesn't leave
-        // the user staring at a forever-spinner. The overlay's error
-        // mode stays open until the user dismisses it.
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[open-xlsx] swap failed', err);
         loading.set({
@@ -174,8 +206,9 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
           phase: 'mounting',
           error: `Couldn't mount the workbook: ${msg}`,
         });
+        throw err; // keep the chain's error visible to the next .catch
       }
-    })();
+    });
   }, [revision, ctx, loading]);
 
   return (

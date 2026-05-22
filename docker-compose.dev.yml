@@ -15,19 +15,32 @@ services:
     # Override the runtime image with a Node-only base; we run pnpm dev
     # against the bind-mount instead of executing a built artifact.
     image: node:22-alpine
-    user: 'node'
+    # Runs as root inside the container — fine for local dev. The
+    # alternative (running as `node` uid 1000) was that `corepack
+    # enable` couldn't symlink into root-owned /usr/local/bin, and the
+    # anonymous node_modules volumes (which docker creates as root)
+    # weren't writable by uid 1000 either. The bind-mounted source
+    # tree is only WRITTEN by pnpm install when the lockfile drifts;
+    # we use `--frozen-lockfile` so that errors out instead of writing
+    # — meaning no root-owned files leak back to the host repo.
     working_dir: /app
+    # pnpm via `npm i -g` instead of `corepack enable`: simpler, works
+    # the same as root either way, and avoids the corepack symlink
+    # permission dance entirely.
     command:
       - sh
       - -lc
       - |
-        corepack enable && corepack prepare pnpm@10.33.4 --activate
+        npm install -g pnpm@10.33.4
         pnpm install --frozen-lockfile
         pnpm --filter @sheet/server dev &
         pnpm --filter @sheet/web dev --host 0.0.0.0 &
         wait
     volumes:
       - .:/app
+      # Anonymous volumes hide the host's host-arch node_modules from the
+      # alpine container — Linux-built native modules (esbuild) would
+      # collide with whatever the host has.
       - /app/node_modules
       - /app/apps/web/node_modules
       - /app/apps/server/node_modules
@@ -37,3 +50,7 @@ services:
     environment:
       # Vite serves on 5273; tell the bridge to point at the server on 3000.
       VITE_COLLAB_WS_URL: ws://localhost:3000/yjs
+      # Flips the `isCollabEnabled()` gate in CollabDriver — without it the
+      # frontend renders the "Co-editing requires self-hosting" banner even
+      # though the server IS running locally. Required for Share / Join.
+      VITE_COLLAB_ENABLED: '1'

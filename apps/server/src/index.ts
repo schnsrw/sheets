@@ -56,9 +56,24 @@ if (servesWeb) {
   app.log.info(`web/dist not built — run 'pnpm --filter @sheet/web build' or use compose`);
 }
 
-// In-memory room registry. Starts an interval that GCs idle rooms.
+// Persistence backend created first so the room registry can use it
+// as the eviction callback — when a room is GC'd, we also drop its
+// persisted Y.Doc bytes so Redis doesn't accumulate orphans the
+// in-memory registry has forgotten about.
+const storage = await createStorage();
+app.log.info(
+  `doc storage: ${process.env.REDIS_URL ? `redis (${process.env.REDIS_URL})` : 'in-memory'}`,
+);
+
 const rooms = new RoomRegistry();
-rooms.start();
+rooms.start((evictedId) => {
+  // Fire-and-forget — storage.delete is best-effort, a failure just
+  // means the blob waits out Redis's 7-day TTL. We don't want a
+  // backend hiccup to stall the GC loop.
+  storage.delete(evictedId).catch((err) => {
+    app.log.warn({ err, roomId: evictedId }, 'storage delete failed for evicted room');
+  });
+});
 app.addHook('onClose', async () => rooms.stop());
 
 app.get('/health', async () => ({
@@ -128,10 +143,18 @@ app.post<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) =
 /**
  * Serve the room's xlsx starting workbook. Joiners apply this locally
  * before the bridge runs so they begin from the same state as the owner.
+ *
+ * Gated by the room password (header `x-room-password`) when the room
+ * is password-protected. Without this gate, anyone with the room URL
+ * could fetch the contents — making the password a UI illusion rather
+ * than an actual access control.
  */
 app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) => {
   const room = rooms.get(req.params.id);
   if (!room?.xlsxSeed) return reply.code(404).send({ error: 'no_seed' });
+  if (!checkRoomPassword(req, room.id)) {
+    return reply.code(401).send({ error: 'unauthorized' });
+  }
   reply.header(
     'content-type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -139,6 +162,26 @@ app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) =>
   reply.header('cache-control', 'no-store');
   return reply.send(Buffer.from(room.xlsxSeed));
 });
+
+/**
+ * Constant-time password check for a room request. The password rides
+ * the `x-room-password` header — preferable to a query string because
+ * it stays out of access logs and browser history. Falls back to the
+ * `?p=` query param so clients with restricted header control (e.g.
+ * EventSource) can still authenticate.
+ *
+ * Returns true for open (no-password) rooms.
+ */
+function checkRoomPassword(req: { headers: Record<string, unknown>; query?: unknown }, roomId: string): boolean {
+  const headerVal = req.headers['x-room-password'];
+  const headerPw = typeof headerVal === 'string' ? headerVal : undefined;
+  const queryPw =
+    typeof req.query === 'object' && req.query !== null
+      ? (req.query as { p?: unknown }).p
+      : undefined;
+  const password = typeof headerPw === 'string' ? headerPw : typeof queryPw === 'string' ? queryPw : undefined;
+  return rooms.passwordOk(roomId, password ?? null);
+}
 
 /**
  * Upload a pre-parsed gzipped `IWorkbookData` snapshot for the room.
@@ -171,9 +214,15 @@ app.post<{ Params: { id: string } }>('/api/rooms/:id/snapshot', async (req, repl
 app.get<{ Params: { id: string } }>('/api/rooms/:id/snapshot', async (req, reply) => {
   const room = rooms.get(req.params.id);
   if (!room?.snapshotGz) return reply.code(404).send({ error: 'no_snapshot' });
+  if (!checkRoomPassword(req, room.id)) {
+    return reply.code(401).send({ error: 'unauthorized' });
+  }
   reply.header('content-type', 'application/json');
   reply.header('content-encoding', 'gzip');
-  reply.header('cache-control', 'public, max-age=3600, immutable');
+  // Private — the password gates access, so each protected response
+  // must NOT be served from a shared / proxy cache. Browser disk cache
+  // still kicks in (immutable) so warm re-joins stay fast.
+  reply.header('cache-control', room.passwordHash ? 'private, max-age=3600, immutable' : 'public, max-age=3600, immutable');
   return reply.send(Buffer.from(room.snapshotGz));
 });
 
@@ -195,14 +244,10 @@ if (servesWeb) {
 
 await app.listen({ port: PORT, host: HOST });
 
-// Persistence backend: REDIS_URL → Redis, otherwise in-memory.
-const storage = await createStorage();
-app.log.info(
-  `doc storage: ${process.env.REDIS_URL ? `redis (${process.env.REDIS_URL})` : 'in-memory'}`,
-);
-
 // Hocuspocus needs the underlying Node http server for the upgrade
-// handler. Fastify exposes it after listen.
+// handler. Fastify exposes it after listen. Storage was created
+// earlier (right after the app instance) so the room registry could
+// register its eviction callback.
 const hocus = attachHocuspocus(app.server, rooms, storage);
 
 const shutdown = async () => {

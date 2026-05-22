@@ -119,6 +119,15 @@ export type PeerAwareness = {
     col: number;
     text: string;
   };
+  /** Hex-encoded Y.Doc state vector. Broadcast every few seconds so
+   *  peers can compare and detect a stuck sync. Same SV means peers
+   *  have seen the same op-log entries (≠ same applied state, but
+   *  catches the most common divergence: Yjs sync stalled). */
+  sv?: string;
+  /** Unix ms when `sv` was last computed. Used by the divergence
+   *  detector to age out stale readings — a peer that hasn't updated
+   *  in 30 s is treated as offline rather than diverged. */
+  svAt?: number;
 };
 
 export type Peer = {
@@ -132,4 +141,7 @@ export type Peer = {
    *  `awareness.meta[clientId].lastUpdated`). Used by the avatar tooltip
    *  to render "Active now" / "Last seen Xs ago". */
   lastSeen: number;
+  /** Latest state-vector hash + capture time. See PeerAwareness.sv. */
+  sv?: string;
+  svAt?: number;
 };

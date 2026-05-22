@@ -1214,6 +1214,101 @@ button {
   min-height: 0;
 }
 
+/* Live session-history side panel — same chrome as the other right-rail
+   panels so the visual rhythm is consistent. */
+.side-panel {
+  width: 320px;
+  flex: 0 0 320px;
+  background: var(--color-surface-alt);
+  border-top: 1px solid var(--color-divider);
+  border-left: 1px solid var(--color-divider);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.side-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-divider);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.side-panel__title { margin: 0; font-size: inherit; font-weight: inherit; flex: 1; }
+.side-panel__count {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-strip);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: var(--text-xs);
+}
+.side-panel__empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.history-list__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-divider);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+.history-list__who {
+  grid-column: 1;
+  grid-row: 1;
+  font-weight: 600;
+}
+.history-list__when {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.history-list__what {
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--color-text);
+}
+.history-list__revert {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  justify-self: end;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text);
+}
+.history-list__revert:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+.history-list__revert:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .tables-panel__head {
   display: flex;
   align-items: center;
@@ -2136,6 +2231,37 @@ button {
   cursor: pointer;
   border: 0;
   padding: 0;
+}
+
+/* Border-weight swatches — wider than the colour swatches so the line
+   inside (which IS the visual representation of the thickness) has
+   room to render at 1/2/3 px. Active state mirrors the colour-swatch
+   pattern so the popup looks consistent. */
+.menu__weight-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 60%, transparent);
+  background: var(--color-surface);
+  cursor: pointer;
+  padding: 0 6px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.menu__weight-swatch:hover { transform: scale(1.04); }
+
+.menu__weight-swatch--active {
+  box-shadow: 0 0 0 2px var(--color-accent), 0 0 0 3px var(--color-surface);
+}
+
+.menu__weight-swatch-line {
+  display: block;
+  width: 100%;
+  border-radius: 1px;
 }
 
 /* Submenu — a nested .menu opened from a parent item. The wrapper anchors
@@ -3255,6 +3381,20 @@ button {
 }
 .collab-indicator--offline .collab-indicator__dot { background: #d93025; }
 
+/* Sync-health warning: WS is "live" but our Y.Doc state vector
+   disagrees with peers' for >15 s. Amber to distinguish from the
+   harder red of "offline" (still recoverable; user just needs to
+   know). Pulses to draw the eye without being aggressive. */
+.collab-indicator--diverged {
+  color: #b06000;
+  border-color: color-mix(in srgb, #e7a851 50%, transparent);
+  background: color-mix(in srgb, #e7a851 12%, var(--color-surface));
+}
+.collab-indicator--diverged .collab-indicator__dot {
+  background: #e7a851;
+  animation: collab-pulse 1.6s ease-in-out infinite;
+}
+
 @keyframes collab-pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
@@ -3332,6 +3472,17 @@ button {
 .collab-banner--neutral .collab-banner__close { color: var(--color-text-soft, var(--color-text)); }
 .collab-banner--neutral .collab-banner__close:hover { background: var(--color-hover); }
 
+/* Warn variant — for the "Waiting to reconnect to server" banner.
+   Amber to match the diverged sync-health pill, softer than the
+   destructive red default banner. */
+.collab-banner--warn {
+  background: color-mix(in srgb, #e7a851 18%, var(--color-surface));
+  color: #b06000;
+  border: 1px solid color-mix(in srgb, #e7a851 50%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+.collab-banner--warn .collab-banner__body strong { color: #8a4a00; }
+
 /* ─────────────────────────────────────────────────────────────────────────
    Live presence: remote cursors / selections + avatar stack.
    The cursor overlay is an absolutely-positioned layer over the grid;
@@ -3351,8 +3502,26 @@ button {
   border: 2px solid var(--presence-color, #1a73e8);
   background: color-mix(in srgb, var(--presence-color, #1a73e8) 12%, transparent);
   border-radius: 2px;
-  transition: top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear;
+  /* Intentionally NO transition on top/left/width/height. Univer's grid
+     scrolls by repainting the canvas — the DOM canvas element itself
+     doesn't move, so the cursor's absolute coords need to update every
+     frame to track the cell. A CSS transition on top/left makes the
+     cursor lerp from its old viewport position to the new one over
+     80 ms; during continuous scrolling, each frame's repaint starts
+     a new lerp, so the cursor visually pins to the viewport instead
+     of moving with the cell. Smooth selection-change transitions are
+     handled by `--presence-cursor--moving` below, applied only when
+     the peer's anchor cell actually changes. */
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+/* Applied for one frame when a peer's selection moves to a different
+   cell, so the rectangle eases between cells instead of teleporting.
+   PresenceLayer toggles this class on cells whose anchor (sr,sc,er,ec)
+   differs from the previous frame. */
+.presence-cursor--moving {
+  transition: top 120ms ease-out, left 120ms ease-out,
+    width 120ms ease-out, height 120ms ease-out;
 }
 
 .presence-cursor__label {

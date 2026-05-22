@@ -80,22 +80,28 @@ export function attachHocuspocus(
     const parsed = new URL(rawUrl, 'http://internal');
     const roomId = parsed.searchParams.get('room');
     const password = parsed.searchParams.get('p');
-    if (roomId) {
-      const room = rooms.get(roomId);
-      if (room && !rooms.passwordOk(roomId, password)) {
-        // 4401: app-defined close code for "unauthorized". Hocuspocus
-        // ignores this and falls back to its own handshake otherwise.
-        socket.write(
-          'HTTP/1.1 401 Unauthorized\r\n' +
-            'Connection: close\r\n' +
-            'Content-Length: 0\r\n' +
-            '\r\n',
-        );
-        socket.destroy();
+    const passwordBad = roomId !== null && rooms.get(roomId) !== undefined && !rooms.passwordOk(roomId, password);
+    // Always complete the WS upgrade — even for bad-password rejections.
+    // Pre-upgrade HTTP 401 responses surface in the browser only as
+    // close-code 1006 ("abnormal"), indistinguishable from network
+    // drops, so the client can't tell auth from outage and silently
+    // reconnects forever. Completing the upgrade then closing with the
+    // app-defined 4401 code gives the client a frame it can route to
+    // the password prompt.
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      if (passwordBad) {
+        try {
+          // 4401 = app-defined "unauthorized" (RFC 6455 reserves 4000–4999
+          // for private use). The client's onClose handler matches on this.
+          ws.close(4401, 'unauthorized');
+        } catch {
+          // Best-effort — if close throws we just drop the socket.
+          try { ws.terminate(); } catch { /* swallow */ }
+        }
         return;
       }
-    }
-    wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws, req));
+      handleConnection(ws, req);
+    });
   };
 
   httpServer.on('upgrade', onUpgrade);

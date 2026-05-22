@@ -40,5 +40,16 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
+  // Build / CI scripts run in Node — they need the Node globals (process,
+  // console, URL, …) which the browser-leaning block above doesn't pick up
+  // for plain .mjs files.
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
   prettier,
 );

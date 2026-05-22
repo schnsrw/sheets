@@ -1,184 +1,222 @@
+<div align="center">
+
 # Casual Sheets
+
+**Excel-flavored web spreadsheet with real-time collaborative editing**
 
 [![CI](https://github.com/schnsrw/sheets/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/ci.yml)
 [![Deploy](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/schnsrw/casual-sheets?logo=docker)](https://hub.docker.com/r/schnsrw/casual-sheets)
+[![Image Size](https://img.shields.io/docker/image-size/schnsrw/casual-sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/schnsrw/casual-sheets)
+[![E2E Tests](https://img.shields.io/badge/e2e-337%20passing-brightgreen?logo=playwright)](./tests/e2e)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
-[![Node](https://img.shields.io/badge/node-%E2%89%A518.17-brightgreen)](#develop)
-[![E2E tests](https://img.shields.io/badge/e2e-141%20passing-brightgreen)](./tests/e2e)
-[![Docker](https://img.shields.io/badge/docker-schnsrw%2Fcasual--sheets-blue?logo=docker)](https://hub.docker.com/r/schnsrw/casual-sheets)
 
-**Live demo: <https://sheet.schnsrw.live/>** — auto-deployed from `main` on every push.
+[**Live Demo →**](https://sheet.schnsrw.live/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/schnsrw/casual-sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md)
 
-A web-based, Excel-flavored spreadsheet editor with real-time co-editing. Built on [Univer](https://github.com/dream-num/univer) OSS (Apache-2.0).
-
-The goal: feel like Excel, not like Google Sheets — ribbon, formula bar, file-centric workflow. Co-edit when you want it, single-user when you don't.
+</div>
 
 ---
 
-## Status
+Casual Sheets is a self-hostable, browser-based spreadsheet that looks and behaves like Microsoft Excel — ribbon UI, formula bar, file-centric workflow — with real-time multi-user co-editing built in. Upload an `.xlsx` file, share a link, and edit together instantly. No accounts, no database, no lock-in.
 
-- **Phase 1** — single-user editor, feature-complete and locked down by **141 Playwright tests**.
-- **Phase 2** — real-time co-editing (Yjs + Hocuspocus + Redis persistence), shipped as a self-hosted Docker image.
-- **Phase 2.2** — polished share UX, live cursors with usernames, live-typing ghost overlay, large-file pipeline (worker-side xlsx parse + export, lazy-loaded plugins, halved in-memory footprint, loading overlay with phase-aware progress).
+Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) with a custom Office-style shell layered on top.
 
-The hosted demo at <https://sheet.schnsrw.live/> ships single-user. Co-editing is gated by `VITE_COLLAB_ENABLED=1` and only present in the Docker image — open `/r/<roomId>` there to use it.
+---
 
-| Working | Coming |
-| --- | --- |
-| Office-style ribbon (Home / Insert / Formulas / Data / View / Review) | Charts |
-| Inline cell editing, F2, Backspace, Delete, Escape | Pivot tables |
-| Formula bar with editable Name Box (type `B5` to jump) | More fidelity on hyperlinks / pivots in xlsx round-trip |
-| Fonts, colors, fill, wrap, alignment | Recent-files / landing page |
-| Borders (split-button dropdown with 7 modes + color picker) | WOPI host integration |
-| Cell merge + unmerge | Op-log compaction (Stage 6) for long-lived rooms |
-| Group / outline rows + columns (collapse / expand) | |
-| AutoSum / Average / Count / Min / Max | |
-| Sort, Multi-column sort dialog, Filter | |
-| Open / Save .xlsx / .ods / .csv / .tsv (full round-trip, workerized) | |
-| Drag-and-drop file open + Save / Export toasts | |
-| Hyperlinks (import + export round-trip, inline cell.p encoding) | |
-| Drag-fill handle, Ctrl+D / Ctrl+R, relative-ref formula extension | |
-| Tables (Format as Table, themes, Tables panel) | |
-| Comments (with corner indicator markers) | |
-| Freeze panes (top row / first column / at selection) | |
-| Sheet tabs at the bottom (add / rename / delete / reorder) | |
-| Print active sheet with Page Setup (orientation + margins, prefs persist) | |
-| File menu with Properties dialog | |
-| Office-style loading overlay for multi-MB opens | |
-| Dynamic workbook growth — 1024×26 → 8192×1024 | |
-| Help → Report a bug (prefills env to GitHub issue form) | |
-| Material Symbols icons, Inter typography | |
+## ✨ What's Inside
+
+### Spreadsheet Engine
+
+- Office-style **ribbon** with Home, Insert, Formulas, Data, View, and Review tabs
+- **Formula bar** with an editable Name Box (jump to any cell by typing its address)
+- Cell editing: inline edit, F2, formula entry, multi-line paste, cross-sheet references with autocomplete
+- Fonts, colors, fill, borders (7 modes + color picker), alignment, wrap, merge/unmerge
+- Rows + columns: hide/unhide, group/outline (collapse/expand), resize
+- **Freeze panes** — top row, first column, or freeze at any selection
+- **Sort** (single and multi-column dialog), **Filter** (AutoFilter), **Tables** (Format as Table, named tables panel)
+- **Comments** with corner indicator markers
+- **Conditional formatting**, **data validation**, **drawings** — fully round-tripped and co-edit synced
+- **Charts** — insert dialog, 8 chart types (column, bar, line, area, pie, scatter + stacked / 100% variants), drag-to-resize, format dialog, collab sync, PNG embed in `.xlsx`
+- **Pivot tables** P0 — group-by + aggregate into cell values from the Insert menu
+- Sheet tabs: add, rename, delete, reorder, color; tab strip refreshes live when peers act
+- **Autosave** to IndexedDB with a restore banner if the tab closes unexpectedly
+- Dynamic workbook growth — starts at 1024×26, expands to 8192×1024 on demand
+- Print active sheet with Page Setup (orientation + margins, persisted per session)
+- File → Properties dialog, Help → Report a Bug (GitHub issue prefill)
+
+### File I/O
+
+| Format | Open | Save / Export |
+| --- | :---: | :---: |
+| `.xlsx` | ✅ | ✅ |
+| `.ods` | ✅ | ✅ |
+| `.csv` / `.tsv` | ✅ | ✅ |
+
+- Parsed and serialised entirely in **Web Workers** — the main thread never blocks on multi-MB files
+- ODS round-trip: styles, dimensions, freeze, hyperlinks, comments, defined names
+- xlsx round-trip: conditional formatting, data validation, drawings, tab colors, named ranges, hyperlinks (inline `cell.p` encoding), chart PNGs
+
+### Excel Keyboard Shortcuts
+
+30+ canonical shortcuts wired: Ctrl+1 (Format Cells), Shift+F8 (Add to Selection), Ctrl+Shift+L (AutoFilter), Alt+= (AutoSum), F9 (recalculate), Ctrl+W (close), Alt+F1 (chart), number-format shortcuts, hide/unhide rows/columns, border combos, and more.
 
 ### Co-editing
 
-When the Docker image is running:
+Available in the Docker image. Single-user on the hosted demo.
 
-- **Share dialog** (File → Share for co-editing) — optional file seed, optional password, role choice (edit / view-only). Returns two copyable URLs.
-- **Presence avatars** in the title bar — your initials + each peer's, with "Active now / Last seen Ns ago" tooltips. Idle peers fade.
-- **Live cursors** on the grid — each peer's selected range, in their color, with name label, tracking scroll.
-- **Live-typing ghost** — peers see characters appear in your cell as you type, not just on commit.
-- **Password-protected rooms** with SHA-256 + constant-time compare; bad password closes the WS upgrade with 401.
-- **Joiner fast-path**: on `/r/<id>` the joiner fetches a pre-parsed snapshot from the server (gzip-streamed, immutable-cached) and skips the xlsx parse entirely.
+- **Share dialog** — File → Share for co-editing. Set a password, choose edit or view-only, get two copyable URLs
+- **Presence avatars** — title-bar avatar stack with "Active now / Last seen Ns ago" tooltips; idle peers fade
+- **Live cursors** — each peer's selection range in their color, with a name label, tracking scroll and frozen panes
+- **Live-typing ghost** — characters appear in the peer's cell as they type, not just on commit
+- **Full mutation sync** — cell values, styles, structure, conditional formatting, data validation, drawings, workbook metadata (tab colors, zoom, freeze, sheet visibility) all propagate cross-peer
+- **View-only enforcement** at the Univer engine layer — view-only joiners cannot mutate the workbook, not just at the UI level
+- **Session-history panel** — per-room op log with timestamps; review or revert any change
+- **Divergence detection** — amber "Out of sync" pill when state vectors diverge; "Waiting to reconnect" banner on WebSocket drop
+- **Password-protected rooms** — SHA-256 + constant-time compare; wrong password → HTTP 401 on the WS upgrade
+- **Op-log compaction** — long-lived rooms compact the Yjs update log on `requestIdleCallback` to keep memory bounded
+- **Joiner fast-path** — gzip-streamed pre-parsed snapshot from the server; joiners skip the xlsx parse entirely
 
-See [`docs/CO-EDITING.md`](./docs/CO-EDITING.md) for the architecture.
-
-### Large-file pipeline
-
-See [`docs/LARGE_FILE_PIPELINE.md`](./docs/LARGE_FILE_PIPELINE.md) for the staged plan; what's shipped today:
-
-- **xlsx parse + export in Web Workers** — main thread never blocks on multi-MB opens or saves. ExcelJS lives only in the worker chunks; main bundle is 6.3 MB (was 8.3 MB).
-- **Lazy plugin loading** — CF / DV / hyperlink / table / note / thread-comment / drawing / sort / filter / find-replace each ship as their own chunk, loaded after Univer mounts. Eager-loaded on snapshot inspection if the workbook needs them.
-- **Snapshot-as-ref** — full `IWorkbookData` no longer lives in React state alongside Univer's copy. Cuts ~30–50% off peak heap on big files.
-- **Hyperlinks inline in `cell.p`** — no more O(N) `AddHyperLinkCommand` replay per link at mount.
-- **Op-log batching** — collab bridge coalesces mutations per microtask via `doc.transact`. One paste / sort / fill = one Yjs encode = one WS frame.
-- **Selection-stats cap** — Cmd+A on a million-row sheet no longer freezes the UI computing Count / Sum / Avg over millions of cells.
-- **Profiling harness** — `apps/web/src/perf.ts` + `perf-harness.spec.ts` wrap and verify the timed hot paths.
-- **Loading overlay** — phase-aware ("Reading file…" → "Parsing…" → "Loading into editor…") with an elapsed timer and a "big file" hint after 4 s.
+See [`docs/CO-EDITING.md`](./docs/CO-EDITING.md) for the full architecture.
 
 ---
 
-## Self-host with Docker
+## 🐳 Self-Host with Docker
 
-Single image. Web + Hocuspocus + Fastify in one container, Redis alongside for room persistence so sessions survive restarts.
+A single multi-arch image (`linux/amd64` + `linux/arm64`). Web, Hocuspocus, and Fastify run in one container; Redis runs alongside for room persistence.
+
+### Quick start (in-memory, no persistence)
 
 ```sh
-# Run the published image directly (in-memory rooms — fine for a quick try):
 docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
-# open http://localhost:3000
-
-# Or with persistence + Redis via compose:
-docker compose up -d
-# open http://localhost:3000
 ```
 
-Co-edit a sheet:
+Open `http://localhost:3000`.
 
-1. Open `http://localhost:3000` in one tab. File → **Share for co-editing…** to set a password + role and get two share URLs.
-2. Paste either URL into another browser / device. Owner sees joiners light up in the title bar avatar stack within ~1 s.
-3. Move your selection — peers see your cursor + name follow it. Start typing — peers see characters appear in your cell live.
+### Recommended: with Redis persistence
 
-| Endpoint | What it does |
-| --- | --- |
-| `GET  /` | Serves the built web app |
-| `GET  /r/:roomId` | Same SPA; bridges into the named Y.Doc |
-| `POST /api/rooms` | Allocates a fresh room id; `{password?}` for protected rooms |
-| `GET  /api/rooms/:id/info` | Pre-flight: `{needsPassword, hasSeed, hasSnapshot, clients}` |
-| `POST /api/rooms/:id/seed` | Multipart xlsx upload — the room's starting workbook |
-| `GET  /api/rooms/:id/seed` | Download the xlsx seed |
-| `POST /api/rooms/:id/snapshot` | Gzipped JSON snapshot upload — joiner fast-path |
-| `GET  /api/rooms/:id/snapshot` | Joiner fetches the pre-parsed snapshot (immutable-cached) |
-| `GET  /api/rooms` | Diagnostic — live rooms + client counts |
-| `GET  /health` | Liveness probe (returns `{ok, ts, rooms}`) |
-| `WS   /yjs` | Hocuspocus Yjs sync; query: `?room=<id>&p=<password>` |
+Paste this `docker-compose.yml` and run `docker compose up -d`:
+
+```yaml
+services:
+  app:
+    image: schnsrw/casual-sheets:latest
+    restart: unless-stopped
+    ports: ['3000:3000']
+    environment:
+      REDIS_URL: redis://redis:6379
+      ROOM_TTL_MIN: '15'
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:
+```
+
+### Try co-editing
+
+1. Open `http://localhost:3000`. **File → Share for co-editing…** to set a password and get two share URLs.
+2. Paste either URL into another browser or device — the joiner connects in under a second.
+3. Move your selection — peers see your named cursor follow it. Type in a cell — peers see characters appear live.
+
+### API surface
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/` | Serves the built web app |
+| `GET` | `/r/:roomId` | Same SPA; bridges into the named Y.Doc |
+| `POST` | `/api/rooms` | Create a room; body `{password?}` |
+| `GET` | `/api/rooms/:id/info` | Pre-flight: `{needsPassword, hasSeed, hasSnapshot, clients}` |
+| `POST` | `/api/rooms/:id/seed` | Multipart `.xlsx` upload — the room's starting workbook |
+| `GET` | `/api/rooms/:id/seed` | Download the seed file |
+| `POST` | `/api/rooms/:id/snapshot` | Gzipped JSON snapshot — joiner fast-path upload |
+| `GET` | `/api/rooms/:id/snapshot` | Joiner snapshot fetch (immutable-cached) |
+| `GET` | `/api/rooms` | Diagnostic: live rooms + client counts |
+| `GET` | `/health` | Liveness probe — `{ok, ts, rooms}` |
+| `WS` | `/yjs` | Hocuspocus sync; `?room=<id>&p=<password>` |
 
 ### Configuration
 
-See [`.env.example`](./.env.example) for the full set. Copy to `.env`
-and `docker compose up` picks it up automatically. Quick reference:
+Copy `.env.example` to `.env`; `docker compose up` picks it up automatically.
 
-| Env var | Where | Default | Meaning |
+| Env var | Scope | Default | Description |
 | --- | --- | --- | --- |
-| `PORT` | server | `3000` | HTTP + WS port |
+| `PORT` | server | `3000` | HTTP + WebSocket listen port |
 | `HOST` | server | `0.0.0.0` | Bind address |
-| `REDIS_URL` | server | _unset_ | If set, Y.Docs persist to Redis with a 7-day TTL |
-| `ROOM_TTL_MIN` | server | `15` | Minutes a room stays in memory after the last client leaves |
-| `MAX_UPLOAD_MB` | server | `100` | Cap on multipart + raw-binary uploads (xlsx seed + gzipped snapshot) |
-| `VITE_COLLAB_ENABLED` | web build | `1` (image) / unset (Pages) | Ships co-edit code in the bundle |
-| `VITE_MAX_OPEN_MB` | web build | `100` | Hard reject for File → Open / drag-drop; larger crashes the tab |
-| `VITE_SOFT_WARN_MB` | web build | `25` | Threshold for the up-front "this is a large workbook" hint |
+| `REDIS_URL` | server | _unset_ | Redis connection string; enables Y.Doc persistence with a 7-day TTL |
+| `ROOM_TTL_MIN` | server | `15` | Minutes a room stays alive after the last client leaves |
+| `MAX_UPLOAD_MB` | server | `100` | Upload cap for xlsx seed + gzipped snapshot |
+| `VITE_COLLAB_ENABLED` | build | `1` in image | Include co-edit code in the bundle |
+| `VITE_MAX_OPEN_MB` | build | `100` | Hard reject threshold for File → Open / drag-drop |
+| `VITE_SOFT_WARN_MB` | build | `25` | Shows a "large file" hint before opening |
 
-The `VITE_*` vars are baked in at build time. Pass them via
-`--build-arg` on `docker build` or the `args:` block in
-`docker-compose.yml` to customize the image.
+`VITE_*` vars are baked in at build time. Pass them with `--build-arg` on `docker build`, or via the `args:` block in `docker-compose.yml`.
 
 ---
 
-## Develop
+## 🛠 Develop
 
-Prereqs: Node ≥ 18.17, pnpm 10+.
+**Prerequisites:** Node ≥ 18.17, pnpm 10+
 
 ```sh
-pnpm install               # one-time
-pnpm dev:web               # http://127.0.0.1:5273
-pnpm dev:server            # http://127.0.0.1:3000  (HTTP + Hocuspocus WS at /yjs)
-pnpm test:e2e              # Playwright (auto-starts the web dev server)
+pnpm install               # install workspace dependencies
+pnpm dev:web               # Vite dev server  →  http://127.0.0.1:5273
+pnpm dev:server            # Fastify + Hocuspocus  →  http://127.0.0.1:3000
+pnpm test:e2e              # run Playwright suite (auto-starts web dev server)
 pnpm test:e2e:ui           # Playwright UI mode
-pnpm lint                  # eslint
-pnpm format                # prettier --write
-pnpm typecheck             # tsc across packages
+pnpm lint                  # ESLint
+pnpm format                # Prettier --write
+pnpm typecheck             # tsc across all packages
 ```
 
-Co-editing in dev needs both the web dev server (`:5273`) and the standalone server (`:3000`). Set `VITE_COLLAB_WS_URL=ws://127.0.0.1:3000/yjs` in `apps/web/.env.local` and visit `http://127.0.0.1:5273/r/<any-id>`.
+**Co-editing in dev** requires both servers running. Add to `apps/web/.env.local`:
+
+```env
+VITE_COLLAB_WS_URL=ws://127.0.0.1:3000/yjs
+```
+
+Then open `http://127.0.0.1:5273/r/<any-room-id>` in two tabs.
 
 ---
 
-## Repo layout
+## 📁 Repo Layout
 
 ```
 .
 ├── apps/
-│   ├── web/                ← Vite + React frontend
-│   │   ├── src/
-│   │   │   ├── collab/     ← Yjs bridge, presence, share dialog
-│   │   │   ├── shell/      ← title bar, ribbon, menu bar, dialogs
-│   │   │   ├── univer/     ← Univer plugin registration + lazy loader
-│   │   │   └── xlsx/       ← worker-side import/export (ExcelJS)
-│   │   └── tests/
-│   └── server/             ← Fastify + Hocuspocus (rooms, seed, snapshot)
-├── tests/e2e/              ← Playwright e2e suite (141 specs across 35 files)
+│   ├── web/                     # Vite + React frontend
+│   │   └── src/
+│   │       ├── collab/          # Yjs bridge, presence, share dialog
+│   │       ├── shell/           # title bar, ribbon, menu bar, dialogs
+│   │       ├── univer/          # Univer plugin registration + lazy loader
+│   │       └── xlsx/            # worker-side import/export (ExcelJS)
+│   └── server/                  # Fastify + Hocuspocus (rooms, seed, snapshot)
+├── tests/e2e/                   # Playwright e2e suite — 337 tests across 79 files
 ├── docs/
-│   ├── ARCHITECTURE.md         ← system design
-│   ├── CO-EDITING.md           ← op-log + presence design
-│   ├── LARGE_FILE_PIPELINE.md  ← staged perf plan
-│   └── RESEARCH.md             ← Univer technical brief
-├── vendor/univer/          ← read-only Univer 0.22.1 source clone (gitignored)
-├── Dockerfile              ← multi-stage build (deps → build-web → runtime)
-├── docker-compose.yml      ← app + Redis
-├── PLAN.md                 ← phased build plan
-└── CLAUDE.md               ← project guardrails
+│   ├── ARCHITECTURE.md          # system design
+│   ├── CO-EDITING.md            # op-log + presence design
+│   ├── LARGE_FILE_PIPELINE.md   # staged perf plan
+│   └── RESEARCH.md              # Univer technical brief
+├── vendor/univer/               # read-only Univer 0.22.1 source clone (gitignored)
+├── Dockerfile                   # multi-stage build (deps → build-web → runtime)
+├── docker-compose.yml           # app + Redis
+├── PLAN.md                      # phased build plan
+└── CLAUDE.md                    # project guardrails for AI-assisted development
 ```
 
-`vendor/univer/` is a local clone of `dream-num/univer` for source-level study and is excluded from version control. To bootstrap on a fresh checkout:
+Bootstrap the vendor clone on a fresh checkout:
 
 ```sh
 git clone --depth 1 https://github.com/dream-num/univer.git vendor/univer
@@ -186,38 +224,35 @@ git clone --depth 1 https://github.com/dream-num/univer.git vendor/univer
 
 ---
 
-## Stack
+## 🧱 Stack
 
-| Concern | Pick |
+| Concern | Choice |
 | --- | --- |
-| Editor + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.22.1) |
-| Frontend | React + Vite + TypeScript (strict) |
-| Lint / format | ESLint 9 (flat config) + Prettier |
-| xlsx I/O | ExcelJS, run in dedicated Web Workers |
+| Grid + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.22.1) |
+| Frontend | React 18 + Vite + TypeScript (strict mode) |
+| Styling | Tailwind CSS + Material Symbols Outlined + Inter (Google Fonts) |
+| Lint / format | ESLint 9 flat config + Prettier |
+| xlsx I/O | ExcelJS in dedicated Web Workers |
 | ods / csv / tsv I/O | SheetJS Community (`@e965/xlsx`) |
-| Icons / type | Material Symbols Outlined + Inter (Google Fonts) |
 | E2E tests | Playwright (Chromium) |
-| Collab transport | Yjs + Hocuspocus over WebSocket |
-| Collab server | Fastify + raw `ws` (upgrade routing) |
-| Collab persistence | Redis (optional, 7-day TTL on Y.Doc binary updates) |
+| Collab transport | Yjs (CRDT) + Hocuspocus over WebSocket |
+| Collab server | Fastify + raw `ws` (direct WS upgrade routing) |
+| Persistence | Redis — optional, 7-day TTL on Y.Doc binary updates |
 | Formula offload | `UniverRPCMainThreadPlugin` ↔ `UniverRPCWorkerThreadPlugin` |
 
 ---
 
-## What we explicitly don't do
-
-Per [`CLAUDE.md`](./CLAUDE.md):
+## 🚫 Explicit Non-Goals
 
 - **No persistence / accounts / WOPI** — anonymous sessions by room URL; in-memory + Redis only.
-- **No AI / LLM** — the command bus is extensible; plug your own model in later if you want.
-- **No mobile** — desktop browsers only (we ship a responsive shell down to 480 px, but the grid UX assumes a pointer).
-- **No Univer Pro** — features missing from OSS (charts, pivots) get built here or deferred, not vendored.
-- **No forking Univer** — `vendor/univer/` is read-only reference. Every fix sits on top.
+- **No AI / LLM features** — the Univer command bus is extensible; wire your own model in later.
+- **No mobile** — desktop browsers only. The shell is responsive to 480 px, but the grid UX assumes a pointer device.
+- **No Univer Pro** — everything is built on OSS. Missing features are built here or deferred; the commercial Pro package is never used.
 
 ---
 
-## License
+## 📄 License
 
-Apache-2.0. See [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE) for attribution.
+Apache-2.0. See [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE).
 
-Vendored Univer source (`vendor/univer/`) keeps its upstream Apache-2.0 license; we do not modify it and it is not part of our build.
+Vendored Univer source (`vendor/univer/`) retains its upstream Apache-2.0 license. It is read-only reference and is not part of this project's build.

@@ -56,9 +56,24 @@ if (servesWeb) {
   app.log.info(`web/dist not built — run 'pnpm --filter @sheet/web build' or use compose`);
 }
 
-// In-memory room registry. Starts an interval that GCs idle rooms.
+// Persistence backend created first so the room registry can use it
+// as the eviction callback — when a room is GC'd, we also drop its
+// persisted Y.Doc bytes so Redis doesn't accumulate orphans the
+// in-memory registry has forgotten about.
+const storage = await createStorage();
+app.log.info(
+  `doc storage: ${process.env.REDIS_URL ? `redis (${process.env.REDIS_URL})` : 'in-memory'}`,
+);
+
 const rooms = new RoomRegistry();
-rooms.start();
+rooms.start((evictedId) => {
+  // Fire-and-forget — storage.delete is best-effort, a failure just
+  // means the blob waits out Redis's 7-day TTL. We don't want a
+  // backend hiccup to stall the GC loop.
+  storage.delete(evictedId).catch((err) => {
+    app.log.warn({ err, roomId: evictedId }, 'storage delete failed for evicted room');
+  });
+});
 app.addHook('onClose', async () => rooms.stop());
 
 app.get('/health', async () => ({
@@ -229,14 +244,10 @@ if (servesWeb) {
 
 await app.listen({ port: PORT, host: HOST });
 
-// Persistence backend: REDIS_URL → Redis, otherwise in-memory.
-const storage = await createStorage();
-app.log.info(
-  `doc storage: ${process.env.REDIS_URL ? `redis (${process.env.REDIS_URL})` : 'in-memory'}`,
-);
-
 // Hocuspocus needs the underlying Node http server for the upgrade
-// handler. Fastify exposes it after listen.
+// handler. Fastify exposes it after listen. Storage was created
+// earlier (right after the app instance) so the room registry could
+// register its eviction callback.
 const hocus = attachHocuspocus(app.server, rooms, storage);
 
 const shutdown = async () => {

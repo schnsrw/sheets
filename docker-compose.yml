@@ -29,10 +29,13 @@ services:
       HOST: ${HOST:-0.0.0.0}
       PORT: ${PORT:-3000}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      # Eviction window for idle rooms (minutes). After the last client
-      # leaves and this elapses, the room is freed in-process and its
-      # Redis snapshot will also lapse via RedisStorage's 7-day TTL.
-      ROOM_TTL_MIN: ${ROOM_TTL_MIN:-15}
+      # Eviction window for idle rooms (minutes). The previous 15-min
+      # window was short enough that a user closing a laptop for coffee
+      # came back to a blank sheet. Only "throwaway" rooms (no
+      # password, no uploaded content) ever evict; password-protected
+      # rooms and rooms with a seed/snapshot stay forever. See
+      # `RoomRegistry.isEvictable` in apps/server/src/rooms.ts.
+      ROOM_TTL_MIN: ${ROOM_TTL_MIN:-60}
       # Cap on multipart + raw-binary uploads (xlsx seed + gzipped
       # snapshot). Defaults to 100 MB. Raise alongside VITE_MAX_OPEN_MB
       # in the build args below if you need bigger workbooks.

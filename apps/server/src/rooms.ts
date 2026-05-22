@@ -33,15 +33,26 @@ type RoomState = {
   passwordHash: string | null;
 };
 
-const ROOM_TTL_MS = Number(process.env.ROOM_TTL_MIN ?? 5) * 60_000;
+// Default TTL bumped from 5 → 60 min. The old default was short enough
+// that a user closing a laptop for coffee came back to a blank sheet.
+// Open / empty rooms still get cleaned up, but the window is now wide
+// enough for normal-human breaks. Password-protected rooms and rooms
+// with a seed / snapshot are kept indefinitely (see `isEvictable`).
+const ROOM_TTL_MS = Number(process.env.ROOM_TTL_MIN ?? 60) * 60_000;
 const GC_INTERVAL_MS = 30_000;
 
 export class RoomRegistry {
   private rooms = new Map<string, RoomState>();
   private gc: ReturnType<typeof setInterval> | null = null;
+  /** Optional hook called when a room is evicted — used by the server
+   *  to also drop the persisted Y.Doc from the storage backend so
+   *  Redis doesn't keep stale blobs around for rooms the in-memory
+   *  registry has forgotten. */
+  private onEvict: ((roomId: string) => void) | null = null;
 
-  start(): void {
+  start(onEvict?: (roomId: string) => void): void {
     if (this.gc) return;
+    this.onEvict = onEvict ?? null;
     this.gc = setInterval(() => this.collect(), GC_INTERVAL_MS);
     this.gc.unref?.();
   }
@@ -50,6 +61,7 @@ export class RoomRegistry {
     if (!this.gc) return;
     clearInterval(this.gc);
     this.gc = null;
+    this.onEvict = null;
   }
 
   /** Create a fresh room; returns its id. */
@@ -132,14 +144,31 @@ export class RoomRegistry {
     }));
   }
 
-  /** Evict rooms idle longer than ROOM_TTL_MS. */
+  /** Evict idle rooms — but only if they're "throwaway" rooms (no
+   *  password, no uploaded seed/snapshot). Anything a user might
+   *  reasonably come back to stays around indefinitely so a coffee-break
+   *  reconnect doesn't return a blank grid. */
   private collect(): void {
     const now = Date.now();
     for (const [id, room] of this.rooms) {
-      if (room.idleSince > 0 && now - room.idleSince > ROOM_TTL_MS) {
-        this.rooms.delete(id);
-      }
+      if (room.idleSince <= 0) continue; // still has live clients
+      if (now - room.idleSince <= ROOM_TTL_MS) continue;
+      if (!this.isEvictable(room)) continue;
+      this.rooms.delete(id);
+      this.onEvict?.(id);
     }
+  }
+
+  private isEvictable(room: RoomState): boolean {
+    // Keep rooms with a password — losing the password would let the
+    // next person to navigate to the URL silently take over the room id.
+    if (room.passwordHash) return false;
+    // Keep rooms with uploaded content. Someone shared this room with
+    // a workbook; the persisted state (Y.Doc in Redis) is worth more
+    // than the registry slot it occupies.
+    if (room.xlsxSeed && room.xlsxSeed.byteLength > 0) return false;
+    if (room.snapshotGz && room.snapshotGz.byteLength > 0) return false;
+    return true;
   }
 }
 

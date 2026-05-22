@@ -76,13 +76,20 @@ export function usePresenceWire(
     };
   }, [awareness]);
 
-  // Broadcast our selection. We tried subscribing to FUniver's
-  // SelectionChanged event but it doesn't fire on programmatic
-  // `range.activate()` (only on user-driven moves), which broke parity
-  // between scripted and interactive usage. A lightweight 150 ms poll
-  // covers both — diff-guarded so we only write when the selection
-  // actually changes, which yields one awareness update per cell move
-  // in practice.
+  // Broadcast our selection. Combined strategy:
+  //
+  //   1. Subscribe to Univer's SelectionChanged event so user-driven
+  //      moves (mouse, arrow keys, Tab) fire awareness updates within
+  //      one tick — feels instant on the peer side.
+  //   2. Keep a lightweight poll as a fallback for programmatic
+  //      `range.activate()` calls, which (in Univer 0.22.x at least)
+  //      do NOT fire SelectionChanged. The poll's interval is bumped
+  //      to 500 ms now that the event covers the hot path — 150 ms
+  //      was the wrong knob to compensate for the missing event.
+  //
+  // Both paths call the same diff-guarded `writeIfChanged` so no
+  // matter which fires first, we only ship awareness if the selection
+  // actually moved.
   useEffect(() => {
     if (!api || !awareness) return;
 
@@ -129,8 +136,20 @@ export function usePresenceWire(
     };
 
     writeIfChanged();
-    const id = setInterval(writeIfChanged, 150);
-    return () => clearInterval(id);
+    // Event-driven path: instant updates on user moves.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyApi = api as any;
+    const SelectionEv = anyApi.Event?.SelectionChanged;
+    const eventSub: { dispose?: () => void } | undefined =
+      SelectionEv && typeof anyApi.addEvent === 'function'
+        ? anyApi.addEvent(SelectionEv, () => writeIfChanged())
+        : undefined;
+    // Slow-poll fallback for programmatic moves.
+    const id = setInterval(writeIfChanged, 500);
+    return () => {
+      clearInterval(id);
+      eventSub?.dispose?.();
+    };
   }, [api, awareness]);
 
   // Live-typing ghost: broadcast in-progress edits via awareness so peers
@@ -215,11 +234,13 @@ export function usePresenceWire(
     };
 
     const onEnded = () => clearLive();
-    const onStarted = (p: { row: number; column: number }) => {
-      // Reset the per-edit text tracker so an empty-cell start doesn't
-      // inherit the previous edit's last value.
+    const onStarted = (_p: { row: number; column: number }) => {
+      // Only reset the per-edit text tracker. Don't write an empty-text
+      // liveEdit yet — that caused the ghost to "jump" to the next
+      // cell on Tab/Enter for one frame between EditEnded clearing
+      // the old position and the user actually starting to type. The
+      // first `onChanging` will write the ghost once real text exists.
       lastText = '';
-      writeLive(p.row, p.column, '');
     };
 
     const subs = [

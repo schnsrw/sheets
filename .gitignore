@@ -46,3 +46,4 @@ Thumbs.db
 *.swo
 .vscode/
 # .idea/ is kept (IntelliJ project metadata committed intentionally)
+.claude/

@@ -1,0 +1,76 @@
+# Co-editing fix tracker
+
+Running ledger of the co-editing / cursor / sheet / border issues identified
+during the May 2026 audit. One row per issue. Update **Status** and append
+to **Notes** whenever a fix lands so we don't re-litigate the same bug.
+
+Categories: `critical` blocks correctness, `high` causes silent divergence
+or data loss, `medium` is visible UX rot, `low` is polish or perf.
+
+| # | Issue | Cat | Status | Files | Notes |
+|---|---|---|---|---|---|
+| 1 | Password rejection silently retries (close-code 1006 vs 401) | critical | **fixed** | apps/server/src/yjs.ts, apps/web/src/collab/CollabDriver.tsx | Server now completes the WS upgrade then closes with code 4401 so the client sees a real CloseEvent. Client routes 4401 / 1008 / `authenticationFailed` to the password prompt with an error and tears down the failing provider. Regression test: `tests/e2e/coedit-regression.spec.ts`. |
+| 2 | Snapshot replay race: mutations after a compaction land on old unit | critical | **fixed** | apps/web/src/collab/bridge.ts, apps/web/src/collab/CollabDriver.tsx | `onSnapshotReceived` may return a promise; the bridge `await`s it before continuing replay. `CollabDriver` awaits `requestAnimationFrame` after `replaceWorkbook` so the new unit is wired before the next op runs. |
+| 3 | Op-log replay is event-sourcing, not a state CRDT | high | wontfix-v1 | apps/web/src/collab/bridge.ts | Architectural; documented in CO-EDITING.md. Mitigated by fixes 2/5/6/20. |
+| 4 | No OT for structural mutations (insert-row / col races cell edits) | high | open | apps/web/src/collab/bridge.ts | Hard problem. Tracked for post-v1. |
+| 5 | Silent failures: remote `executeCommand` throws are swallowed | high | **fixed** | apps/web/src/collab/bridge.ts | `.catch` added on replay; warnings now surface in console. |
+| 6 | `rewriteUnitId` only patches top-level `params.unitId` | medium | **fixed** | apps/web/src/collab/bridge.ts, apps/web/src/collab/bridge-helpers.ts | New `deepRewriteUnitId` walks plain objects + arrays recursively and rewrites every `unitId` string. Pure helper extracted to `bridge-helpers.ts`; 8 unit tests pin the behaviour. |
+| 7 | Seed-to-bridge gap: edits during room-create upload are lost | medium | open | apps/web/src/shell/CreateRoomDialog.tsx | Defer seed/snapshot upload until bridge is hot, or freeze grid during create. |
+| 8 | `params.__splitChunk__` unhandled — large pastes corrupt on peers | medium | open | apps/web/src/collab/bridge.ts | Per CLAUDE.md hard rule. |
+| 9 | 5-min room GC destroys all co-edit state | medium | open | apps/server/src/rooms.ts | Persist Y.Doc to storage adapter; longer TTL for empty-with-snapshot. |
+| 10 | Cursors render on the wrong sheet (no filter by active sheet) | medium | verify | apps/web/src/collab/PresenceLayer.tsx | Code does filter `peer.selection.s === activeSheetId`; needs e2e test to confirm. |
+| 11 | Frozen panes + zoom break cursor positioning | medium | open | apps/web/src/collab/PresenceLayer.tsx | Skeleton-aware coord transform needed (gutter is fixed, frozen-pane double-count still pending). |
+| 12 | liveEdit ghost jumps to next cell on Tab/Enter | low | open | apps/web/src/collab/usePresenceWire.ts | One-frame race between EditEnded clear and EditStarted write. |
+| 13 | 150 ms selection poll lags fast cursor navigation | low | open | apps/web/src/collab/usePresenceWire.ts | Subscribe to SelectionChanged AND keep poll as fallback. |
+| 14 | View-only users see interactive grid, edits silently vanish | medium | open | apps/web/src/collab/CollabDriver.tsx | Put Univer into read-only / protection mode for `role=view`. |
+| 15 | No divergence indicator when state forks | medium | open | apps/web/src/collab/CollabDriver.tsx | Add periodic hash compare via awareness; flag mismatch. |
+| 16 | Download returns original seed, not live state | high | open | apps/server/src/index.ts | Materialise headless Univer from Y.Doc on download. |
+| 17 | Compaction `wb.save()` blocks UI thread | low | open | apps/web/src/collab/bridge.ts | Offload to worker, or interrupt during idle frames. |
+| 18 | `JSON.stringify` chart compare is O(n) per local update | low | open | apps/web/src/collab/CollabDriver.tsx | Switch to revision/version compare. |
+| 19a | Canvas ID selector silently breaks on Univer upgrade | medium | **fixed** | apps/web/src/univer-dom.ts, apps/web/src/collab/PresenceLayer.tsx, apps/web/src/charts/ChartLayer.tsx | Centralised in `getUniverMainCanvas` with a fallback + one-time warning. |
+| 19b | Cursors offset ~40 px due to row/col header gutter | high | **fixed** | apps/web/src/univer-dom.ts, apps/web/src/collab/PresenceLayer.tsx, apps/web/src/charts/ChartLayer.tsx | `getHeaderGutter()` returns Univer 0.22.x defaults (row 46, col 20). Initially tried the dynamic `RenderUnit.with(SheetSkeletonManagerService)` lookup but it threw `QuantityCheckError: SheetScrollManagerService not registered` when the rAF tick fired before Univer finished wiring its render-unit injector — race with first mount. Hardcoded constants trade rare custom-header support for zero-risk init. |
+| 19c | Stale `rects` closure causes spurious React renders during scroll | low | **fixed** | apps/web/src/collab/PresenceLayer.tsx | Added `rectsRef` mirror; the `rectsEqual` diff now compares against the live value rather than the mount-time snapshot. |
+| 19d | Cursor scroll offset double-counts frozen pane height | medium | open | apps/web/src/collab/PresenceLayer.tsx | Same skeleton-aware fix as 19b. |
+| 19e | Column/row resize drag desyncs cursor by up to 67 ms | low | open | apps/web/src/collab/PresenceLayer.tsx | Force recompute on resize-end event. |
+| 20 | Remote `insert-sheet` forcibly switches local active sheet on all peers | critical | **fixed** | apps/web/src/collab/bridge.ts | Bridge captures the active sheet id BEFORE replaying any `sheet.mutation.insert-sheet` from a peer and restores it after the command resolves. Univer's `_adjustActiveSheetOnInsertSheet` no longer hijacks local view. Regression test: `tests/e2e/coedit-regression.spec.ts`. |
+| 21 | `switchToSheet` bypasses command bus | medium | **fixed** | apps/web/src/shell/sheet-actions.ts | Dispatches `sheet.command.set-worksheet-activate` instead of calling `setActiveSheet` directly. |
+| 22 | `renameSheet` / `hideSheet` / `showSheet` bypass command bus | medium | **fixed** | apps/web/src/shell/sheet-actions.ts, apps/web/src/collab/bridge.ts | All three now dispatch the corresponding `sheet.command.*`. `set-worksheet-hidden` added to `SYNCED_MUTATIONS` so hide/show propagate to peers. |
+| 23 | Default border colour `#666` indistinguishable from gridlines | medium | **fixed** | apps/web/src/shell/home-tab-actions.ts | Now `#000000`, matching Excel default thin border. |
+| 24 | Borders dropdown always uses `BorderStyleTypes.THIN` — no weight option | low | **fixed** | apps/web/src/shell/home-tab-actions.ts, apps/web/src/shell/RibbonControls.tsx, apps/web/src/shell/Toolbar.tsx, apps/web/src/styles.css | `setBorders` takes a `BorderWeight` ('thin' \| 'medium' \| 'thick' → `BorderStyleTypes.THIN/MEDIUM/THICK`). New weight-picker row in the borders dropdown, sticky for the session. |
+| 25 | Remote cursor sticks to viewport during scroll — only snaps to correct cell on scroll release | critical | **fixed** | apps/web/src/collab/PresenceLayer.tsx, apps/web/src/charts/ChartLayer.tsx, apps/web/src/styles.css | Two compounding bugs: (a) CSS `transition: top/left 80ms` made every per-frame coord update lerp from the old viewport position, so during a scroll burst the cursor was always chasing; (b) recompute throttled to every 4 frames with the scroll-tick bumped INSIDE recompute, giving ~50 ms blind period at start of each scroll. Fix: drop the unconditional transition; add `.presence-cursor--moving` applied for one render after a peer's anchor cell changes (smooth cell-to-cell moves preserved); recompute every animation frame instead of every 4. Same throttle removed from ChartLayer. Per-peer anchor key (`unit:sheet:sr:sc:er:ec`) tracked in a ref so the move-vs-scroll distinction is honest. |
+| 26 | Owner sees empty workbook after Share → "Open the room" | critical | **fixed** | apps/web/src/collab/CollabDriver.tsx, apps/web/src/shell/CreateRoomDialog.tsx | `window.location.href = writeUrl` is a hard navigation that nukes in-memory Univer state. The `wasOwnerOfRoom` optimisation that skipped the seed reload was wrong for any flow that goes through a real navigation — the owner ended up on an empty grid. Removed the skip; always fetch the seed/snapshot from the server on /r/<id> mount. Server cache is warm because the owner just uploaded, so the round-trip is cheap. |
+| 27 | "cannot create a unit with the same unit id" on join | critical | **fixed** | apps/web/src/UniverSheet.tsx | The workbook-swap effect read `currentId` before its `await eager-plugins`, then disposed-and-created after. Two back-to-back replaceWorkbook calls (seed load → bridge snapshot replay, or any double-fire) overlapped: both async swaps awaited concurrently, both then called createUnit with the same snapshot id, second one threw. Fix: serialise swaps through a `swapChainRef` promise chain; re-read `currentId` AFTER the chain wait; defensively dispose any unit holding the target id before createUnit. |
+| 28 | Password prompt appears AFTER content is loaded (security + UX) | critical | **fixed** | apps/web/src/collab/CollabDriver.tsx, apps/server/src/index.ts | Two halves: client-side, the seed/snapshot download fired before the password prompt — content rendered behind the dialog and (worse) anyone with the URL could fetch the workbook ungated. Server-side, `/api/rooms/:id/seed` and `/snapshot` had NO password check. Fix: in CollabDriver, resolve the password (stash → prompt) BEFORE any seed/snapshot fetch and pass it on `x-room-password`; in the server, gate both endpoints with constant-time `passwordOk()` via a new `checkRoomPassword` helper that accepts header OR `?p=` query. Cache-Control on snapshot becomes `private` for protected rooms. |
+| 29 | **Remote mutations never apply on the joiner** — typed value seen on owner, joiner shows null | critical | **fixed** | apps/web/src/collab/bridge.ts | The `replayPending()` re-entrancy guard set `replayInFlight = (async () => { try {…} finally { replayInFlight = null } })()`. For the empty-log first call there's no `await`, so the async body ran SYNCHRONOUSLY; the `finally` set `replayInFlight = null` BEFORE the outer assignment `replayInFlight = promise` completed; the assignment then OVERWROTE the null with the now-resolved promise. From that point on every subsequent call hit `if (replayInFlight) return` and skipped the loop — remote mutations sat in the Yjs log untouched. Fix: create the promise first, assign `replayInFlight = p` BEFORE invoking the async body; clear in finally with `if (replayInFlight === p)` guard. This was the actual cause of "real-time changes propagate then revert" — the live-edit ghost cleared on commit (awareness still worked) but the underlying set-range-values mutation never applied on the receiver. Diagnosed via `tests/e2e/coedit-cell-edit.spec.ts` editor-flow regression run against the docker prod build. |
+
+## Test coverage
+
+| Test | Covers |
+|---|---|
+| `apps/web/src/collab/bridge.unit.test.ts` | `deepRewriteUnitId` — 8 cases incl. nested/array/class-instance/primitive (Fix 6) |
+| `tests/e2e/coedit-regression.spec.ts` | Wrong-password rejection re-opens dialog (Fix 1); remote `insert-sheet` doesn't hijack active sheet (Fix 20) |
+| `tests/e2e/coedit-share.spec.ts` | Share flow + view-only role (pre-existing) |
+| `tests/e2e/coedit-compaction.spec.ts` | Op-log compaction (pre-existing) |
+| `tests/e2e/coedit.spec.ts` | Basic two-peer sync (pre-existing) |
+
+## CI
+
+`.github/workflows/ci.yml` runs four jobs in parallel on every PR:
+
+- **lint** — `pnpm lint` (eslint, ~30 s)
+- **typecheck** — `pnpm typecheck` (tsc --noEmit across workspaces, ~60 s)
+- **unit** — `pnpm test:unit` (node test runner via tsx, < 30 s)
+- **e2e** — `pnpm test:e2e` (Playwright chromium, ~5 min)
+
+## How to update this file
+
+When a fix lands:
+
+1. Flip **Status** to `fixed` (or `verify` if it needs an e2e to confirm).
+2. Append a one-line summary to **Notes** with what changed and why.
+3. If the fix is bigger than a few lines, link to the commit or PR.
+4. If you discover a new symptom while fixing something else, **add a new
+   row** rather than expanding an existing one — keeps history readable.
+
+Issues marked `wontfix-v1` are deferred to a future architectural pass and
+should stay in the table so a future engineer doesn't rediscover them.

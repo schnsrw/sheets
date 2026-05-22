@@ -38,19 +38,25 @@ declare global {
 }
 
 /**
- * DEV-only window helpers used by e2e specs. Anything that needs to reach
- * into Univer's internals from a Playwright test belongs here, not in
- * production code paths.
+ * Window helpers used by e2e specs AND prod debugging. Anything that
+ * needs to reach into Univer's internals from a Playwright test belongs
+ * here, not in production code paths.
  *
- * Currently:
- *   - __univerAPI exposes the FUniver facade.
- *   - __getTableStyleId__ exposes the underlying Table's tableStyleId, which
- *     FWorkbook.getTableList intentionally strips from its public projection.
+ * `__univerAPI` is exposed in BOTH dev and prod — it's the FUniver
+ * facade with no secrets, and having it available in the deployed
+ * docker build is what lets us run regression tests against the
+ * actual prod bundle. The rest of the helpers stay DEV-only because
+ * they expose internal injector tokens that shouldn't be reachable
+ * from random page scripts in production.
  */
 export function installDevHelpers(api: FUniver): () => void {
-  if (!import.meta.env.DEV) return () => {};
-
+  // Always expose the facade so prod-build regression tests can reach in.
   window.__univerAPI = api;
+  if (!import.meta.env.DEV) {
+    return () => {
+      delete window.__univerAPI;
+    };
+  }
   window.__getTableStyleId__ = (tableId) => {
     const wb = api.getActiveWorkbook();
     if (!wb) return undefined;

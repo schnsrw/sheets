@@ -8,6 +8,34 @@ import {
 } from '@univerjs/core';
 import { SetRangeValuesUndoMutationFactory } from '@univerjs/sheets';
 import { deepRewriteUnitId } from './bridge-helpers';
+import { ensurePluginByName, type LazyPluginGroup } from '../univer/lazy-plugins';
+
+/**
+ * Map mutation ids to the lazy-plugin group that owns the matching
+ * mutation handler. The joiner replays peer mutations through Univer's
+ * command service; if the receiving plugin hasn't been loaded yet
+ * (lazy bundling), the mutation handler is missing and the change
+ * silently drops on that peer. Bridge waits for the plugin to mount
+ * before executing the mutation.
+ */
+const MUTATION_TO_LAZY_GROUP: Record<string, LazyPluginGroup> = {
+  'sheet.mutation.add-conditional-rule': 'cf',
+  'sheet.mutation.set-conditional-rule': 'cf',
+  'sheet.mutation.delete-conditional-rule': 'cf',
+  'sheet.mutation.move-conditional-rule': 'cf',
+  'sheet.mutation.add-table': 'table',
+  'sheet.mutation.delete-table': 'table',
+  'sheet.mutation.set-sheet-table': 'table',
+  'sheet.mutation.set-table-filter': 'table',
+  'sheet.mutation.set-filter-criteria': 'filter',
+  'sheet.mutation.set-filter-range': 'filter',
+  'sheet.mutation.remove-filter': 'filter',
+  'sheet.mutation.update-note': 'note',
+  'sheet.mutation.remove-note': 'note',
+  'sheet.mutation.add-hyper-link': 'hyperlink',
+  'sheet.mutation.remove-hyper-link': 'hyperlink',
+  'sheet.mutation.update-hyper-link': 'hyperlink',
+};
 // y-protocols ships type declarations only as ESM and our tsconfig
 // doesn't pick them up cleanly; loose-type the Awareness surface we
 // actually use (getStates → Map keyed by clientID).
@@ -109,6 +137,17 @@ const SYNCED_MUTATIONS: ReadonlySet<string> = new Set([
   // Notes (sheets-note) — the small cell-corner indicator + popup.
   'sheet.mutation.update-note',
   'sheet.mutation.remove-note',
+  // Conditional formatting (sheets-conditional-formatting). Mutations
+  // are self-contained — `add` carries the full rule, `set` carries
+  // the patched rule, `delete` / `move` carry rule ids. Univer's
+  // `ConditionalFormattingRuleModel` consumes them and triggers a
+  // canvas re-render so highlighted cells update on peers. Existing
+  // rules in a downloaded seed already load via the workbook's
+  // resource channel; the mutations cover deltas during the session.
+  'sheet.mutation.add-conditional-rule',
+  'sheet.mutation.set-conditional-rule',
+  'sheet.mutation.delete-conditional-rule',
+  'sheet.mutation.move-conditional-rule',
 ]);
 
 /** Mutation ids for which the bridge captures undo params before the
@@ -407,13 +446,21 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
           // just created.
           const sheetBefore =
             rec.id === 'sheet.mutation.insert-sheet' ? captureActiveSheetId(api) : null;
+          // Lazy-plugin gate: if this mutation belongs to a plugin we
+          // haven't mounted yet (CF, tables, filter, notes,
+          // hyperlinks), the mutation handler is missing and the
+          // change drops silently. AWAIT plugin load before executing.
+          // For mutations not in the map, this resolves to undefined
+          // and the executeCommand fires immediately.
+          const lazyGroup = MUTATION_TO_LAZY_GROUP[rec.id];
           // Fire-and-forget; ordering is preserved by Univer's command bus
           // serialising its own dispatch.
           // `.catch` surfaces malformed-mutation / out-of-bounds replays
           // that would otherwise silently fork local state — every
           // divergence we've chased after a release started as one of
           // these swallowed throws.
-          cmdSvc.executeCommand(rec.id, params, { fromCollab: true })
+          (lazyGroup ? ensurePluginByName(lazyGroup) : Promise.resolve())
+            .then(() => cmdSvc.executeCommand(rec.id, params, { fromCollab: true }))
             .then(() => {
               if (sheetBefore) restoreActiveSheetId(api, sheetBefore);
             })

@@ -24,6 +24,8 @@ export default defineConfig({
     '**/coedit-insert-sheet.spec.ts',
     '**/coedit-sheet-ops.spec.ts',
     '**/coedit-cursor-math.spec.ts',
+    '**/coedit-synced-mutations.spec.ts',
+    '**/coedit-conditional-formatting.spec.ts',
   ],
   use: {
     baseURL: 'http://127.0.0.1:5273',

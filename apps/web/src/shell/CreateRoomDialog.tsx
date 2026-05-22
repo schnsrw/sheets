@@ -147,14 +147,13 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
         /* private mode — owner will be re-prompted, fine */
       }
     }
-    // Mark this tab as the room's owner. CollabDriver reads this on the
-    // destination /r/<id> page and skips the seed download — the owner
-    // already has the workbook in memory.
-    try {
-      sessionStorage.setItem(`casual.collab.owner.${created.roomId}`, '1');
-    } catch {
-      /* falls through — owner just re-imports their own xlsx, slow but correct */
-    }
+    // Earlier code marked the tab as room owner and CollabDriver
+    // skipped the seed download. That was broken: window.location.href
+    // is a full page navigation that nukes the in-memory workbook, so
+    // the owner ended up with an empty grid. We now always re-fetch
+    // the seed on /r/<id> mount (one round-trip, but the owner just
+    // uploaded the snapshot so it's already in the server-side cache
+    // — joiner-path fast.)
     // Owner always joins as write — the view URL is for the people they
     // share with. Navigate (not assign) so back-button works cleanly.
     window.location.href = created.writeUrl;

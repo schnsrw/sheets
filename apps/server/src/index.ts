@@ -128,10 +128,18 @@ app.post<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) =
 /**
  * Serve the room's xlsx starting workbook. Joiners apply this locally
  * before the bridge runs so they begin from the same state as the owner.
+ *
+ * Gated by the room password (header `x-room-password`) when the room
+ * is password-protected. Without this gate, anyone with the room URL
+ * could fetch the contents — making the password a UI illusion rather
+ * than an actual access control.
  */
 app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) => {
   const room = rooms.get(req.params.id);
   if (!room?.xlsxSeed) return reply.code(404).send({ error: 'no_seed' });
+  if (!checkRoomPassword(req, room.id)) {
+    return reply.code(401).send({ error: 'unauthorized' });
+  }
   reply.header(
     'content-type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -139,6 +147,26 @@ app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) =>
   reply.header('cache-control', 'no-store');
   return reply.send(Buffer.from(room.xlsxSeed));
 });
+
+/**
+ * Constant-time password check for a room request. The password rides
+ * the `x-room-password` header — preferable to a query string because
+ * it stays out of access logs and browser history. Falls back to the
+ * `?p=` query param so clients with restricted header control (e.g.
+ * EventSource) can still authenticate.
+ *
+ * Returns true for open (no-password) rooms.
+ */
+function checkRoomPassword(req: { headers: Record<string, unknown>; query?: unknown }, roomId: string): boolean {
+  const headerVal = req.headers['x-room-password'];
+  const headerPw = typeof headerVal === 'string' ? headerVal : undefined;
+  const queryPw =
+    typeof req.query === 'object' && req.query !== null
+      ? (req.query as { p?: unknown }).p
+      : undefined;
+  const password = typeof headerPw === 'string' ? headerPw : typeof queryPw === 'string' ? queryPw : undefined;
+  return rooms.passwordOk(roomId, password ?? null);
+}
 
 /**
  * Upload a pre-parsed gzipped `IWorkbookData` snapshot for the room.
@@ -171,9 +199,15 @@ app.post<{ Params: { id: string } }>('/api/rooms/:id/snapshot', async (req, repl
 app.get<{ Params: { id: string } }>('/api/rooms/:id/snapshot', async (req, reply) => {
   const room = rooms.get(req.params.id);
   if (!room?.snapshotGz) return reply.code(404).send({ error: 'no_snapshot' });
+  if (!checkRoomPassword(req, room.id)) {
+    return reply.code(401).send({ error: 'unauthorized' });
+  }
   reply.header('content-type', 'application/json');
   reply.header('content-encoding', 'gzip');
-  reply.header('cache-control', 'public, max-age=3600, immutable');
+  // Private — the password gates access, so each protected response
+  // must NOT be served from a shared / proxy cache. Browser disk cache
+  // still kicks in (immutable) so warm re-joins stay fast.
+  reply.header('cache-control', room.passwordHash ? 'private, max-age=3600, immutable' : 'public, max-age=3600, immutable');
   return reply.send(Buffer.from(room.snapshotGz));
 });
 

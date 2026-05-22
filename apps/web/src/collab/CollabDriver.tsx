@@ -58,6 +58,23 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   // The actual password (kept in memory only) once the user has provided
   // one — needed to retry on reconnect after a transient drop.
   const passwordRef = useRef<string>('');
+  // Pending password-prompt resolver. The connect flow awaits this so
+  // we can hold the seed/snapshot fetch off until the user submits.
+  // Replaced wholesale by each `promptForPassword` call; the previous
+  // promise is left dangling — that's fine, no work is gated on it.
+  const passwordPromptResolverRef = useRef<{
+    resolve: (pw: string) => void;
+    reject: (err: Error) => void;
+  } | null>(null);
+  const promptForPassword = useCallback(
+    (id: string, joinRole: CollabRole, error?: string): Promise<string> => {
+      return new Promise<string>((resolve, reject) => {
+        passwordPromptResolverRef.current = { resolve, reject };
+        setPasswordPrompt({ roomId: id, role: joinRole, error });
+      });
+    },
+    [],
+  );
 
   // Local identity. `null` until we've decided we're joining a room.
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -99,49 +116,93 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       const info = await fetchRoomInfo(id);
       if (cancelled) return;
 
-      // Load the room's starting workbook before bringing the bridge
-      // up — otherwise we'd ship a blank grid to peers and overwrite
-      // any local edits made between mount and seed-apply. The owner
-      // is marked with a sessionStorage flag when they navigated here,
-      // so they skip the round-trip (they already *have* the workbook
-      // in memory — replacing it would just churn).
-      if ((info?.hasSnapshot || info?.hasSeed) && !wasOwnerOfRoom(id)) {
+      if (!info) {
+        // Room not found — fall through to the connect attempt anyway;
+        // the server will close the upgrade with a clean error.
+        join(id, requestedRole, '');
+        return;
+      }
+
+      // STEP 1 — resolve the password BEFORE any content fetch. Earlier
+      // versions downloaded the workbook first and then prompted, which
+      // (a) leaked content to anyone who knew the room URL and (b) let
+      // the joiner see fully-rendered cells behind the password modal
+      // for a second or two. Hold here until the user submits a
+      // password we can pass to the seed/snapshot fetches.
+      let password = '';
+      if (info.needsPassword) {
+        const stashed = readStashedPassword(id);
+        if (stashed) {
+          password = stashed;
+        } else {
+          // Show the prompt and wait for submit. Resolve to the
+          // entered password; cancellation throws so the outer
+          // try/finally tears down cleanly.
+          try {
+            password = await promptForPassword(id, requestedRole);
+          } catch {
+            // User cancelled — bail out, leave the page idle.
+            setStatus('off');
+            return;
+          }
+          if (cancelled) return;
+        }
+      }
+
+      // STEP 2 — fetch the room's starting workbook. We always do this
+      // (even for the owner) because the owner navigates via
+      // `window.location.href = ...` to /r/<id>, which is a full page
+      // load — the in-memory workbook from the share dialog is gone by
+      // the time we get here. The earlier "owner already has the data
+      // in memory" optimisation only worked when navigation was a
+      // React-router push, which it isn't.
+      if (info.hasSnapshot || info.hasSeed) {
         let loadFailed = false;
         try {
           setStatus('connecting');
-          // Show the loading overlay for the joiner. We don't know the
-          // file name yet (the server only ships bytes), so use the
-          // room id as a stand-in label.
           loading.set({ fileName: `room ${id}`, phase: 'reading' });
 
-          // Fast path: try the pre-parsed gzipped snapshot first. This
-          // skips ExcelJS entirely — multi-second win on big workbooks.
-          // Browser handles `content-encoding: gzip` transparently, so
-          // we just read the JSON.
+          // Pass the password on the fetch as a header — the server uses
+          // it to gate /seed and /snapshot the same way it gates the WS
+          // upgrade. The header is more correct than `?p=` because it
+          // doesn't end up in access logs / browser history.
+          const authHeader: Record<string, string> = password
+            ? { 'x-room-password': password }
+            : {};
+
           let data: import('@univerjs/core').IWorkbookData | null = null;
           let snapshotAttempted = false;
-          if (info?.hasSnapshot && typeof DecompressionStream !== 'undefined') {
+          if (info.hasSnapshot && typeof DecompressionStream !== 'undefined') {
             snapshotAttempted = true;
             try {
-              const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/snapshot`);
+              const res = await fetch(
+                `/api/rooms/${encodeURIComponent(id)}/snapshot`,
+                { headers: authHeader },
+              );
               if (res.ok) {
                 loading.set({ phase: 'mounting' });
                 data = (await res.json()) as import('@univerjs/core').IWorkbookData;
-              } else if (!info?.hasSeed) {
-                // No seed fallback — propagate the HTTP error.
+              } else if (res.status === 401) {
+                throw new Error('Password rejected by server.');
+              } else if (!info.hasSeed) {
                 throw new Error(`Server returned ${res.status} fetching room snapshot.`);
               } else {
                 console.warn('[collab] snapshot fast-path returned', res.status, '— falling back to xlsx');
               }
             } catch (err) {
-              if (!info?.hasSeed) throw err;
+              if (!info.hasSeed) throw err;
               console.warn('[collab] snapshot fast-path failed, falling back to xlsx', err);
             }
           }
 
-          // Slow path: parse the xlsx in the worker.
-          if (!data && info?.hasSeed) {
-            const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/seed`);
+          if (!data && info.hasSeed) {
+            const res = await fetch(
+              `/api/rooms/${encodeURIComponent(id)}/seed`,
+              { headers: authHeader },
+            );
+            if (res.status === 401) {
+              throw new Error('Password rejected by server.');
+            }
             if (!res.ok) {
               throw new Error(`Server returned ${res.status} fetching room seed.`);
             }
@@ -157,7 +218,7 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
             // Univer's unit-swap is async — wait a frame so the new
             // unit is wired into the facade before the bridge attaches.
             await new Promise((r) => requestAnimationFrame(() => r(null)));
-          } else if (snapshotAttempted || info?.hasSeed) {
+          } else if (snapshotAttempted || info.hasSeed) {
             throw new Error('Room contents could not be loaded (no snapshot or seed returned).');
           }
         } catch (err) {
@@ -170,33 +231,14 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
             error: `Couldn't load this room: ${msg}`,
           });
         } finally {
-          // Only auto-dismiss when the load succeeded. If it failed, the
-          // overlay stays open in error mode so the user can read why
-          // before clicking Dismiss.
           if (!loadFailed) requestAnimationFrame(() => loading.set(null));
         }
         if (cancelled || loadFailed) return;
       }
 
-      if (!info) {
-        // Room not found — fall through to the connect attempt anyway;
-        // the server will close the upgrade with a clean error.
-        join(id, requestedRole, '');
-        return;
-      }
-      if (info.needsPassword) {
-        // The owner just stashed their fresh password before navigating —
-        // skip the prompt if we have it. sessionStorage scope dies with
-        // the tab, so this never leaks across sharing boundaries.
-        const stashed = readStashedPassword(id);
-        if (stashed) {
-          join(id, requestedRole, stashed);
-        } else {
-          setPasswordPrompt({ roomId: id, role: requestedRole });
-        }
-      } else {
-        join(id, requestedRole, '');
-      }
+      // STEP 3 — bring up the Yjs connection. By this point either
+      // there's no password OR we already have it.
+      join(id, requestedRole, password);
     })();
 
     return () => {
@@ -236,8 +278,15 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       // When a peer's compaction snapshot lands, replace our local
       // workbook with it — same path File→Open uses. Without this,
       // late joiners + restored sessions miss the workbook state.
-      onSnapshotReceived: (wb) => {
+      //
+      // The bridge AWAITS this — return a promise that resolves after
+      // Univer's async unit swap has had a chance to wire into the
+      // facade. Without the frame await, the bridge's next replay
+      // rewrites unitId against the OLD workbook (see Issue 2 in
+      // docs/COLLAB-FIXES.md).
+      onSnapshotReceived: async (wb) => {
         workbook.replaceWorkbook(wb, 'xlsx');
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       },
     });
 
@@ -247,24 +296,48 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       else setStatus('offline');
     };
     next.on('status', onStatus);
-    // 4xx close codes from our upgrade handler surface as the provider
-    // never moving past `connecting`. Listen for the underlying close
-    // so we can flip to `denied` when auth fails.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (next as any).on?.('close', (ev: { code?: number }) => {
-      if (ev?.code === 401 || ev?.code === 4401) {
-        setStatus('denied');
-        setPasswordPrompt({
-          roomId: id,
-          role: joinRole,
-          error: 'Incorrect password — try again.',
-        });
-      }
+    // Auth-failure routing. The server now completes the WS upgrade and
+    // then closes the socket with code 4401 when the password is wrong
+    // (see apps/server/src/yjs.ts) — that way the browser surfaces it
+    // as a real CloseEvent we can switch on, rather than a 1006 that
+    // looks indistinguishable from a network drop.
+    //
+    // The forwarded close event from Hocuspocus is a plain CloseEvent;
+    // `event` is the underlying browser CloseEvent.
+    const handleDeniedClose = () => {
+      // Tear down THIS provider so the underlying provider's auto-reconnect
+      // doesn't keep hammering the server with the wrong password.
+      teardown();
+      setStatus('denied');
+      // Re-prompt for the password. On submit, the resolver fires
+      // `join(id, joinRole, pw)` again via the connect flow — but we
+      // need to drive that directly from here since we're not in the
+      // main connect promise anymore.
+      void promptForPassword(id, joinRole, 'Incorrect password — try again.').then(
+        (pw) => join(id, joinRole, pw),
+        () => setStatus('off'),
+      );
+    };
+    // Hocuspocus `close` payload is `{ event: CloseEvent }`.
+    next.on('close', (payload: { event?: { code?: number } } | undefined) => {
+      const code = payload?.event?.code;
+      if (code === 4401 || code === 1008) handleDeniedClose();
     });
+    // Belt-and-braces: Hocuspocus also emits `authenticationFailed` when
+    // its own onAuthenticate hook rejects. We don't use that hook today,
+    // but wiring this means a future auth hook just works.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (next as any).on?.('authenticationFailed', handleDeniedClose);
 
     docRef.current = doc;
     handleRef.current = handle;
     setProvider(next);
+    // Expose for e2e diagnostics / browser-devtools poking. Same
+    // policy as __univerAPI — no secrets, but invaluable when a real
+    // user reports "the sync looks broken" and we need to inspect
+    // the live Yjs document state without rebuilding.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__hocuspocusProvider = next;
 
     // Charts ride a dedicated Y.Map keyed by chart id. The bridge's
     // op-log only carries Univer mutations (cell writes, structural
@@ -328,11 +401,13 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
             state={passwordPrompt}
             onCancel={() => {
               setPasswordPrompt(null);
-              setStatus('off');
+              passwordPromptResolverRef.current?.reject(new Error('cancelled'));
+              passwordPromptResolverRef.current = null;
             }}
             onSubmit={(pw) => {
               setPasswordPrompt(null);
-              join(passwordPrompt.roomId, passwordPrompt.role, pw);
+              passwordPromptResolverRef.current?.resolve(pw);
+              passwordPromptResolverRef.current = null;
             }}
           />
         )}
@@ -496,17 +571,6 @@ function readStashedPassword(roomId: string): string | null {
     return sessionStorage.getItem(`casual.collab.pw.${roomId}`);
   } catch {
     return null;
-  }
-}
-
-/** True when this tab created the room and navigated here from the share
- *  dialog. The owner's workbook is already loaded — re-fetching the seed
- *  would just churn a multi-second xlsx parse for no benefit. */
-function wasOwnerOfRoom(roomId: string): boolean {
-  try {
-    return sessionStorage.getItem(`casual.collab.owner.${roomId}`) === '1';
-  } catch {
-    return false;
   }
 }
 

@@ -1,230 +1,196 @@
 # Co-editing — design
 
-> Phase 2 — real-time collaborative editing layered on top of the Phase 1
-> single-user editor. Shipped as a self-hosted Docker image; the GitHub
-> Pages build at `sheet.schnsrw.live` stays single-user.
+Real-time collaborative editing layered on top of the single-user editor.
+Available in the self-hosted Docker image; the GitHub Pages demo at `sheet.schnsrw.live` stays single-user.
 
-## Goals (v1)
+---
+
+## Goals
 
 - Two browsers editing the same sheet see each other's edits within ≈250 ms.
 - Anonymous sessions — anyone with the room URL can edit. No accounts.
-- In-memory only — no DB, no autosave. State dies with the room (after a
-  grace period when the last client leaves).
+- Password-protected rooms with role-based access (edit / view-only).
+- In-memory only by default; optional Redis persistence (7-day TTL) for sessions that survive restarts.
 - Single Docker image (`schnsrw/casual-sheets`) — one command to self-host.
 
-## Out of scope (v1)
+## Out of scope
 
-- Persistence beyond the room lifecycle (no Postgres, no S3, no WOPI).
-- Auth / sharing UI / per-user permissions.
-- Awareness presence (cursors, name badges) — Phase 3.
-- Multi-room load balancing / horizontal scaling. v1 = one process, in-memory.
+- Persistence beyond room lifecycle (no Postgres, no S3, no WOPI).
+- Auth / per-user accounts.
+- Multi-room load balancing / horizontal scaling — single process, in-memory.
+
+---
 
 ## Stack
 
-| Concern             | Pick                                                     |
-| ------------------- | -------------------------------------------------------- |
-| Sync transport      | Yjs (CRDT) + Hocuspocus WebSocket server                 |
-| HTTP / WebSocket    | Fastify + `@hocuspocus/server`                           |
-| Workbook conversion | ExcelJS (same as the existing client xlsx I/O)           |
-| Distribution        | Single multi-stage Dockerfile, Node 22 alpine runtime    |
+| Concern | Pick |
+| --- | --- |
+| Sync transport | Yjs (CRDT) + Hocuspocus WebSocket server |
+| HTTP / WebSocket | Fastify + `@hocuspocus/server` |
+| Persistence | Redis (optional, 7-day TTL on Y.Doc binary updates) |
+| Distribution | Single multi-stage Dockerfile, Node 22 Alpine |
 
-Yjs is the canonical CRDT for collaborative documents; Hocuspocus is the
-well-maintained reference server. Both are MIT-licensed.
+---
 
 ## Architecture
 
 ```
-┌──────────────────────── Browser ─────────────────────────┐
-│                                                          │
-│  Casual Sheets (built static bundle)                     │
-│  ├── Univer OSS — grid + formulas + rendering            │
-│  ├── Yjs ↔ Univer bridge (apps/web/src/collab/)         │
-│  │     subscribe → ICommandService.onMutationExecutedForCollab │
-│  │     apply remote → executeCommand(…, { fromCollab: true })  │
-│  └── y-websocket-provider → wss://host/yjs               │
-│                                                          │
-└──────────────────────────┬───────────────────────────────┘
-                           │ WebSocket
-                           ▼
-┌──────────────────────── Node server ─────────────────────┐
-│                                                          │
-│  Fastify (HTTP)                                          │
-│  ├── GET  /                — serves the built web app    │
-│  ├── GET  /r/:roomId       — same SPA, room context      │
-│  ├── POST /api/rooms       — create empty / from xlsx    │
-│  ├── GET  /api/rooms/:id/download — serialize → xlsx     │
-│  └── GET  /health          — liveness                    │
-│                                                          │
-│  Hocuspocus (WebSocket)                                  │
-│  ├── ws  /yjs              — Yjs sync protocol           │
-│  ├── room registry (Map<roomId, RoomState>)              │
-│  └── idle GC: free room after N minutes with 0 clients   │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────── Browser ───────────────────────────┐
+│                                                              │
+│  Casual Sheets (built static bundle)                         │
+│  ├── Univer OSS — grid + formulas + rendering                │
+│  ├── Yjs ↔ Univer bridge (apps/web/src/collab/bridge.ts)    │
+│  │     subscribe → ICommandService.onMutationExecutedForCollab│
+│  │     apply remote → executeCommand(…, { fromCollab: true })│
+│  ├── CollabDriver.tsx — join/leave/reconnect state machine   │
+│  ├── PresenceLayer.tsx — peer cursor overlay                 │
+│  ├── AvatarStack.tsx — title-bar presence                    │
+│  ├── HistoryPanel.tsx — per-room op log                      │
+│  └── y-websocket-provider → wss://host/yjs                   │
+│                                                              │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ WebSocket /yjs
+                             ▼
+┌────────────────────── Node server ───────────────────────────┐
+│                                                              │
+│  Fastify (HTTP)                                              │
+│  ├── GET  /                    serves the built web app      │
+│  ├── GET  /r/:roomId           same SPA, room context        │
+│  ├── POST /api/rooms           create room {password?, seed?}│
+│  ├── GET  /api/rooms/:id/info  {needsPassword, hasSeed, …}  │
+│  ├── POST /api/rooms/:id/seed  xlsx upload                   │
+│  ├── GET  /api/rooms/:id/seed  download seed                 │
+│  ├── POST /api/rooms/:id/snapshot  gzip snapshot upload      │
+│  ├── GET  /api/rooms/:id/snapshot  joiner fast-path          │
+│  └── GET  /health              liveness                      │
+│                                                              │
+│  Hocuspocus (WebSocket /yjs)                                 │
+│  ├── Room registry Map<roomId, RoomState>                    │
+│  ├── Password gate: SHA-256, close code 4401 on fail         │
+│  ├── Op-log compaction on requestIdleCallback (Stage 6)      │
+│  └── GC: throwaway rooms evicted after TTL; seeded/password  │
+│          rooms kept indefinitely (or until Redis TTL expires) │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-One process, one image. The server both serves the built frontend and
-handles WebSocket sync. Self-host with:
-
-```sh
-docker run -p 3000:3000 schnsrw/casual-sheets:latest
-# open http://localhost:3000
-```
+---
 
 ## Yjs document schema
 
-Per workbook, one `Y.Doc` is structured as:
+One `Y.Doc` per room. Structure mirrors `IWorkbookData`:
 
-```ts
-// Top-level
-doc.getMap('meta')                 // { name, createdAt, lastEditedAt }
-doc.getMap('sheets')               // sheetId → Y.Map<SheetData>
-
-// Per sheet (Y.Map<SheetData>)
-sheet.get('name')          → Y.Text     // sheet name (mutable)
-sheet.get('cellData')      → Y.Map      // rowKey → Y.Map (colKey → Y.Map<CellData>)
-sheet.get('mergeData')     → Y.Array    // IRange[]
-sheet.get('columnData')    → Y.Map      // colKey → { w, hd }
-sheet.get('rowData')       → Y.Map      // rowKey → { h, hd }
-
-// Per cell (Y.Map<CellData>)
-cell.get('v') → primitive | null    // value
-cell.get('f') → string | null       // formula
-cell.get('s') → string | null       // style id
-cell.get('p') → Y.Map | null        // rich-text body (hyperlinks, etc.)
+```
+Y.Doc
+├─ Y.Map "meta"         { id, name, sheetOrder[], locale, appVersion }
+├─ Y.Map "styles"       { [styleId]: IStyleData }
+├─ Y.Map "sheets"
+│   └─ Y.Map [sheetId]
+│       ├─ Y.Map "meta"       { name, tabColor, hidden, zoom, freeze… }
+│       ├─ Y.Map "cells"      { "r:c": ICellData }
+│       ├─ Y.Array "merges"
+│       ├─ Y.Map "rowData"    { [row]: IRowData }
+│       └─ Y.Map "columnData" { [col]: IColumnData }
+├─ Y.Map "resources"    plugin-defined payloads
+│   ├─ "SHEET_CONDITIONAL_FORMAT_PLUGIN"
+│   ├─ "DATA_VALIDATION_PLUGIN"
+│   ├─ "DRAWING_PLUGIN"
+│   └─ "CASUAL_SHEETS_CHARTS"
+└─ Y.Map "defined-names"  { [name]: IDefinedNameData }
 ```
 
-**Why a row-keyed `Y.Map` instead of a flat `Y.Map<"row,col", Cell>`**: row /
-column inserts shift thousands of cells in a single Univer mutation. Keying
-by row lets us insert/move a single Y.Map entry instead of N cell-level
-operations. Trades off slightly more nesting on cell reads.
+**Conflict semantics:** last-writer-wins on Y.Map leaves — acceptable Excel semantics.
 
-**What we DON'T sync**:
+**What we don't sync:** computed formula results (`v` on a cell with `f`). Each client computes locally. Keeps payload small and avoids `RAND()` / `NOW()` divergence.
 
-- Computed formula results (`v` on a cell with `f`). Each client computes
-  locally — keeps the Yjs payload small and avoids `RAND()` / `NOW()`
-  non-determinism per PLAN.md §"The hard part".
-- Selection / cursor / scroll position. Belongs in **awareness** (Phase 3),
-  not in the doc itself.
-- Plugin extras that already live in `IWorkbookData.resources` (tables,
-  hyperlinks, outline groups) — Phase 2.1.
+---
 
-## Bridge contract (Univer ↔ Yjs)
-
-Two directions, both load-bearing.
+## Bridge contract
 
 ### Local edit → Yjs
 
-1. Subscribe to `ICommandService.onMutationExecutedForCollab` (per
-   [`CLAUDE.md`](../CLAUDE.md)). This is the only hook that fires for
-   `CommandType.MUTATION` and includes `syncOnly` mutations.
-2. Discriminate on mutation `id`:
-   - `sheet.mutation.set-range-values` → write cells into Y.Map.
-   - `sheet.mutation.move-rows` / `move-cols` / `insert-row` / etc. →
-     reshape `cellData` map.
-   - `sheet.mutation.set-row-hidden` / `set-col-hidden` → patch row/col data.
-3. Wrap each in a `doc.transact(…, ORIGIN_LOCAL)` block so the remote
-   listener can skip our own edits.
+1. Subscribe to `ICommandService.onMutationExecutedForCollab` — fires for `CommandType.MUTATION` only, including `syncOnly` mutations. See `vendor/univer/packages/core/src/services/command/command.service.ts:404`.
+2. Translate mutation `id` to Y.Doc operations. Coalesce per microtask via `doc.transact` — one paste / sort / fill = one Yjs encode = one WS frame.
+3. Wrap in `doc.transact(…, ORIGIN_LOCAL)` so the remote listener skips our own updates.
 
 ### Remote update → Univer
 
-1. Subscribe to `doc.on('update', …)` with `origin !== ORIGIN_LOCAL` filter.
-2. Diff the changed `Y.Map` paths against the last-applied snapshot.
-3. For each change, dispatch the equivalent Univer command **with
-   `IExecutionOptions.fromCollab = true`** (per
-   [`CLAUDE.md`](../CLAUDE.md)) so the `onMutationExecutedForCollab` hook
-   doesn't re-broadcast.
+1. `doc.on('update', …)` with `origin !== ORIGIN_LOCAL` filter.
+2. Decode mutation(s) from the Y.Doc diff.
+3. `deepRewriteUnitId` to patch the local unit ID throughout the params tree.
+4. `cs.syncExecuteCommand(id, params, { fromCollab: true })` — the `fromCollab` flag prevents the `onMutationExecutedForCollab` hook from re-broadcasting (echo-loop prevention).
 
 ### Echo-loop prevention
 
-Two layers, both required:
+Two independent layers, both required:
 
-- **Yjs origin**: every local mutation goes through `doc.transact(fn,
-  ORIGIN_LOCAL)`. The update listener checks `origin !== ORIGIN_LOCAL`
-  before applying.
-- **Univer fromCollab**: remote-applied commands carry `fromCollab: true`
-  in the execution options. Univer's `onMutationExecutedForCollab` skips
-  these per its built-in filter.
+- **Yjs origin**: local mutations go through `doc.transact(fn, ORIGIN_LOCAL)`. Listener checks `origin !== ORIGIN_LOCAL`.
+- **Univer fromCollab**: remote commands carry `{ fromCollab: true }`. `onMutationExecutedForCollab` skips these.
 
-If either layer breaks, a single edit ping-pongs until the formula engine
-chokes. Test against echo regression on every bridge change.
+If either breaks, a single edit ping-pongs until the formula engine saturates. Echo regression is covered by `tests/e2e/coedit.spec.ts`.
+
+---
+
+## Presence
+
+Peer state is routed via **Yjs Awareness** (separate from the document — doesn't affect undo/redo):
+
+```ts
+provider.awareness.setLocalStateField('cursor', { sheetId, row, col })
+provider.awareness.setLocalStateField('selection', { sheetId, range })
+provider.awareness.setLocalStateField('liveEdit', { sheetId, row, col, value })
+provider.awareness.setLocalStateField('user', { name, color, lastSeen })
+```
+
+`PresenceLayer.tsx` renders a `<canvas>` overlay that paints each peer's selection rect, cursor, and name label. Cursor positions are recomputed on scroll and on zoom changes so they stay pinned to the correct cell in frozen panes.
+
+`AvatarStack.tsx` in the title bar shows up to 4 peer initials + a `+N` overflow chip. Tooltips show "Active now" or "Last seen Ns ago".
+
+`LiveEditGhost.tsx` renders character-by-character preview in the peer's current edit cell.
+
+---
+
+## Security
+
+- **Password gate**: `POST /api/rooms` accepts `{ password }`. Hashed with SHA-256 + constant-time compare. Failing the WS upgrade returns close code `4401`; the client routes this to a retry prompt.
+- **View-only enforcement**: Hocuspocus tags the session role. On the client, `CollabDriver` sets `WorkbookEditablePermission = false` on the Univer workbook, blocking all mutations at the engine layer — not just the UI.
+- **Known gap**: the server itself does not reject mutations from view-only WebSocket connections. A client that bypasses the Univer permission gate could still push ops. Server-side enforcement is tracked as a P0 for the next cycle.
+
+---
 
 ## Room lifecycle
 
-| Event                       | What happens                                      |
-| --------------------------- | ------------------------------------------------- |
-| `POST /api/rooms`           | New `Y.Doc`, seeded (empty or from uploaded xlsx). Returns `{ roomId }`. |
-| WS connect to `/yjs?room=X` | Hocuspocus joins the room's Y.Doc, replays state. |
-| Last client disconnects     | Room marked idle. Timer starts.                   |
-| Idle > `ROOM_TTL_MIN` (5)   | Room evicted, Y.Doc freed.                        |
-| Server restart              | All rooms lost. Re-upload to recover.             |
+| Event | What happens |
+| --- | --- |
+| `POST /api/rooms` | New `Y.Doc`, optionally seeded from xlsx. Returns `{ roomId }`. |
+| WS connect `/yjs?room=X&p=<pw>` | Hocuspocus joins the Y.Doc; replays state to the joiner. |
+| Last client disconnects | Room marked idle; timer starts. |
+| Idle > `ROOM_TTL_MIN` | Throwaway rooms (no password, no seed) evicted. Password/seeded rooms kept. |
+| Redis configured | Y.Doc binary updates persisted; survives server restart. |
+| Redis TTL expires | Room data purged after 7 days of inactivity. |
 
-Limits enforced at upload time:
+---
 
-- File size cap: 25 MB (Fastify multipart limit).
-- Cell count cap: 50 000 used cells (rejects "fix-my-50-row-sheet" oddities
-  early, not at edit time when the engine has already chewed through them).
+## Joiner fast-path
+
+When the owner shares a room, the client uploads a gzipped `IWorkbookData` snapshot to `POST /api/rooms/:id/snapshot`. Joiners fetch it from `GET /api/rooms/:id/snapshot` (immutable-cached) and install it directly — skipping the xlsx parse entirely. Any ops that arrived after the snapshot was taken are replayed by the Yjs provider on connect.
+
+---
+
+## Op-log compaction (Stage 6)
+
+Long-lived rooms accumulate Y.Doc binary updates. The server schedules a compaction pass (full snapshot re-encode + update-log discard) on `requestIdleCallback` when the room is active but quiet. Compacted state is written back to Redis if persistence is enabled. This keeps memory bounded for multi-hour sessions.
+
+---
 
 ## Self-host
 
-### Build the image locally
-
 ```sh
-docker build -t schnsrw/casual-sheets:dev .
+# Quick start — in-memory, no persistence:
+docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
+
+# With Redis — rooms survive restarts:
+docker compose up -d
 ```
 
-### Run
-
-```sh
-docker run --rm -p 3000:3000 schnsrw/casual-sheets:dev
-# open http://localhost:3000
-```
-
-### Compose (development with hot reload)
-
-```sh
-docker compose up
-# - web hot-reloads on localhost:5273 (Vite)
-# - server hot-reloads on localhost:3000 (tsx watch)
-# - WS at ws://localhost:3000/yjs
-```
-
-### Compose (production)
-
-```sh
-docker compose -f docker-compose.prod.yml up -d
-# single combined image, serves on :3000
-```
-
-## Test plan
-
-1. **Spike — one-cell sync.** Two Playwright contexts open the same
-   `/r/:roomId`. Edit A1 in context 1. Within 1 s, A1 shows the new value
-   in context 2. Lock down with `tests/e2e/coedit.spec.ts`.
-2. **Echo-loop guard.** Same setup. Edit A1 ten times rapidly. Both
-   contexts agree on the final value AND total Yjs update count ≤ 10 + 2
-   (small slack for awareness chatter). Catches "remote update re-broadcasts
-   as local" regressions.
-3. **Room teardown.** Create a room, close both contexts, wait
-   `ROOM_TTL_MIN` + a beat, reconnect with the same id, expect a fresh
-   empty document. Confirms idle GC.
-4. **xlsx round-trip through a room.** Upload .xlsx, open the returned
-   roomId, download, compare cell values to the original. Confirms the
-   Yjs schema lossless-converts to/from Univer's `IWorkbookData`.
-
-## Open decisions (revisit after the spike)
-
-1. **Formula `v` strategy.** Drop computed values from sync entirely, or
-   sync the writer's value and let readers re-compute on next edit? The
-   first is simpler; the second avoids a flash of stale value on slow
-   formula engines.
-2. **Style sharing.** Cells reference `styles[styleId]`. When two clients
-   add the same style independently, we get two different IDs. Either:
-   merge equivalent styles client-side, or accept the duplication (cheap
-   on memory, no semantic problem).
-3. **Conflict UX.** Last-writer-wins is fine for cell values. Worth
-   surfacing in the UI when a user's edit is silently overridden?
-   Probably "no" for v1 — adds chrome without clear value.
-
-These are intentionally left open until the spike tells us what hurts in
-practice.
+See [`docs/DOCKERHUB.md`](./DOCKERHUB.md) for the full compose snippet and configuration reference.

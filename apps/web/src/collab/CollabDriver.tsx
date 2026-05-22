@@ -678,12 +678,19 @@ function wireChartsSync(
       for (const id of map.keys()) {
         if (!nextIds.has(id)) map.delete(id);
       }
-      // Add / overwrite charts that are. Yjs only encodes a delta when
-      // the value actually changed (it serialises new bytes either way,
-      // but downstream subscribers diff before re-applying).
+      // Add / overwrite changed charts. Reference equality is the
+      // right diff here: ChartsContext's `update` only creates a new
+      // object for the chart that actually changed (it uses
+      // `prev.map(c => c.id === id ? {...c, ...patch} : c)` so
+      // untouched charts keep their reference). `insert` adds a new
+      // ref. `remove` only filters. So `cur !== c` flags ALL real
+      // local changes and ignores no-ops in O(1) per chart, vs the
+      // previous JSON.stringify-per-chart which scaled with chart
+      // payload size and dominated re-render cost on dashboards with
+      // many ECharts options.
       for (const c of next) {
         const cur = map.get(c.id);
-        if (!cur || !shallowEqualChart(cur, c)) map.set(c.id, c);
+        if (cur !== c) map.set(c.id, c);
       }
     });
   };
@@ -710,9 +717,3 @@ function wireChartsSync(
   };
 }
 
-function shallowEqualChart(a: ChartModel, b: ChartModel): boolean {
-  // Cheap structural compare to avoid an extra Yjs encode when the
-  // chart object reference changed but the values are identical
-  // (React's `setCharts` always returns a new array on every set).
-  return JSON.stringify(a) === JSON.stringify(b);
-}

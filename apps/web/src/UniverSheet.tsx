@@ -19,6 +19,7 @@ import {
   setUniverForLazyLoad,
 } from './univer/lazy-plugins';
 import { installDevHelpers } from './univer/dev-helpers';
+import { disableUniverZoomShortcut } from './univer/disable-zoom-shortcut';
 import { registerPasteMergeHook } from './univer/paste-merge-hook';
 import { timeIt, timeItAsync } from './perf';
 import { WorkbookContext } from './workbook-context';
@@ -61,6 +62,7 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
 
     let teardownDevHelpers: (() => void) | null = null;
     let teardownPasteMergeHook: (() => void) | null = null;
+    let teardownZoomShortcut: (() => void) | null = null;
     let raf = 0;
     let cancelled = false;
     void (async () => {
@@ -87,6 +89,10 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
 
       raf = requestAnimationFrame(() => setReady(true));
       teardownDevHelpers = installDevHelpers(api);
+      // Override Univer's Ctrl+- / Ctrl+= zoom shortcuts so our
+      // Excel-style Insert/Delete-cells dialogs aren't fighting a
+      // simultaneous canvas zoom.
+      teardownZoomShortcut = disableUniverZoomShortcut(api);
 
       // Idle-load every remaining lazy plugin so the user finds them
       // ready when they reach the Insert / Data / Format tabs. The
@@ -110,6 +116,7 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       queueMicrotask(() => toDispose.dispose());
       teardownDevHelpers?.();
       teardownPasteMergeHook?.();
+      teardownZoomShortcut?.();
     };
     // Mount Univer exactly once. Snapshot changes are handled by the swap
     // effect below — recreating Univer per snapshot would race React's render.

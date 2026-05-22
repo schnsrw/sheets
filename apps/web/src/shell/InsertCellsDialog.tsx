@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog } from './Dialog';
 
 export type CellOpDirection =
@@ -33,6 +33,28 @@ const OPTIONS: { id: CellOpDirection; insertLabel: string; deleteLabel: string }
 export function InsertCellsDialog({ mode, onCancel, onConfirm }: Props) {
   const [dir, setDir] = useState<CellOpDirection>('entire-row');
   const title = mode === 'insert' ? 'Insert' : 'Delete';
+  // Focus the active radio on open so arrow keys navigate options
+  // immediately. Without this, focus defaulted to the OK button and
+  // pressing Enter applied the default ("Entire row") before the user
+  // realised they'd opened a dialog at all. Now Enter still confirms
+  // but the user can clearly see + change the selection first.
+  const activeRadioRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    activeRadioRef.current?.focus();
+  }, []);
+  // Arrow up/down inside the radiogroup moves selection (native radio
+  // behaviour handles this when all radios share `name`); Enter on the
+  // group applies. Escape cancels — wired here so a focused radio
+  // still responds (Dialog's outer escape wouldn't catch it otherwise).
+  const onGroupKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onConfirm(dir);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  };
   return (
     <Dialog
       title={title}
@@ -59,20 +81,27 @@ export function InsertCellsDialog({ mode, onCancel, onConfirm }: Props) {
         </>
       }
     >
-      <div className="cells-op" role="radiogroup" aria-label={`${title} options`}>
+      <div
+        className="cells-op"
+        role="radiogroup"
+        aria-label={`${title} options`}
+        onKeyDown={onGroupKeyDown}
+      >
         {OPTIONS.map((o) => {
           const label = mode === 'insert' ? o.insertLabel : o.deleteLabel;
+          const isActive = dir === o.id;
           return (
             <label
               key={o.id}
-              className={`cells-op__option${dir === o.id ? ' cells-op__option--active' : ''}`}
+              className={`cells-op__option${isActive ? ' cells-op__option--active' : ''}`}
               data-testid={`${mode}-cells-${o.id}`}
             >
               <input
+                ref={isActive ? activeRadioRef : undefined}
                 type="radio"
                 name="cells-op"
                 value={o.id}
-                checked={dir === o.id}
+                checked={isActive}
                 onChange={() => setDir(o.id)}
               />
               <span>{label}</span>

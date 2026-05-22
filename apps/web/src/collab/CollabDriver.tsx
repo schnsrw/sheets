@@ -22,6 +22,7 @@ import {
 import { usePresenceWire } from './usePresenceWire';
 import { NamePrompt } from './NamePrompt';
 import { PresenceLayer } from './PresenceLayer';
+import { applyViewOnlyMode } from './view-mode';
 
 /**
  * Owns the co-edit join flow:
@@ -46,6 +47,11 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   const docRef = useRef<Y.Doc | null>(null);
   // Cleanup for the charts ↔ Yjs bridge wired up when a doc connects.
   const chartsSyncDisposeRef = useRef<(() => void) | null>(null);
+  // Cleanup for the view-only permission gate. Applied after join for
+  // `role=view` joiners; re-applied on every workbook swap (snapshot
+  // replace, late-join seed apply) since the permission is per-unit-id
+  // and a swap creates a fresh unit.
+  const viewModeDisposeRef = useRef<(() => void) | null>(null);
 
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [needsSelfHost, setNeedsSelfHost] = useState(false);
@@ -287,6 +293,16 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       onSnapshotReceived: async (wb) => {
         workbook.replaceWorkbook(wb, 'xlsx');
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        // The swap created a new unit id — re-apply the view-only
+        // permission against it. The previous permission point was
+        // tied to the old unit id and is now stale.
+        if (joinRole === 'view' && api) {
+          const next = api.getActiveWorkbook();
+          if (next) {
+            viewModeDisposeRef.current?.();
+            viewModeDisposeRef.current = applyViewOnlyMode(api, next.getId());
+          }
+        }
       },
     });
 
@@ -346,12 +362,29 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
     // converge in one round-trip just like cell edits.
     chartsSyncDisposeRef.current = wireChartsSync(doc, charts, joinRole);
 
+    // View-only joiners get Univer's WorkbookEditablePermission flipped
+    // to false. The editor refuses to open and edit menu items go
+    // disabled — the bridge's role-gate (which drops outbound
+    // mutations) becomes belt-and-braces rather than the only line of
+    // defence. Apply after the first frame so the workbook unit is
+    // wired into the facade.
+    if (joinRole === 'view' && api) {
+      requestAnimationFrame(() => {
+        const wb = api.getActiveWorkbook();
+        if (!wb) return;
+        viewModeDisposeRef.current?.();
+        viewModeDisposeRef.current = applyViewOnlyMode(api, wb.getId());
+      });
+    }
+
     console.info('[collab] joined room', id, 'as', joinRole);
   }, [api, charts]);
 
   const teardown = (): void => {
     chartsSyncDisposeRef.current?.();
     chartsSyncDisposeRef.current = null;
+    viewModeDisposeRef.current?.();
+    viewModeDisposeRef.current = null;
     handleRef.current?.dispose();
     setProvider((p) => {
       p?.destroy();

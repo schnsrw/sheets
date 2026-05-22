@@ -4049,6 +4049,199 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Version-history preview banner. Sits in the natural document flow
+   above the grid row while a snapshot is being previewed. Blue tint so
+   it's visually distinct from the orange autosave banner (different
+   urgency: "informational, you're in preview" vs "warning, recover?").
+   ───────────────────────────────────────────────────────────────────────── */
+.preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #eff6ff;
+  border-bottom: 1px solid #93c5fd;
+  color: #1e3a8a;
+  font-size: 13px;
+}
+.preview-banner__text { flex: 1; }
+.preview-banner__btn {
+  font: inherit;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #93c5fd;
+  background: transparent;
+  color: #1e3a8a;
+  cursor: pointer;
+}
+.preview-banner__btn:hover { background: #dbeafe; }
+.preview-banner__btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.preview-banner__btn--primary:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Version-history panel. Builds on `.side-panel` chrome and adds a
+   two-tab strip + a time-grouped snapshot list. Manual snapshots get
+   a bookmark icon (intentionally saved); auto snapshots get a clock.
+   ───────────────────────────────────────────────────────────────────────── */
+.version-history__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-divider);
+  padding: 0 4px;
+}
+.version-history__tab {
+  position: relative;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.version-history__tab:hover { color: var(--color-text); }
+.version-history__tab--active {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold, 600);
+}
+.version-history__tab--active::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 2px 2px 0 0;
+}
+.version-history__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.version-history__group { padding: 6px 12px 10px; }
+.version-history__group-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: var(--weight-medium, 500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, var(--color-text-secondary));
+}
+.version-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.version-history__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.version-history__row:hover { background: var(--color-hover); }
+.version-history__row--active {
+  background: var(--color-accent-soft, var(--color-pressed));
+}
+.version-history__row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 4px;
+  cursor: pointer;
+  min-width: 0;
+}
+.version-history__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.version-history__name {
+  font-size: 13px;
+  font-weight: var(--weight-medium, 500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.version-history__when {
+  font-size: 11px;
+  color: var(--color-text-muted, var(--color-text-secondary));
+}
+.version-history__kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  color: var(--color-text-secondary);
+}
+.version-history__kind--manual { color: var(--color-accent); }
+.version-history__row-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.version-history__row:hover .version-history__row-actions,
+.version-history__row--active .version-history__row-actions {
+  opacity: 1;
+}
+.version-history__action {
+  border: 0;
+  background: transparent;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.version-history__action:hover { background: var(--color-pressed); color: var(--color-text); }
+.version-history__action--danger:hover { color: #b91c1c; }
+.version-history__rename-input {
+  font: inherit;
+  font-size: 13px;
+  padding: 2px 4px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  width: 100%;
+}
+.version-history__activity {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.version-history__activity > .side-panel {
+  border-left: 0;
+  border-top: 0;
+  background: transparent;
+  width: 100%;
+  flex: 1;
+}
+/* Hide the nested HistoryPanel's own header — we already render the
+   panel header at the outer VersionHistoryPanel level. */
+.version-history__activity .side-panel__header { display: none; }
+
+/* ─────────────────────────────────────────────────────────────────────────
    Responsive shell — keep the app usable on a phone-sized viewport.
    The Univer canvas grid already handles touch (pinch-zoom, drag-scroll,
    long-press selection). The chrome around it is what breaks: a 7-tab

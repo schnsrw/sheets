@@ -7,6 +7,7 @@ import { AboutDialog } from './AboutDialog';
 import { CommandSearchDialog, type CommandSearchItem } from './CommandSearchDialog';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
+import { saveNamedVersion } from '../version-history/useVersionHistoryCapture';
 import { useUI } from '../use-ui';
 import { emptyWorkbook } from '../snapshot';
 import {
@@ -931,6 +932,32 @@ export function MenuBar() {
                 onClick: () => ui.openShareRoom(),
               },
             ] as MenuItem[])),
+        { kind: 'separator', id: 'sep-version' },
+        {
+          kind: 'item',
+          id: 'save-version',
+          label: 'Save version…',
+          icon: 'bookmark_add',
+          onClick: () => {
+            const name = window.prompt(
+              'Name this version (e.g. "Q3 draft", "before pivot redo"):',
+              'New version',
+            );
+            if (!name || !api) return;
+            const data = api.getActiveWorkbook()?.save() as unknown as Parameters<typeof saveNamedVersion>[0] | undefined;
+            if (!data) return;
+            void saveNamedVersion(data, name.trim(), workbook.meta.sourceFormat ?? null);
+          },
+        },
+        {
+          kind: 'item',
+          id: 'show-version-history',
+          label: 'Version history',
+          icon: 'history',
+          onClick: () => {
+            if (!ui.historyPanelVisible) ui.toggleHistoryPanel();
+          },
+        },
         { kind: 'separator', id: 'sep-props' },
         { kind: 'item', id: 'properties', label: 'Properties…', icon: 'info', onClick: () => setShowProperties(true) },
         { kind: 'item', id: 'about', label: 'About casual sheets', icon: 'help_outline', onClick: () => setShowAbout(true) },

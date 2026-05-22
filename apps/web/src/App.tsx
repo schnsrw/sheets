@@ -13,6 +13,7 @@ import { useWorkbookGrowth } from './hooks/useWorkbookGrowth';
 import { useFileDrop } from './hooks/useFileDrop';
 import {
   WorkbookContext,
+  type PreviewState,
   type WorkbookCtxValue,
   type WorkbookFormat,
   type WorkbookMeta,
@@ -28,12 +29,15 @@ import { BusyProvider } from './busy-context';
 import { ChartsProvider } from './charts/charts-context';
 import { ChartLayer } from './charts/ChartLayer';
 import { ChartsPanel } from './shell/ChartsPanel';
-import { HistoryPanel } from './shell/HistoryPanel';
+import { VersionHistoryPanel } from './shell/VersionHistoryPanel';
 import { PanelRail } from './shell/PanelRail';
 import { PanelMutex } from './shell/PanelMutex';
+import { PreviewBanner } from './shell/PreviewBanner';
+import { PreviewDriver } from './shell/PreviewDriver';
 import { PivotsProvider } from './pivots/pivots-context';
 import { useAutosave } from './autosave/useAutosave';
 import { AutosaveRestoreBanner } from './autosave/AutosaveRestoreBanner';
+import { useVersionHistoryCapture } from './version-history/useVersionHistoryCapture';
 
 export function App() {
   // Snapshot lives in a ref, NOT React state — see workbook-context.tsx.
@@ -58,6 +62,72 @@ export function App() {
   const [historyPanelVisible, setHistoryPanelVisible] = useState(false);
   const [shareRoomOpen, setShareRoomOpen] = useState(false);
   const [loading, setLoading] = useState<LoadingState | null>(null);
+
+  // Version-history preview state. `preview` is the visible shape;
+  // `previewSavedRef` keeps the pre-preview workbook off React state
+  // so a multi-MB snapshot isn't duplicated when we already have one
+  // copy in Univer.
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const previewSavedRef = useRef<{ data: IWorkbookData; sourceFormat: WorkbookFormat | null } | null>(null);
+
+  const enterPreview = useCallback(
+    (
+      versionId: number,
+      versionName: string,
+      versionSavedAt: number,
+      snapshotData: IWorkbookData,
+      snapshotSourceFormat: WorkbookFormat | null,
+      currentLiveData: IWorkbookData,
+      currentLiveFormat: WorkbookFormat | null,
+    ) => {
+      previewSavedRef.current = { data: currentLiveData, sourceFormat: currentLiveFormat };
+      setPreview({ versionId, versionName, versionSavedAt });
+      // Stash both refs before the swap kicks off the React revision
+      // bump — the snapshot ref-clear timer must see the new data, not
+      // the saved one. `replaceWorkbook` itself sets snapshotRef.
+      snapshotRef.current = snapshotData;
+      setMeta((prev) => ({
+        id: snapshotData.id ?? prev.id,
+        name: snapshotData.name ?? prev.name,
+        sourceFormat: snapshotSourceFormat,
+        revision: prev.revision + 1,
+      }));
+      // Drop the stash after consumers handle the revision bump.
+      setTimeout(() => {
+        setTimeout(() => {
+          if (snapshotRef.current === snapshotData) snapshotRef.current = null;
+        }, 0);
+      }, 0);
+    },
+    [],
+  );
+
+  const exitPreview = useCallback(() => {
+    const saved = previewSavedRef.current;
+    previewSavedRef.current = null;
+    setPreview(null);
+    if (!saved) return;
+    snapshotRef.current = saved.data;
+    setMeta((prev) => ({
+      id: saved.data.id ?? prev.id,
+      name: saved.data.name ?? prev.name,
+      sourceFormat: saved.sourceFormat,
+      revision: prev.revision + 1,
+    }));
+    setTimeout(() => {
+      setTimeout(() => {
+        if (snapshotRef.current === saved.data) snapshotRef.current = null;
+      }, 0);
+    }, 0);
+  }, []);
+
+  const commitPreview = useCallback(() => {
+    // The snapshot is already the live workbook (loaded in
+    // enterPreview). All we do is drop the saved-state ref and clear
+    // the preview flag so editing re-enables and the banner hides.
+    previewSavedRef.current = null;
+    setPreview(null);
+  }, []);
 
   const replaceWorkbook = useCallback(
     (next: IWorkbookData, format?: WorkbookFormat | null) => {
@@ -91,8 +161,17 @@ export function App() {
   }, []);
 
   const wbValue: WorkbookCtxValue = useMemo(
-    () => ({ meta, snapshotRef, replaceWorkbook, renameWorkbook }),
-    [meta, replaceWorkbook, renameWorkbook],
+    () => ({
+      meta,
+      snapshotRef,
+      replaceWorkbook,
+      renameWorkbook,
+      preview,
+      enterPreview,
+      exitPreview,
+      commitPreview,
+    }),
+    [meta, replaceWorkbook, renameWorkbook, preview, enterPreview, exitPreview, commitPreview],
   );
 
   const loadingValue: LoadingCtxValue = useMemo(
@@ -196,6 +275,8 @@ export function App() {
             <GrowthDriver />
             <FileDropDriver />
             <AutosaveDriver />
+            <VersionHistoryDriver />
+            <PreviewDriver />
             <CollabDriver>
               <div
                 className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
@@ -205,6 +286,7 @@ export function App() {
                 <MenuBar />
                 <Toolbar />
                 <AutosaveRestoreBanner />
+                <PreviewBanner />
                 {formulaBarVisible && <FormulaBar />}
                 <div className="grid-row">
                   <main className="grid-host" data-testid="grid-host">
@@ -213,7 +295,7 @@ export function App() {
                   {tablesPanelVisible && <TablesPanel />}
                   {outlinePanelVisible && <OutlinePanel />}
                   {chartsPanelVisible && <ChartsPanel />}
-                  {historyPanelVisible && <HistoryPanel />}
+                  {historyPanelVisible && <VersionHistoryPanel />}
                   <PanelRail />
                 </div>
                 <SheetTabs />
@@ -245,6 +327,13 @@ function GrowthDriver(): ReactNode {
 /** Effect-only — drives the IDB autosave loop. No-op in collab rooms. */
 function AutosaveDriver(): ReactNode {
   useAutosave();
+  return null;
+}
+
+/** Effect-only — drives the version-history snapshot capture loop.
+ *  Coarse cadence (~10 min while dirty) so it doesn't fight autosave. */
+function VersionHistoryDriver(): ReactNode {
+  useVersionHistoryCapture();
   return null;
 }
 

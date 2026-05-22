@@ -26,6 +26,17 @@ export type WorkbookMeta = {
   revision: number;
 };
 
+/**
+ * Active version-history preview, if any. Non-null while the user is
+ * examining a past snapshot in the main grid; the PreviewBanner
+ * renders from this shape and offers Restore / Cancel.
+ */
+export type PreviewState = {
+  versionId: number;
+  versionName: string;
+  versionSavedAt: number;
+};
+
 export type WorkbookCtxValue = {
   meta: WorkbookMeta;
   /**
@@ -47,6 +58,28 @@ export type WorkbookCtxValue = {
    * Univer's `setName` on the active workbook. No re-mount.
    */
   renameWorkbook: (name: string) => void;
+  /** Version-history preview state. Null when not previewing. */
+  preview: PreviewState | null;
+  /**
+   * Enter preview: caller supplies the live workbook state (read from
+   * `wb.save()` before calling) so App can stash it for the cancel
+   * path. App then swaps to the snapshot via replaceWorkbook.
+   */
+  enterPreview: (
+    versionId: number,
+    versionName: string,
+    versionSavedAt: number,
+    snapshotData: IWorkbookData,
+    snapshotSourceFormat: WorkbookFormat | null,
+    currentLiveData: IWorkbookData,
+    currentLiveFormat: WorkbookFormat | null,
+  ) => void;
+  /** Leave preview, restoring the pre-preview workbook. */
+  exitPreview: () => void;
+  /** Make the previewed snapshot the live workbook. The caller is
+   *  responsible for capturing the pre-restore live state as a
+   *  manual version FIRST (so undo of restore exists). */
+  commitPreview: () => void;
 };
 
 export const WorkbookContext = createContext<WorkbookCtxValue | null>(null);

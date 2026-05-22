@@ -6,7 +6,7 @@ import { useWorkbook } from '../use-workbook';
 import { useLoading } from '../loading-context';
 import { xlsxToWorkbookData } from '../xlsx';
 import { startBridge, type BridgeHandle } from './bridge';
-import { CollabContext, type CollabRole, type CollabStatus } from './collab-context';
+import { CollabContext, type CollabRole, type CollabStatus, type SyncHealth } from './collab-context';
 import { useCharts } from '../charts/charts-context';
 import type { ChartModel } from '../charts/types';
 import { PresenceContext } from './presence-context';
@@ -399,9 +399,67 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   // the avatar stack and the overlay through context.
   const { peers } = usePresenceWire(api, provider, identity);
 
+  // Divergence detector — peers broadcast their Y.Doc state-vector hex
+  // every 5 s via awareness. Compute aggregate sync health: in-sync
+  // when every visible peer's `sv` matches our local doc's; syncing
+  // when they disagree but the disagreement is recent (< 15 s); and
+  // diverged otherwise. Local SV is read directly from our doc; the
+  // peers' SV comes off awareness. Recomputed on a 2 s interval to
+  // catch the "syncing → diverged" transition without doing work on
+  // every awareness change.
+  const [syncHealth, setSyncHealth] = useState<SyncHealth>('in-sync');
+  const firstDisagreeAtRef = useRef<number>(0);
+  useEffect(() => {
+    if (status !== 'live' || !docRef.current) {
+      setSyncHealth('in-sync');
+      firstDisagreeAtRef.current = 0;
+      return;
+    }
+    const compute = () => {
+      const doc = docRef.current;
+      if (!doc) return;
+      let local = '';
+      try {
+        const sv = Y.encodeStateVector(doc);
+        let hex = '';
+        for (let i = 0; i < sv.length; i += 1) {
+          const b = sv[i];
+          if (b < 16) hex += '0';
+          hex += b.toString(16);
+        }
+        local = hex;
+      } catch {
+        /* doc destroyed mid-tick */
+        return;
+      }
+      // A peer counts only if they reported an `sv` in the last 30 s —
+      // older readings are stale (peer might have disconnected, idle
+      // tab throttled by browser, etc.) and would false-positive.
+      const now = Date.now();
+      const fresh = peers.filter((p) => typeof p.sv === 'string' && typeof p.svAt === 'number' && now - (p.svAt as number) < 30_000);
+      if (fresh.length === 0) {
+        setSyncHealth('in-sync');
+        firstDisagreeAtRef.current = 0;
+        return;
+      }
+      const allMatch = fresh.every((p) => p.sv === local);
+      if (allMatch) {
+        setSyncHealth('in-sync');
+        firstDisagreeAtRef.current = 0;
+      } else {
+        if (firstDisagreeAtRef.current === 0) firstDisagreeAtRef.current = now;
+        const elapsed = now - firstDisagreeAtRef.current;
+        setSyncHealth(elapsed > 15_000 ? 'diverged' : 'syncing');
+      }
+    };
+    compute();
+    const id = setInterval(compute, 2000);
+    return () => clearInterval(id);
+  }, [status, peers]);
+
   const collabCtx = useMemo(
-    () => ({ enabled: isCollabEnabled(), roomId, status, role }),
-    [roomId, status, role],
+    () => ({ enabled: isCollabEnabled(), roomId, status, role, syncHealth }),
+    [roomId, status, role, syncHealth],
   );
 
   const presenceCtx = useMemo(

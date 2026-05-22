@@ -3286,6 +3286,20 @@ button {
 }
 .collab-indicator--offline .collab-indicator__dot { background: #d93025; }
 
+/* Sync-health warning: WS is "live" but our Y.Doc state vector
+   disagrees with peers' for >15 s. Amber to distinguish from the
+   harder red of "offline" (still recoverable; user just needs to
+   know). Pulses to draw the eye without being aggressive. */
+.collab-indicator--diverged {
+  color: #b06000;
+  border-color: color-mix(in srgb, #e7a851 50%, transparent);
+  background: color-mix(in srgb, #e7a851 12%, var(--color-surface));
+}
+.collab-indicator--diverged .collab-indicator__dot {
+  background: #e7a851;
+  animation: collab-pulse 1.6s ease-in-out infinite;
+}
+
 @keyframes collab-pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }

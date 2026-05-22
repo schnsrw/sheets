@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { FUniver } from '@univerjs/core/facade';
+import * as Y from 'yjs';
 import { colorForName, type Identity, type Peer, type PeerAwareness } from './presence';
 
 /**
@@ -60,6 +61,8 @@ export function usePresenceWire(
           selection: s.sel,
           liveEdit: s.liveEdit,
           lastSeen: meta?.get(clientId)?.lastUpdated ?? Date.now(),
+          sv: typeof s.sv === 'string' ? s.sv : undefined,
+          svAt: typeof s.svAt === 'number' ? s.svAt : undefined,
         });
       });
       out.sort((a, b) => a.clientId - b.clientId);
@@ -256,5 +259,44 @@ export function usePresenceWire(
     };
   }, [api, awareness]);
 
+  // Divergence-detection heartbeat: every 5 s, encode our Y.Doc state
+  // vector and put it on awareness. Peers compare to their own SV and
+  // surface "out of sync" when they disagree for >15 s (see
+  // CollabIndicator + collab-context syncHealth). The SV is small (one
+  // varint per active clientId) and ships as hex; updating it doesn't
+  // tick selection-change UX because we set it on the same awareness
+  // state we already maintain.
+  useEffect(() => {
+    if (!awareness || !provider?.document) return;
+    const doc = provider.document;
+    const writeSv = () => {
+      try {
+        const sv = Y.encodeStateVector(doc);
+        const hex = bytesToHex(sv);
+        const prev = (awareness.getLocalState() ?? {}) as PeerAwareness;
+        if (prev.sv === hex) return; // nothing changed since last broadcast
+        awareness.setLocalState({ ...prev, sv: hex, svAt: Date.now() });
+      } catch (err) {
+        console.warn('[presence] failed to encode state vector', err);
+      }
+    };
+    writeSv();
+    const id = setInterval(writeSv, 5000);
+    return () => clearInterval(id);
+  }, [awareness, provider]);
+
   return { peers, myClientId };
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  // Hex is fine — base64 would be ~25% smaller but hex is human-readable
+  // in devtools and the payload is tiny anyway (< 32 bytes for typical
+  // rooms).
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    const b = bytes[i];
+    if (b < 16) out += '0';
+    out += b.toString(16);
+  }
+  return out;
 }

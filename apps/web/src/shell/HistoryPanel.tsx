@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { useCollab } from '../collab/collab-context';
 import { usePresence } from '../collab/presence-context';
+import { useUniverAPI } from '../use-univer';
 import { Icon } from './Icon';
 
 /**
@@ -24,12 +25,17 @@ type LogRecord = {
   id?: string;
   kind?: 'snapshot';
   p?: unknown;
+  /** Captured undo params (set for REVERTABLE_MUTATIONS in
+   *  bridge.ts). When present, Revert is enabled. */
+  u?: unknown;
 };
 
 export function HistoryPanel() {
   const { doc, roomId } = useCollab();
   const { me, peers } = usePresence();
+  const api = useUniverAPI();
   const [entries, setEntries] = useState<LogRecord[]>([]);
+  const [reverting, setReverting] = useState<number | null>(null);
 
   // Subscribe to the op-log array. Re-snapshot on every change; the
   // array is small enough (capped by compaction) that a full re-read
@@ -88,17 +94,57 @@ export function HistoryPanel() {
         </div>
       ) : (
         <ol className="history-list" role="list">
-          {sorted.map((rec, i) => (
-            <li key={i} className="history-list__row" data-testid="history-row">
-              <div className="history-list__who" style={{ color: peerColor(rec.c, me?.name, peers) }}>
-                {clientNames.get(rec.c) ?? `client ${rec.c.slice(0, 6)}`}
-              </div>
-              <div className="history-list__what">{describe(rec)}</div>
-              <time className="history-list__when" dateTime={new Date(rec.t).toISOString()}>
-                {formatTime(rec.t)}
-              </time>
-            </li>
-          ))}
+          {sorted.map((rec, i) => {
+            const canRevert = rec.u !== undefined && rec.id !== undefined && !!api;
+            const onRevert = async () => {
+              if (!canRevert) return;
+              setReverting(i);
+              try {
+                // Execute the captured undo params LOCALLY (no
+                // fromCollab) so the bridge captures it as a new
+                // mutation and propagates it to peers — the revert
+                // becomes a normal edit in everyone's history.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const apiAny = api as any;
+                await apiAny.executeCommand?.(rec.id, rec.u);
+              } catch (err) {
+                console.warn('[history] revert failed for', rec.id, err);
+              } finally {
+                setReverting(null);
+              }
+            };
+            return (
+              <li key={i} className="history-list__row" data-testid="history-row">
+                <div
+                  className="history-list__who"
+                  style={{ color: peerColor(rec.c, me?.name, peers) }}
+                >
+                  {clientNames.get(rec.c) ?? `client ${rec.c.slice(0, 6)}`}
+                </div>
+                <time
+                  className="history-list__when"
+                  dateTime={new Date(rec.t).toISOString()}
+                >
+                  {formatTime(rec.t)}
+                </time>
+                <div className="history-list__what">{describe(rec)}</div>
+                <button
+                  type="button"
+                  className="history-list__revert"
+                  data-testid="history-revert"
+                  disabled={!canRevert || reverting !== null}
+                  title={
+                    canRevert
+                      ? 'Revert this change — applies as a new edit, also visible to peers.'
+                      : 'Revert is only available for cell-value changes captured after this session opened.'
+                  }
+                  onClick={() => void onRevert()}
+                >
+                  {reverting === i ? 'Reverting…' : 'Revert'}
+                </button>
+              </li>
+            );
+          })}
         </ol>
       )}
     </aside>

@@ -6,6 +6,7 @@ import {
   type ICommandInfo,
   type IExecutionOptions,
 } from '@univerjs/core';
+import { SetRangeValuesUndoMutationFactory } from '@univerjs/sheets';
 import { deepRewriteUnitId } from './bridge-helpers';
 // y-protocols ships type declarations only as ESM and our tsconfig
 // doesn't pick them up cleanly; loose-type the Awareness surface we
@@ -110,6 +111,17 @@ const SYNCED_MUTATIONS: ReadonlySet<string> = new Set([
   'sheet.mutation.remove-note',
 ]);
 
+/** Mutation ids for which the bridge captures undo params before the
+ *  redo runs. Used by the HistoryPanel's revert action. Restricted to
+ *  cell-level mutations because the existing Univer factories cover
+ *  them and they're the dominant case for "undo my edit"; structural
+ *  ops (insert-row / move-range / sort) need their own factories and
+ *  are out of scope for v1 revert.
+ */
+const REVERTABLE_MUTATIONS: ReadonlySet<string> = new Set([
+  'sheet.mutation.set-range-values',
+]);
+
 type MutationRecord = {
   kind?: 'op';
   /** Yjs client id of the emitter (string for portability via JSON). */
@@ -120,6 +132,13 @@ type MutationRecord = {
   id: string;
   /** Mutation params, JSON-serializable. */
   p: unknown;
+  /** Optional undo params — set for mutations in REVERTABLE_MUTATIONS,
+   *  computed via Univer's `*UndoMutationFactory` BEFORE the redo
+   *  runs (so it reads pre-edit state). The HistoryPanel's Revert
+   *  button feeds this back into `executeCommand(rec.id, rec.u)` to
+   *  restore the pre-edit values. Older log entries without `u`
+   *  predate this feature — their Revert button stays disabled. */
+  u?: unknown;
 };
 
 /**
@@ -206,6 +225,9 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
     onMutationExecutedForCollab: (
       l: (info: ICommandInfo, options?: IExecutionOptions) => void,
     ) => { dispose: () => void };
+    beforeCommandExecuted: (
+      l: (info: ICommandInfo, options?: IExecutionOptions) => void,
+    ) => { dispose: () => void };
     executeCommand: (id: string, params: unknown, options?: IExecutionOptions) => Promise<unknown>;
   };
 
@@ -213,6 +235,31 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
   const myClientId = String(doc.clientID);
   // One-shot guard for the __splitChunk__ regression watchdog below.
   let splitChunkWarned = false;
+  // Undo params keyed by JSON.stringify(params) so we can pair them up
+  // when the matching `onMutationExecutedForCollab` fires moments later.
+  // Cleared after each pairing — there's no eviction policy because the
+  // window between before-execute and after-execute is microseconds.
+  const pendingUndo = new Map<string, unknown>();
+  // Capture undo params BEFORE the redo runs. The factory walks the
+  // current cell state and produces a redo-shaped object that would
+  // restore those cells. Only set-range-values for v1; other types fall
+  // through with no `u` field — the HistoryPanel disables Revert.
+  const subBeforeDispose = cmdSvc.beforeCommandExecuted((info, options) => {
+    if (role === 'view') return;
+    if (options?.fromCollab) return;
+    if (!REVERTABLE_MUTATIONS.has(info.id)) return;
+    try {
+      // The factory's first arg is described as "accessor" — Univer's
+      // accessor IS the injector for our purposes (both expose .get).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const undo = SetRangeValuesUndoMutationFactory(injector as any, info.params as any);
+      pendingUndo.set(JSON.stringify(info.params), undo);
+    } catch (err) {
+      // Pre-edit state was unreadable (workbook missing, sheet gone,
+      // etc.) — skip. The history entry just won't be revertable.
+      console.warn('[collab] failed to capture undo params for', info.id, err);
+    }
+  });
 
   // Local → Yjs: append every synced mutation to the log. Skipped for
   // view-role clients — their local edits never leave their browser.
@@ -253,6 +300,13 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
         info.id,
       );
     }
+    // Pair with the undo params we captured at beforeCommandExecuted
+    // (only set for REVERTABLE_MUTATIONS). The before-hook ran a few
+    // microseconds ago with the SAME params object — match by
+    // stringified key.
+    const key = JSON.stringify(info.params);
+    const undoParams = pendingUndo.get(key);
+    pendingUndo.delete(key);
     pending.push({
       c: myClientId,
       t: Date.now(),
@@ -262,6 +316,7 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
       // discover it via a runtime error; that's the signal to drop the
       // mutation from SYNCED_MUTATIONS.
       p: info.params as unknown,
+      ...(undoParams !== undefined ? { u: undoParams } : {}),
     });
     if (!flushScheduled) {
       flushScheduled = true;
@@ -501,10 +556,12 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
     doc,
     dispose: () => {
       subDispose.dispose();
+      subBeforeDispose.dispose();
       // Flush any pending batch so an edit-then-leave race doesn't drop
       // the last keystroke on the floor.
       if (pending.length > 0) flush();
       log.unobserve(observer);
+      pendingUndo.clear();
       // Two scheduling paths in setup above — clean up whichever ran.
       if (intervalHandle) clearInterval(intervalHandle);
       if (idleHandle !== null && typeof cic === 'function') cic(idleHandle);

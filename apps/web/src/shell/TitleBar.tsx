@@ -4,6 +4,7 @@ import { useUI } from '../use-ui';
 import { useUniverAPI } from '../use-univer';
 import { useCollab } from '../collab/collab-context';
 import { AvatarStack } from '../collab/AvatarStack';
+import { useTheme } from '../theme';
 import { Icon } from './Icon';
 import { BusyPill } from './BusyPill';
 
@@ -17,6 +18,7 @@ export function TitleBar() {
   const ui = useUI();
   const api = useUniverAPI();
   const collab = useCollab();
+  const { theme, toggle: toggleTheme } = useTheme();
   const filename = meta.name || 'Untitled';
 
   const [editing, setEditing] = useState(false);
@@ -131,6 +133,16 @@ export function TitleBar() {
             <span>Share</span>
           </button>
         )}
+        <button
+          type="button"
+          className="titlebar__icon-btn"
+          data-testid="titlebar-theme-toggle"
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          onClick={toggleTheme}
+        >
+          <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="sm" />
+        </button>
       </div>
     </header>
   );

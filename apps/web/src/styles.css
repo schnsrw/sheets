@@ -102,6 +102,99 @@
   --motion-fast: 80ms;
   --motion-base: 140ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Accent on muted/quiet text — only used in a couple places, define
+     here so the dark override can shift it. */
+  --color-text-muted: #8a8886;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Dark theme — manual opt-in, applied to <html data-theme="dark">.
+   Overrides only the colour tokens; the rest of the system (spacing,
+   typography, motion) is theme-agnostic and inherits from :root.
+   Surfaces dropped a notch: zone 0 (canvas-adjacent chrome) ~#1f2024,
+   zone 1 (toolbar) ~#26282d, zone 2 (sheet tabs / status) ~#2e3036.
+   Picked to keep the three-layer hierarchy readable in low-light.
+   ───────────────────────────────────────────────────────────────────────── */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+html[data-theme="dark"] :root,
+[data-theme="dark"] {
+  /* Brand — keep Excel green but tone down saturation so it doesn't
+     buzz against the dark surfaces; soft is a much more transparent
+     blue-green tint readable on near-black bg. */
+  --color-accent: #2faf6b;
+  --color-accent-hover: #34c179;
+  --color-accent-active: #28a060;
+  --color-accent-fg: #ffffff;
+  --color-accent-soft: rgba(47, 175, 107, 0.18);
+
+  --color-bg: #1a1b1f;
+  --color-surface: #1f2024;
+  --color-surface-alt: #26282d;
+  --color-surface-strip: #2e3036;
+  --color-surface-raised: #2a2c31;
+  --color-border: #3a3c42;
+  --color-border-strong: #4a4d54;
+  --color-divider: #2a2c31;
+
+  --color-text: #e6e6e6;
+  --color-text-secondary: #b0b3ba;
+  --color-text-disabled: #6b6e75;
+  --color-text-on-accent: #0e0f12;
+  --color-text-muted: #8d9098;
+
+  --color-hover: rgba(255, 255, 255, 0.06);
+  --color-pressed: rgba(255, 255, 255, 0.12);
+  --color-focus-ring: #2faf6b;
+  --color-selected: rgba(47, 175, 107, 0.20);
+  --color-selected-strong: rgba(47, 175, 107, 0.34);
+
+  --color-toolbar-pill: #2a2c31;
+
+  /* Stronger shadows to read on near-black */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40), 0 1px 1px rgba(0, 0, 0, 0.30);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-3: 0 8px 16px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* Banner palettes get explicit dark variants — they use hardcoded
+   warm/cool tones, not the neutral tokens. */
+html[data-theme="dark"] .autosave-banner {
+  background: #3f2a14;
+  border-bottom-color: #a86332;
+  color: #ffd8b2;
+}
+html[data-theme="dark"] .autosave-banner__btn {
+  border-color: #a86332;
+  color: #ffd8b2;
+}
+html[data-theme="dark"] .autosave-banner__btn:hover { background: #5a3d1c; }
+html[data-theme="dark"] .autosave-banner__btn--primary {
+  background: #c75827;
+  border-color: #c75827;
+  color: #ffffff;
+}
+html[data-theme="dark"] .autosave-banner__btn--primary:hover {
+  background: #d76a36; border-color: #d76a36;
+}
+html[data-theme="dark"] .preview-banner {
+  background: #1a2b48;
+  border-bottom-color: #3b5fa1;
+  color: #cfdcf3;
+}
+html[data-theme="dark"] .preview-banner__btn {
+  border-color: #3b5fa1;
+  color: #cfdcf3;
+}
+html[data-theme="dark"] .preview-banner__btn:hover { background: #243b65; }
+html[data-theme="dark"] .preview-banner__btn--primary {
+  background: #3b6cd8;
+  border-color: #3b6cd8;
+}
+html[data-theme="dark"] .preview-banner__btn--primary:hover {
+  background: #4a7be0; border-color: #4a7be0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -685,6 +778,32 @@ button {
   font-size: 12px;
   font-weight: var(--weight-medium, 500);
   border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+/* Title-bar icon-only action button (theme toggle today, room for more
+   later). Square hit area, no padding-baked text — relies on the icon
+   itself for sizing. */
+.titlebar__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+}
+.titlebar__icon-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+.titlebar__icon-btn:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
 }
 
 /* Working-on-it pill — fires while a known-slow action is mid-flight

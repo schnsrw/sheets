@@ -135,8 +135,11 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const openRoom = () => {
-    if (!created) return;
+  const [opening, setOpening] = useState(false);
+
+  const openRoom = async () => {
+    if (!created || opening) return;
+    setOpening(true);
     // Stash the password in sessionStorage keyed by room id so the owner's
     // own join skips the password prompt — they just typed it. Scoped to
     // sessionStorage so it dies with the tab; never persisted to disk.
@@ -147,13 +150,44 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
         /* private mode — owner will be re-prompted, fine */
       }
     }
-    // Earlier code marked the tab as room owner and CollabDriver
-    // skipped the seed download. That was broken: window.location.href
-    // is a full page navigation that nukes the in-memory workbook, so
-    // the owner ended up with an empty grid. We now always re-fetch
-    // the seed on /r/<id> mount (one round-trip, but the owner just
-    // uploaded the snapshot so it's already in the server-side cache
-    // — joiner-path fast.)
+
+    // Re-upload the seed + snapshot with the CURRENT workbook state.
+    // Between submit (which did the initial upload from a snapshot of
+    // the workbook AT CREATE-CLICK time) and now, the owner could have
+    // typed into cells — the "Ready" stage doesn't disable editing. If
+    // we navigated immediately, those edits would be lost: the page
+    // reload nukes in-memory Univer state, and /r/<id> mount downloads
+    // the STALE seed the server has from submit time. Re-uploading
+    // captures every post-create edit. Best-effort: a network blip
+    // here is logged but doesn't block navigation.
+    if (api) {
+      const auth: Record<string, string> = password.length > 0 ? { 'x-room-password': password } : {};
+      try {
+        const blob = await exportCurrentWorkbookAsXlsxBlob(api, { charts });
+        if (blob) {
+          const form = new FormData();
+          form.append('file', blob, 'seed.xlsx');
+          await fetch(`/api/rooms/${created.roomId}/seed`, {
+            method: 'POST',
+            body: form,
+            headers: auth,
+          });
+        }
+        const wb = api.getActiveWorkbook();
+        if (wb && typeof CompressionStream !== 'undefined') {
+          const snapshot = wb.save();
+          const gzipped = await gzipString(JSON.stringify(snapshot));
+          await fetch(`/api/rooms/${created.roomId}/snapshot`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/gzip', ...auth },
+            body: gzipped as BodyInit,
+          });
+        }
+      } catch (err) {
+        console.warn('[share-room] re-upload before navigate failed', err);
+      }
+    }
+
     // Owner always joins as write — the view URL is for the people they
     // share with. Navigate (not assign) so back-button works cleanly.
     window.location.href = created.writeUrl;
@@ -349,9 +383,10 @@ export function CreateRoomDialog({ onClose }: { onClose: () => void }) {
                 type="button"
                 className="btn-primary"
                 data-testid="share-room-open"
-                onClick={openRoom}
+                onClick={() => void openRoom()}
+                disabled={opening}
               >
-                Open the room
+                {opening ? 'Opening…' : 'Open the room'}
               </button>
             </>
           )}

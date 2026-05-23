@@ -13,6 +13,10 @@ import {
 
 type Props = {
   model: ChartModel;
+  /** Optional list of series names — when present, the dialog renders
+   *  a per-series colour-override picker below the palette section.
+   *  Pulled by the caller from the chart's source range. */
+  seriesNames?: string[];
   onCancel: () => void;
   onConfirm: (next: ChartFormat) => void;
 };
@@ -35,7 +39,7 @@ type Props = {
  * insert). Editing it here also returns it so the caller can persist
  * the rename together with the format change.
  */
-export function FormatChartDialog({ model, onCancel, onConfirm }: Props) {
+export function FormatChartDialog({ model, seriesNames, onCancel, onConfirm }: Props) {
   const merged = mergeFormat(model);
   const family = CHART_FAMILY_OF[model.type];
   const isAxisFamily = family !== 'pie';
@@ -48,8 +52,17 @@ export function FormatChartDialog({ model, onCancel, onConfirm }: Props) {
   const [dataLabels, setDataLabels] = useState(merged.dataLabels);
   const [palette, setPalette] = useState<ChartPalette>(merged.palette);
   const [trendline, setTrendline] = useState(merged.trendline);
+  const [seriesColors, setSeriesColors] = useState<Record<string, string>>(
+    merged.seriesColors ?? {},
+  );
 
   const confirm = () => {
+    // Strip empty / palette-matching overrides so the payload only
+    // carries explicit user picks.
+    const trimmedSeriesColors: Record<string, string> = {};
+    for (const [name, color] of Object.entries(seriesColors)) {
+      if (color && color.trim()) trimmedSeriesColors[name] = color;
+    }
     onConfirm({
       showTitle,
       legend,
@@ -59,6 +72,7 @@ export function FormatChartDialog({ model, onCancel, onConfirm }: Props) {
       dataLabels,
       palette,
       trendline,
+      seriesColors: trimmedSeriesColors,
       // Title text is part of the chart's identity (`ChartModel.title`)
       // not its format. The caller reads the trimmed title via the
       // form input below and applies it alongside the format patch.
@@ -241,6 +255,54 @@ export function FormatChartDialog({ model, onCancel, onConfirm }: Props) {
             ))}
           </div>
         </Section>
+
+        {/* Per-series colour overrides — only rendered when the caller
+            supplied series names from the source range. Each row pairs
+            a colour swatch (native picker) with a Reset button that
+            removes the override and falls back to the palette. */}
+        {seriesNames && seriesNames.length > 0 && (
+          <Section legend="Series colors">
+            <div className="format-chart__series-rows">
+              {seriesNames.map((name, idx) => {
+                const override = seriesColors[name] ?? '';
+                const defaultColor = PALETTES[palette][idx % PALETTES[palette].length];
+                return (
+                  <div
+                    key={name}
+                    className="format-chart__series-row"
+                    data-testid={`format-chart-series-${idx}`}
+                  >
+                    <span className="format-chart__series-name">{name}</span>
+                    <input
+                      type="color"
+                      className="format-chart__series-color"
+                      data-testid={`format-chart-series-color-${idx}`}
+                      value={override || defaultColor}
+                      onChange={(e) =>
+                        setSeriesColors({ ...seriesColors, [name]: e.target.value })
+                      }
+                    />
+                    {override && (
+                      <button
+                        type="button"
+                        className="format-chart__series-reset"
+                        data-testid={`format-chart-series-reset-${idx}`}
+                        title="Reset to palette default"
+                        onClick={() => {
+                          const next = { ...seriesColors };
+                          delete next[name];
+                          setSeriesColors(next);
+                        }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
       </div>
     </Dialog>
   );

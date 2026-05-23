@@ -24,6 +24,8 @@ import { InsertCellsDialog } from './InsertCellsDialog';
 import { PasteSpecialDialog } from './PasteSpecialDialog';
 import { NameManagerDialog } from './NameManagerDialog';
 import { GoalSeekDialog } from './GoalSeekDialog';
+import { InsertSparklineDialog } from '../sparklines/InsertSparklineDialog';
+import { useSparklines } from '../sparklines/sparklines-context';
 import { flashFill } from './flash-fill';
 import { selectDependents, selectPrecedents } from './formula-refs';
 import { openBugReport } from './report-bug';
@@ -373,6 +375,8 @@ export function MenuBar() {
   const [showPasteSpecial, setShowPasteSpecial] = useState(false);
   const [showNameManager, setShowNameManager] = useState(false);
   const [showGoalSeek, setShowGoalSeek] = useState(false);
+  const [showInsertSparkline, setShowInsertSparkline] = useState(false);
+  const sparklinesCtx = useSparklines();
 
   const onClose = () => setOpen(null);
 
@@ -1085,6 +1089,13 @@ export function MenuBar() {
         },
         {
           kind: 'item',
+          id: 'insert-sparkline',
+          label: 'Sparkline…',
+          icon: 'show_chart',
+          onClick: () => setShowInsertSparkline(true),
+        },
+        {
+          kind: 'item',
           id: 'insert-pivot',
           label: 'PivotTable…',
           icon: 'pivot_table_chart',
@@ -1401,6 +1412,31 @@ export function MenuBar() {
         <GoalSeekDialog
           api={api}
           onClose={() => setShowGoalSeek(false)}
+        />
+      )}
+
+      {showInsertSparkline && api && (
+        <InsertSparklineDialog
+          api={api}
+          defaultSourceA1={(() => {
+            const sel = getActiveSelectionRange(api);
+            return sel ? rangeToA1(sel) : '';
+          })()}
+          onCancel={() => setShowInsertSparkline(false)}
+          onConfirm={({ type, source, anchor }) => {
+            setShowInsertSparkline(false);
+            const wb = api.getActiveWorkbook();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ws = wb?.getActiveSheet() as any;
+            if (!wb || !ws) return;
+            sparklinesCtx.add({
+              type,
+              unitId: wb.getId(),
+              sheetId: ws.getSheetId(),
+              source,
+              anchor,
+            });
+          }}
         />
       )}
 

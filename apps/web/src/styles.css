@@ -3255,6 +3255,48 @@ button {
   font-size: 12px;
   font-weight: var(--weight-medium, 500);
 }
+
+/* Per-series colour-override list inside the Format Chart dialog. */
+.format-chart__series-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.format-chart__series-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+.format-chart__series-row:hover { background: var(--color-hover); }
+.format-chart__series-name {
+  flex: 1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.format-chart__series-color {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+}
+.format-chart__series-reset {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  color: var(--color-accent);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.format-chart__series-reset:hover { background: var(--color-pressed); }
 .insert-chart__range {
   width: 100%;
   height: 32px;
@@ -3613,6 +3655,89 @@ button {
   background: var(--color-surface-alt);
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+/* ── Sparklines ────────────────────────────────────────────────── */
+.sparkline-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.sparkline-cell {
+  position: absolute;
+  pointer-events: none;
+}
+.sparkline-cell svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.insert-sparkline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.insert-sparkline__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.insert-sparkline__field input {
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.insert-sparkline__field input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  border-color: var(--color-accent);
+}
+.insert-sparkline__type {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.insert-sparkline__type legend {
+  padding: 0 4px;
+  font-weight: var(--weight-medium, 500);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.insert-sparkline__type-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text);
+  font-size: 13px;
+}
+.insert-sparkline__type-opt:hover { background: var(--color-hover); }
+.insert-sparkline__type-opt--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.insert-sparkline__error {
+  color: #b91c1c;
+  font-size: 12px;
+  padding: 6px 10px;
+  background: #fef2f2;
+  border-radius: var(--radius-sm);
 }
 
 .page-setup__note {

@@ -183,6 +183,7 @@ export function ChartContextMenu({ chartId, x, y, onClose }: Props) {
       {showFormat && (
         <FormatChartDialog
           model={chart}
+          seriesNames={readSeriesNames(api, chart)}
           onCancel={() => {
             setShowFormat(false);
             onClose();
@@ -218,4 +219,25 @@ function colA1(c: number): string {
     n = Math.floor((n - 1) / 26);
   }
   return s;
+}
+
+function readSeriesNames(api: ReturnType<typeof useUniverAPI>, chart: { sheetId: string; source: { startRow: number; startColumn: number; endColumn: number } }): string[] {
+  if (!api) return [];
+  try {
+    const wb = api.getActiveWorkbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sheets = wb?.getSheets() as any[];
+    const ws = sheets?.find((s) => s.getSheetId?.() === chart.sheetId);
+    if (!ws) return [];
+    const { startRow, startColumn, endColumn } = chart.source;
+    const names: string[] = [];
+    for (let c = 1; c <= endColumn - startColumn; c += 1) {
+      const v = ws.getRange(startRow, startColumn + c).getValue();
+      names.push(v == null ? `Series ${c}` : String(v));
+    }
+    return names;
+  } catch (err) {
+    console.debug("[chart-format] failed to read series names", err);
+    return [];
+  }
 }

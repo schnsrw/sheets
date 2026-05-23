@@ -63,7 +63,37 @@ export function buildEChartsOption(api: FUniver, model: ChartModel): EChartsOpti
   });
 
   const format = mergeFormat(model);
-  return buildOptionForType(model.type, headers, categories, seriesData, model.title, format);
+  // If every category parses as a date, build the axis as a time axis
+  // — ECharts gets nicer auto-formatted tick labels (Jan / Feb / Mar /
+  // 2024) than the literal category strings. Pie/scatter/doughnut
+  // ignore this (no category axis); buildOptionForType branches on it.
+  const dates = detectDateCategories(categories);
+  return buildOptionForType(model.type, headers, categories, seriesData, model.title, format, dates);
+}
+
+/**
+ * Returns a parallel array of ms timestamps if every category cell
+ * looks like a date, otherwise null. Heuristic: parses with
+ * `Date.parse` and accepts only results in the 1900–2100 range so we
+ * don't false-positive on raw numbers like `2024` (which parses as
+ * "year 2024-01-01") for what's actually a numeric category.
+ */
+function detectDateCategories(categories: string[]): number[] | null {
+  if (categories.length === 0) return null;
+  const out: number[] = [];
+  const min = Date.UTC(1900, 0, 1);
+  const max = Date.UTC(2100, 0, 1);
+  // Require at least one slash, dash, or letter so a column of bare
+  // integers (e.g. `2024`, `2025`) doesn't get interpreted as years.
+  const dateLike = /[-/]|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i;
+  for (const c of categories) {
+    if (!c) return null;
+    if (!dateLike.test(c)) return null;
+    const t = Date.parse(c);
+    if (!Number.isFinite(t) || t < min || t > max) return null;
+    out.push(t);
+  }
+  return out;
 }
 
 function buildOptionForType(
@@ -73,6 +103,7 @@ function buildOptionForType(
   rawSeries: Array<Array<number | null>>,
   title: string | undefined,
   format: ResolvedChartFormat,
+  dateCategories: number[] | null = null,
 ): EChartsOption {
   const titleNode =
     title && format.showTitle ? { text: title, left: 'center' as const } : undefined;
@@ -173,18 +204,28 @@ function buildOptionForType(
       })
     : null;
 
+  // Time axis only kicks in for horizontal-time charts (column / line /
+  // area). Horizontal bars keep the categorical axis to avoid weird
+  // sideways time scrolling.
+  const useTimeAxis = dateCategories != null && !isHorizontalBar;
+
   const series = headers.map((name, sIdx) => {
     const raw = rawSeries[sIdx] ?? [];
-    const data = is100 && sumPerCat
+    const dataRaw = is100 && sumPerCat
       ? raw.map((v, i) => (typeof v === 'number' ? (v / sumPerCat[i]) * 100 : null))
       : raw;
-    // Linear-regression trendline overlay. We compute the regression
-    // line endpoints in data space and emit a `markLine` from start to
-    // end, dashed + slightly transparent so it doesn't compete with
-    // the primary series.
+    // ECharts' time axis wants `[timestamp, value]` pairs. The
+    // category axis takes plain values aligned with the axis labels.
+    const data = useTimeAxis && dateCategories
+      ? (dataRaw as Array<number | null>).map((v, i) => [dateCategories[i], v])
+      : dataRaw;
     const trendlineMark = format.trendline
-      ? buildTrendlineMark(data as Array<number | null>)
+      ? buildTrendlineMark(dataRaw as Array<number | null>)
       : undefined;
+    // Per-series colour override: if the user picked a specific
+    // colour for this series in the Format Chart dialog, it wins over
+    // the palette's default. Stored on `format.seriesColors[name]`.
+    const overrideColor = format.seriesColors?.[name];
     return {
       name,
       type: echartsType,
@@ -193,17 +234,25 @@ function buildOptionForType(
       ...(isArea ? { areaStyle: {} } : {}),
       ...(isLine ? { smooth: false, symbol: 'circle' as const, symbolSize: 4 } : {}),
       ...(trendlineMark ? { markLine: trendlineMark } : {}),
+      ...(overrideColor ? { itemStyle: { color: overrideColor }, lineStyle: { color: overrideColor } } : {}),
       label: dataLabelConfig(format, isHorizontalBar, isLine || isArea),
     };
   });
 
-  const categoryAxis = {
-    type: 'category' as const,
-    data: categories,
-    name: isHorizontalBar ? (format.yAxisTitle ?? '') : (format.xAxisTitle ?? ''),
-    nameLocation: 'middle' as const,
-    nameGap: 24,
-  };
+  const categoryAxis = useTimeAxis
+    ? {
+        type: 'time' as const,
+        name: isHorizontalBar ? (format.yAxisTitle ?? '') : (format.xAxisTitle ?? ''),
+        nameLocation: 'middle' as const,
+        nameGap: 24,
+      }
+    : {
+        type: 'category' as const,
+        data: categories,
+        name: isHorizontalBar ? (format.yAxisTitle ?? '') : (format.xAxisTitle ?? ''),
+        nameLocation: 'middle' as const,
+        nameGap: 24,
+      };
   const valueAxis: Record<string, unknown> = {
     type: 'value' as const,
     name: isHorizontalBar ? (format.xAxisTitle ?? '') : (format.yAxisTitle ?? ''),

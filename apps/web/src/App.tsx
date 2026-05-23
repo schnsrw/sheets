@@ -36,6 +36,8 @@ import { PreviewDriver } from './shell/PreviewDriver';
 import { ThemeBridge } from './shell/ThemeBridge';
 import { RecentFilesLanding } from './shell/RecentFilesLanding';
 import { PivotsProvider } from './pivots/pivots-context';
+import { SparklinesProvider } from './sparklines/sparklines-context';
+import { SparklineLayer } from './sparklines/SparklineLayer';
 import { useAutosave } from './autosave/useAutosave';
 import { AutosaveRestoreBanner } from './autosave/AutosaveRestoreBanner';
 import { useVersionHistoryCapture } from './version-history/useVersionHistoryCapture';
@@ -272,6 +274,7 @@ export function App() {
         <BusyProvider>
         <ChartsProvider>
         <PivotsProvider>
+        <SparklinesProvider>
           <OutlineProvider>
             <GrowthDriver />
             <FileDropDriver />
@@ -309,7 +312,9 @@ export function App() {
             </CollabDriver>
             <LoadingOverlay />
             <ChartLayer />
+            <SparklineLayer />
           </OutlineProvider>
+        </SparklinesProvider>
         </PivotsProvider>
         </ChartsProvider>
         </BusyProvider>

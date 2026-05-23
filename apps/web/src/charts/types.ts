@@ -117,6 +117,12 @@ export type ChartFormat = {
    *  ignored for pie. ECharts renders this via `markLine` from the
    *  computed regression endpoints. */
   trendline?: boolean;
+  /** Per-series colour overrides, keyed by series name (the header
+   *  row in the source range). Missing entries fall back to the
+   *  active `palette`. Stored on the resource so the override
+   *  survives reload + xlsx round-trip via the chart's `format`
+   *  payload. */
+  seriesColors?: Record<string, string>;
 };
 
 export type ChartPalette = 'office' | 'mono' | 'vivid' | 'pastel';
@@ -136,6 +142,7 @@ export function defaultFormat(model: Pick<ChartModel, 'title'>): ResolvedChartFo
     dataLabels: false,
     palette: 'office',
     trendline: false,
+    seriesColors: {},
   };
 }
 
@@ -151,6 +158,7 @@ export function mergeFormat(
     dataLabels: f.dataLabels ?? base.dataLabels,
     palette: f.palette ?? base.palette,
     trendline: f.trendline ?? base.trendline,
+    seriesColors: f.seriesColors ?? base.seriesColors,
     xAxisTitle: f.xAxisTitle,
     yAxisTitle: f.yAxisTitle,
   };

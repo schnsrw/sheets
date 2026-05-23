@@ -667,21 +667,17 @@ button {
 }
 
 /* Title bar — zone 0 (white). Bigger brand for stronger top-of-page identity. */
-/* Title bar — Google-Docs-style two-row layout. Logo spans both rows
-   on the left, actions span both rows on the right, centre column
-   stacks filename above the MenuBar. CSS Grid keeps each piece pinned
-   to its slot regardless of content width. */
+/* Title bar — Google-Docs-style two-row layout, mirroring docx-editor.
+   Outer flex with `align-items: stretch` so the logo + actions span
+   full height naturally. Center column is a vertical flex that
+   centers the two rows in the available height — no rigid grid rows,
+   so the filename input can flex without breaking the menus row.    */
 .titlebar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: 36px 28px;
-  grid-template-areas:
-    'brand center actions'
-    'brand center actions';
-  align-items: center;
-  column-gap: var(--space-5);
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
   height: var(--titlebar-h);
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-5);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: var(--text-md);
@@ -692,34 +688,53 @@ button {
   border-bottom: 1px solid var(--color-divider);
 }
 
-.titlebar > .titlebar__brand { grid-area: brand; }
-.titlebar > .titlebar__center { grid-area: center; }
-.titlebar > .titlebar__actions { grid-area: actions; }
+.titlebar > .titlebar__brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
 
 .titlebar__center {
-  display: grid;
-  grid-template-rows: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
   min-width: 0;
+  padding: 4px 0;
+  gap: 2px;
 }
 .titlebar__center-top {
   display: flex;
   align-items: center;
   min-width: 0;
+  /* Reserve a baseline height so the filename row reads as its own
+     line even before the inline-rename input expands. */
+  min-height: 24px;
 }
 .titlebar__center-bottom {
   display: flex;
   align-items: center;
   min-width: 0;
+  height: 26px;
 }
 /* MenuBar mounts inline inside the title bar — strip the standalone
    strip's bg/border treatment so it visually belongs to the title bar
-   rather than competing as a separate chrome layer. */
+   rather than competing as a separate chrome layer. Also drop the
+   strip's height + padding so it sits flush with center-bottom. */
 .titlebar__center-bottom > .menubar {
   background: transparent;
   border-bottom: 0;
   padding: 0;
-  height: 28px;
-  margin-left: -6px; /* align first item left of its padded interior */
+  height: auto;
+  flex: 1;
+  margin-left: -6px; /* nudge first menu label flush with filename left edge */
+}
+/* Make individual menu items a touch denser so the second row reads
+   like a sub-line of the title bar, not a separate strip. */
+.titlebar__center-bottom .menubar__item {
+  height: 24px;
+  margin: 1px 0;
+  padding: 0 8px;
 }
 
 .titlebar__brand {
@@ -786,8 +801,8 @@ button {
 .titlebar__actions {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 10px;
-  margin-right: 14px;
 }
 
 .titlebar__share {

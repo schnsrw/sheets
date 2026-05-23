@@ -6,7 +6,7 @@ the result with ExcelJS, and compare feature-by-feature.
 
 Legend: `✅` survived · `⚠️` partial (present but shape differs) · `❌` dropped
 
-**Totals**: 33 ✅ · 0 ⚠️ · 0 ❌ (of 33 probes)
+**Totals**: 41 ✅ · 0 ⚠️ · 0 ❌ (of 41 probes)
 
 ## Sheets
 
@@ -63,6 +63,14 @@ Legend: `✅` survived · `⚠️` partial (present but shape differs) · `❌` 
 | B2 currency | `"\"$\"#,##0.00"` | `"\"$\"#,##0.00"` | ✅ |
 | B3 percent | `"0.00%"` | `"0.00%"` | ✅ |
 | B4 date | `"yyyy-mm-dd"` | `"yyyy-mm-dd"` | ✅ |
+| E2 accounting w/ red negatives | `"#,##0.00_);[Red](#,##0.00)"` | `"#,##0.00_);[Red](#,##0.00)"` | ✅ |
+| E3 thousand-suffix "K" | `"#,##0.0,\"K\""` | `"#,##0.0,\"K\""` | ✅ |
+| E4 fraction (# ?/?) | `"# ?/?"` | `"# ?/?"` | ✅ |
+| E5 scientific | `"0.00E+00"` | `"0.00E+00"` | ✅ |
+| E6 locale tag [$$-409] | `"[$$-409]#,##0.00"` | `"[$$-409]#,##0.00"` | ✅ |
+| E7 datetime w/ seconds | `"yyyy-mm-dd hh:mm:ss"` | `"yyyy-mm-dd hh:mm:ss"` | ✅ |
+| E8 conditional bracket [>=100000] | `"[>=100000]#,##0,\"k\";#,##0"` | `"[>=100000]#,##0,\"k\";#,##0"` | ✅ |
+| E9 literal text suffix "USD" | `"#,##0.00 \"USD\""` | `"#,##0.00 \"USD\""` | ✅ |
 
 ## Merges
 

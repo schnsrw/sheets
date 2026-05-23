@@ -88,6 +88,28 @@ async function buildReferenceXlsx(): Promise<Buffer> {
   s1.getCell('B3').numFmt = '0.00%';
   s1.getCell('B4').numFmt = 'yyyy-mm-dd';
 
+  // Number-format edge cases — these are the codes that commonly
+  // get dropped or mangled by spreadsheet pipelines. We probe each
+  // verbatim on the export side; loss usually means a downstream
+  // layer dereferenced through the built-in numfmt id table and
+  // wrote back the canonical form.
+  s1.getCell('E2').value = -1234.56;
+  s1.getCell('E2').numFmt = '#,##0.00_);[Red](#,##0.00)';      // accounting w/ red negatives
+  s1.getCell('E3').value = 1234567;
+  s1.getCell('E3').numFmt = '#,##0.0,"K"';                       // thousand-suffix
+  s1.getCell('E4').value = 0.125;
+  s1.getCell('E4').numFmt = '# ?/?';                             // simple fraction
+  s1.getCell('E5').value = 12345.6789;
+  s1.getCell('E5').numFmt = '0.00E+00';                          // scientific
+  s1.getCell('E6').value = 1234.5;
+  s1.getCell('E6').numFmt = '[$$-409]#,##0.00';                  // US-English locale tag
+  s1.getCell('E7').value = new Date('2026-05-23T10:11:12Z');
+  s1.getCell('E7').numFmt = 'yyyy-mm-dd hh:mm:ss';               // datetime w/ seconds
+  s1.getCell('E8').value = 150000;
+  s1.getCell('E8').numFmt = '[>=100000]#,##0,"k";#,##0';         // conditional bracket
+  s1.getCell('E9').value = 0.5;
+  s1.getCell('E9').numFmt = '#,##0.00 "USD"';                    // literal text suffix
+
   // Merge.
   s1.mergeCells('A7:C7');
   s1.getCell('A7').value = 'Merged Banner';
@@ -270,6 +292,20 @@ function compareWorkbooks(ref: ExcelJS.Workbook, got: ExcelJS.Workbook): Probe[]
   push('Number format', 'B2 currency', refData.getCell('B2').numFmt, gotData.getCell('B2').numFmt);
   push('Number format', 'B3 percent', refData.getCell('B3').numFmt, gotData.getCell('B3').numFmt);
   push('Number format', 'B4 date', refData.getCell('B4').numFmt, gotData.getCell('B4').numFmt);
+  // Edge cases — same pure-string compare; ExcelJS exposes whatever
+  // pattern survived the xlsx writer's numfmt-id resolution.
+  for (const [addr, what] of [
+    ['E2', 'accounting w/ red negatives'],
+    ['E3', 'thousand-suffix "K"'],
+    ['E4', 'fraction (# ?/?)'],
+    ['E5', 'scientific'],
+    ['E6', 'locale tag [$$-409]'],
+    ['E7', 'datetime w/ seconds'],
+    ['E8', 'conditional bracket [>=100000]'],
+    ['E9', 'literal text suffix "USD"'],
+  ] as Array<[string, string]>) {
+    push('Number format', `${addr} ${what}`, refData.getCell(addr).numFmt, gotData.getCell(addr).numFmt);
+  }
 
   // Merge.
   push(

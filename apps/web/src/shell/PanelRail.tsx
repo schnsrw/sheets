@@ -29,7 +29,7 @@ export function PanelRail() {
       <RailButton
         id="tables"
         label={ui.tablesPanelVisible ? 'Hide Tables' : 'Tables'}
-        icon="table_view"
+        icon="table"
         pressed={ui.tablesPanelVisible}
         onClick={ui.toggleTablesPanel}
       />

@@ -718,13 +718,18 @@ button {
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 26px;
-  font-size: 13px;
+  height: 28px;
+  /* Bumped from 13 to 14 so the menu row matches the filename above —
+     same size = same visual weight, easier to read at a glance. */
+  font-size: 14px;
   line-height: 1;
 }
 
 /* MenuBar mounts inline inside the title bar — strip the standalone
-   strip's bg/border treatment so it visually belongs to the title bar. */
+   strip's bg/border treatment so it visually belongs to the title bar.
+   The `gap` puts breathing room between menu items without bloating
+   each item's own padding (which would break the first-item left-edge
+   alignment with the filename row). */
 .titlebar__center-bottom > .menubar {
   background: transparent;
   border-bottom: 0;
@@ -733,13 +738,14 @@ button {
   height: 100%;
   display: flex;
   align-items: center;
+  gap: 4px;
   flex: 1;
 }
 /* Menu items: same horizontal padding as filename so both rows share
    a vertical baseline on the left. Height matches the row exactly so
    no extra margins push them around. */
 .titlebar__center-bottom .menubar__item {
-  height: 22px;
+  height: 24px;
   margin: 0;
   padding: 0 var(--titlebar-row-pad);
   font-size: inherit;

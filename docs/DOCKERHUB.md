@@ -102,6 +102,7 @@ Build-time knobs (`VITE_MAX_OPEN_MB`, `VITE_SOFT_WARN_MB`, `VITE_COLLAB_ENABLED`
 | Tag | Description |
 | --- | --- |
 | `latest` | Always the highest published release |
+| `0.0.6` | Excel-parity wave — Pivots P1 + drill-down, Sparklines, Goal Seek, Name Manager, Flash Fill, Show Formulas, dark theme, Google-Docs title bar, inline SVG icons, server-side view-only enforcement, recent files, 357 e2e tests |
 | `0.0.5` | Co-edit fidelity pass — charts, pivots, CF/DV/drawings sync, autosave, 337 e2e tests |
 | `0.0.4` | Co-edit polish + large-file pipeline |
 | `0.0.3` | CI stability fix |

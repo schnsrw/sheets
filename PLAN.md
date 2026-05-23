@@ -69,23 +69,45 @@ All three technical risks proved out:
 - ODS fidelity: styles, dimensions, freeze, hyperlinks, comments, defined names.
 - 30+ additional Excel keyboard shortcuts.
 
+### ✅ Phase 5 — Excel-parity wave (complete — v0.0.6)
+- **Analysis tools**: Name Manager (Ctrl+F3), Flash Fill (Ctrl+E), Goal Seek (iterative solver dialog).
+- **Pivot tables P1**: filter fields, Refresh PivotTables, drill-down to contributing source rows (Ctrl+Shift+D).
+- **Charts**: trendlines, date-axis detection, per-series colour overrides.
+- **Sparklines**: in-cell mini-charts (line / column / win-loss), workbook resource persistence for xlsx round-trip.
+- **Show Formulas** (Ctrl+`): non-destructive DOM overlay that paints formula source on every formula cell.
+- **Print Area**: A1 field in Page Setup + File-menu "Set / Clear Print Area" against the active selection.
+- **Recent Files landing**: IndexedDB-backed, last-10 entries, surfaced when the workbook is a blank `Untitled`.
+- **Paste Special** dialog (Ctrl+Alt+V): 6 Univer-native paste modes wired through the standard mutation path.
+- **Server-side view-only enforcement**: Hocuspocus `onAuthenticate` flips `connection.readOnly` so view-role joiners can't bypass the client gate.
+- **Theme**: dark mode toggle (title-bar sun/moon), bridged to Univer's `ThemeService` so the canvas chrome flips too.
+- **Shell rewrites**: Google-Docs-style merged title bar (logo + filename + menus + actions), right-edge panel rail (Tables / Charts / Outline / Comments / History), brand mark aligned with sister doc-editor.
+- **Inline SVG icons**: ~155 components covering every name the app uses; sharp at every size, no font-load delay.
+- **Local version history**: snapshot store + preview + restore in single-user mode.
+- **Status-bar customisation**: right-click checklist (Average / Count / Sum / Min / Max / Numerical Count).
+- **Multi-range presence**: peer cursors render every range in a Ctrl-click selection.
+- **NamePill**: in-room name edit affordance.
+- **Quick wins**: `Ctrl+Alt+L` re-apply filter, `Ctrl+[ / Ctrl+]` precedent / dependent navigation.
+
 ---
 
 ## What's next
 
-### P5 — Excel parity + remaining gaps
+### P6 — Remaining gaps (small)
 
 | Area | What's needed |
 | --- | --- |
-| Pivot tables | P1: filter fields, drill-down, multiple value aggregations, refresh |
-| Charts | Format series individually; trendlines; date-axis handling |
+| Pivots | Multi-row-field with Excel's compact layout |
 | xlsx round-trip | Complex pivot cache, VBA stub passthrough, more numfmt edge cases |
-| Co-edit | Server-side view-only enforcement; multi-range presence fidelity |
-| UX | Recent-files / landing page; display-name edit surface post-join |
+| UX | Display-name edit surface post-join (NamePill covers the title bar; still no in-prompt edit) |
 
-### P6 — WOPI host integration (deferred)
+### P7 — WOPI host integration (deferred)
 
 When persistence is required: add a Hocuspocus persistence adapter (Postgres or S3-backed) and implement the WOPI host contract. The collab layer doesn't change — only the storage backend.
+
+### P8 — Scale (deferred)
+
+- Op-log scale for multi-hour rooms (current Stage-6 compaction is fine for typical sessions; bound growth more aggressively when we see real pressure).
+- Horizontal scale-out: single-process today.
 
 ---
 

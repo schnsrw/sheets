@@ -8,7 +8,7 @@
 [![Deploy](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/schnsrw/casual-sheets?logo=docker)](https://hub.docker.com/r/schnsrw/casual-sheets)
 [![Image Size](https://img.shields.io/docker/image-size/schnsrw/casual-sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/schnsrw/casual-sheets)
-[![E2E Tests](https://img.shields.io/badge/e2e-337%20passing-brightgreen?logo=playwright)](./tests/e2e)
+[![E2E Tests](https://img.shields.io/badge/e2e-357%20passing-brightgreen?logo=playwright)](./tests/e2e)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
 [**Live Demo →**](https://sheet.schnsrw.live/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/schnsrw/casual-sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md)
@@ -27,22 +27,31 @@ Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) with a c
 
 ### Spreadsheet Engine
 
-- Office-style **ribbon** with Home, Insert, Formulas, Data, View, and Review tabs
+- **Google-Docs-style title bar** — logo + filename + classic menus (File / Edit / View / Insert / Format / Data) in a single chrome strip, right-edge **panel rail** for Tables / Charts / Outline / Comments / History
 - **Formula bar** with an editable Name Box (jump to any cell by typing its address)
 - Cell editing: inline edit, F2, formula entry, multi-line paste, cross-sheet references with autocomplete
 - Fonts, colors, fill, borders (7 modes + color picker), alignment, wrap, merge/unmerge
 - Rows + columns: hide/unhide, group/outline (collapse/expand), resize
 - **Freeze panes** — top row, first column, or freeze at any selection
-- **Sort** (single and multi-column dialog), **Filter** (AutoFilter), **Tables** (Format as Table, named tables panel)
+- **Sort** (single and multi-column dialog), **Filter** (AutoFilter + re-apply), **Tables** (Format as Table, named tables panel)
 - **Comments** with corner indicator markers
 - **Conditional formatting**, **data validation**, **drawings** — fully round-tripped and co-edit synced
-- **Charts** — insert dialog, 8 chart types (column, bar, line, area, pie, scatter + stacked / 100% variants), drag-to-resize, format dialog, collab sync, PNG embed in `.xlsx`
-- **Pivot tables** P0 — group-by + aggregate into cell values from the Insert menu
+- **Charts** — 8 types, drag-to-resize, format dialog with **trendlines**, **date-axis detection**, **per-series colour overrides**; collab-synced; PNG embed in `.xlsx`
+- **Pivot tables** — group-by + multi-aggregations, **filter fields**, **Refresh PivotTables**, **drill-down to source rows** (Ctrl+Shift+D), Insert dialog
+- **Sparklines** — in-cell mini-charts (line / column / win-loss) via Insert → Sparkline, persist through the `__casual_sheets_sparklines__` resource
+- **Analysis tools** — Name Manager (Ctrl+F3), Flash Fill (Ctrl+E), Goal Seek (iterative solver)
+- **Show Formulas** (Ctrl+`) — non-destructive overlay paints formula source on every formula cell
+- **Print Area** — A1 field in Page Setup + File-menu "Set / Clear Print Area"
+- **Paste Special** (Ctrl+Alt+V) — All / Values / Formulas / Formats / Column widths / All except borders
+- **Recent Files** — IndexedDB landing screen surfaces the last 10 workbooks on a blank `Untitled`
+- **Version history** — auto-snapshots every ~10 min while dirty + "Save version…" manual entries; preview a snapshot then Restore (captures a "before restore" crumb for undo)
+- **Dark theme** — title-bar sun/moon toggle, bridged to Univer's `ThemeService` so the canvas chrome flips too
+- **Status-bar customisation** — right-click selection stats to toggle which appear (Average / Count / Sum / Min / Max / Numerical Count)
 - Sheet tabs: add, rename, delete, reorder, color; tab strip refreshes live when peers act
 - **Autosave** to IndexedDB with a restore banner if the tab closes unexpectedly
 - Dynamic workbook growth — starts at 1024×26, expands to 8192×1024 on demand
-- Print active sheet with Page Setup (orientation + margins, persisted per session)
 - File → Properties dialog, Help → Report a Bug (GitHub issue prefill)
+- **Inline SVG icons** (~155 components) — sharp at every size, no font-load delay
 
 ### File I/O
 
@@ -58,7 +67,7 @@ Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) with a c
 
 ### Excel Keyboard Shortcuts
 
-30+ canonical shortcuts wired: Ctrl+1 (Format Cells), Shift+F8 (Add to Selection), Ctrl+Shift+L (AutoFilter), Alt+= (AutoSum), F9 (recalculate), Ctrl+W (close), Alt+F1 (chart), number-format shortcuts, hide/unhide rows/columns, border combos, and more.
+40+ canonical shortcuts wired: Ctrl+1 (Format Cells), Shift+F8 (Add to Selection), Ctrl+Shift+L (AutoFilter), **Ctrl+Alt+L** (re-apply filter), Alt+= (AutoSum), F9 (recalculate), Ctrl+W (close), Alt+F1 (chart), **Ctrl+E** (Flash Fill), **Ctrl+F3** (Name Manager), **Ctrl+Alt+V** (Paste Special), **Ctrl+`** (Show Formulas), **Ctrl+[ / Ctrl+]** (precedents / dependents), **Ctrl+Shift+D** (pivot drill-down), number-format shortcuts, hide/unhide rows/columns, border combos.
 
 ### Co-editing
 
@@ -203,7 +212,7 @@ Then open `http://127.0.0.1:5273/r/<any-room-id>` in two tabs.
 │   │       ├── univer/          # Univer plugin registration + lazy loader
 │   │       └── xlsx/            # worker-side import/export (ExcelJS)
 │   └── server/                  # Fastify + Hocuspocus (rooms, seed, snapshot)
-├── tests/e2e/                   # Playwright e2e suite — 337 tests across 79 files
+├── tests/e2e/                   # Playwright e2e suite — 357 tests across 87 files
 ├── docs/
 │   ├── ARCHITECTURE.md          # system design
 │   ├── CO-EDITING.md            # op-log + presence design

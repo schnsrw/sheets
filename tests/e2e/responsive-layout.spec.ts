@@ -92,8 +92,9 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
       const el = document.querySelector('[data-testid="app-shell"]') as HTMLElement;
       return window.getComputedStyle(el).gridTemplateRows;
     });
-    // Format: "40px 28px 0px 26px Npx 36px" — track 3 (toolbar) is 0px.
-    expect(rowsAtPhone.split(/\s+/)[2]).toBe('0px');
+    // 5-row layout: titlebar, toolbar, formulabar, gridrow, sheettabs.
+    // Track index [1] is the toolbar — collapses to 0px at phone.
+    expect(rowsAtPhone.split(/\s+/)[1]).toBe('0px');
 
     // Laptop: toolbar's grid track is the full --toolbar-h.
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -103,7 +104,7 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
       const el = document.querySelector('[data-testid="app-shell"]') as HTMLElement;
       return window.getComputedStyle(el).gridTemplateRows;
     });
-    const toolbarTrackAtLaptop = parseInt(rowsAtLaptop.split(/\s+/)[2], 10);
+    const toolbarTrackAtLaptop = parseInt(rowsAtLaptop.split(/\s+/)[1], 10);
     expect(toolbarTrackAtLaptop).toBeGreaterThanOrEqual(36);
   });
 });

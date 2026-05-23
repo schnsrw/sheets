@@ -18,11 +18,25 @@ import { waitForUniver } from './_helpers';
 async function seedAutosave(page: Page, name: string) {
   await page.evaluate(
     async ({ wbName }) => {
+      // Open at the same version the app uses (autosave + version-history +
+      // recent-files all share this DB). Seeding at an older version
+      // would fail with VersionError on the next app boot and silently
+      // kill autosave reads.
       const db: IDBDatabase = await new Promise((resolve, reject) => {
-        const req = indexedDB.open('casual-sheets', 1);
+        const req = indexedDB.open('casual-sheets', 3);
         req.onupgradeneeded = () => {
           const d = req.result;
           if (!d.objectStoreNames.contains('autosave')) d.createObjectStore('autosave');
+          if (!d.objectStoreNames.contains('versions')) {
+            const os = d.createObjectStore('versions', { keyPath: 'id', autoIncrement: true });
+            os.createIndex('savedAt', 'savedAt', { unique: false });
+            os.createIndex('kind', 'kind', { unique: false });
+          }
+          if (!d.objectStoreNames.contains('recent-files')) {
+            const os = d.createObjectStore('recent-files', { keyPath: 'id', autoIncrement: true });
+            os.createIndex('openedAt', 'openedAt', { unique: false });
+            os.createIndex('name', 'name', { unique: false });
+          }
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);

@@ -20,7 +20,12 @@ import type { IWorkbookData } from '@univerjs/core';
 
 const DB_NAME = 'casual-sheets';
 const STORE = 'autosave';
-const VERSION = 1;
+// Three modules share this IDB: autosave, version-history, recent-files.
+// They MUST agree on a single version number — IndexedDB rejects an
+// `open(name, n)` whose n is less than the database's current version
+// with a VersionError, which kills the read. Bump in lockstep with the
+// other two stores when a new one is added.
+const VERSION = 3;
 const KEY = 'current';
 
 export type AutosaveRecord = {
@@ -39,7 +44,21 @@ function openDb(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
+      // Idempotent upgrade — if a previous version already created
+      // some of these stores, the contains() guard skips them. The
+      // handler must know about every store so a fresh install at the
+      // latest VERSION provisions them all.
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains('versions')) {
+        const os = db.createObjectStore('versions', { keyPath: 'id', autoIncrement: true });
+        os.createIndex('savedAt', 'savedAt', { unique: false });
+        os.createIndex('kind', 'kind', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('recent-files')) {
+        const os = db.createObjectStore('recent-files', { keyPath: 'id', autoIncrement: true });
+        os.createIndex('openedAt', 'openedAt', { unique: false });
+        os.createIndex('name', 'name', { unique: false });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('open db failed'));

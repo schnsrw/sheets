@@ -527,7 +527,15 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
   // Only one client in the room compacts at a time — the one with the
   // lowest known clientId. The interval guard prevents an over-eager
   // compactor from churning. View-only clients never compact.
-  let lastCompactedAt = 0;
+  //
+  // Seed `lastCompactedAt` to `now` so the first auto-compaction
+  // observes the full COMPACT_MIN_INTERVAL_MS cooldown. Without this
+  // seed, a fresh session that immediately crosses the op threshold
+  // (e.g. a quick paste of >200 cells, or the e2e harness) would see
+  // an instant first compaction before the test could observe the
+  // pre-compaction log. The explicit `__bridgeForceCompact` path
+  // bypasses this guard, so the test still works.
+  let lastCompactedAt = Date.now();
   // Both scheduling paths declared in outer scope so the dispose
   // closure below can clean up either one.
   let intervalHandle: ReturnType<typeof setInterval> | null = null;

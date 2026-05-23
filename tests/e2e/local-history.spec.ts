@@ -18,6 +18,12 @@ test.describe('Solo version history', () => {
     // direct test wiring — keeps the test on the real user path).
     await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-history-panel').click();
+    // The outer panel is the new VersionHistoryPanel (Versions tab by
+    // default). The per-mutation log lives behind the Activity tab —
+    // switch to it so the `history-panel` testid (the inner solo
+    // history component) becomes visible.
+    await expect(page.getByTestId('version-history-panel')).toBeVisible();
+    await page.getByTestId('version-history-tab-activity').click();
     const panel = page.getByTestId('history-panel');
     await expect(panel).toBeVisible();
 
@@ -43,6 +49,9 @@ test.describe('Solo version history', () => {
     await waitForUniver(page);
     await page.getByTestId('menubar-view').click();
     await page.getByTestId('menu-item-history-panel').click();
+    // Switch to the Activity tab where the per-mutation rows live.
+    await expect(page.getByTestId('version-history-panel')).toBeVisible();
+    await page.getByTestId('version-history-tab-activity').click();
     await selectRange(page, 'B2');
     await page.evaluate(() => {
       const api = window.__univerAPI!;

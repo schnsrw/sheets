@@ -306,6 +306,15 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       websocketProvider: ws,
       name: id,
       document: doc,
+      // Hocuspocus enters auth-required mode the moment `onAuthenticate`
+      // is configured on the server (used for view-role enforcement).
+      // The provider only sends the auth submessage when `token` is
+      // truthy — without one, the server keeps the connection in the
+      // pre-auth queue and awareness never propagates. Anonymous rooms
+      // don't need a real secret here; the server hook only reads the
+      // `role` query param. Send a placeholder so the handshake
+      // completes.
+      token: 'anon',
     });
     const handle = startBridge(api, doc, {
       role: joinRole,

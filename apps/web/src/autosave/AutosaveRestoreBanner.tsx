@@ -107,9 +107,11 @@ export function AutosaveRestoreBanner() {
         type="button"
         className="autosave-banner__btn autosave-banner__btn--primary"
         data-testid="autosave-restore"
-        onClick={() => {
+        onClick={async () => {
           workbook.replaceWorkbook(rec.data, rec.sourceFormat as Parameters<typeof workbook.replaceWorkbook>[1]);
-          void clearAutosave();
+          // Await the IDB delete so a fast reload (e.g. test harness)
+          // can't beat us to the next read and resurrect the banner.
+          await clearAutosave();
           setDismissed(true);
         }}
       >
@@ -119,8 +121,11 @@ export function AutosaveRestoreBanner() {
         type="button"
         className="autosave-banner__btn"
         data-testid="autosave-discard"
-        onClick={() => {
-          void clearAutosave();
+        onClick={async () => {
+          // Same reasoning as Restore — wait for IDB before hiding the
+          // banner. Without this, a quick reload re-reads the still-
+          // present record and the banner returns.
+          await clearAutosave();
           setDismissed(true);
         }}
       >

@@ -30,9 +30,11 @@ import type { LiveVersionFeed } from './live-feed';
 
 const DB_NAME = 'casual-sheets';
 const STORE = 'versions';
-// Bumped from autosave's `1` because we add a new object store. The
-// upgrade handler is additive — existing `autosave` data is preserved.
-const VERSION = 2;
+// Shared DB version — must equal autosave/store.ts and recent-files/store.ts.
+// IndexedDB rejects an `open(name, n)` whose n is less than the live
+// db version with a VersionError; mixing versions across modules
+// silently kills whichever module asked for the older number.
+const VERSION = 3;
 const AUTO_RETENTION = 30;
 
 export type VersionKind = 'auto' | 'manual';
@@ -62,25 +64,25 @@ export type VersionDraft = Omit<VersionSnapshot, 'id'>;
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
-    req.onupgradeneeded = (event) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
-      // From v0 (no DB yet): create the autosave store as well, so a
-      // fresh install gets both. From v1 (autosave already there):
-      // only the versions store is new.
+      // Idempotent — provisions every shared store. Each module's
+      // openDb runs the same handler so a fresh install at the latest
+      // VERSION lands on a complete schema regardless of which module
+      // opens first.
       if (!db.objectStoreNames.contains('autosave')) {
         db.createObjectStore('autosave');
       }
       if (!db.objectStoreNames.contains(STORE)) {
         const os = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
-        // Index on savedAt for "give me newest N" queries used by the
-        // panel's listing without scanning.
         os.createIndex('savedAt', 'savedAt', { unique: false });
-        // Index on kind so retention pruning can iterate auto entries
-        // without re-reading the whole store.
         os.createIndex('kind', 'kind', { unique: false });
       }
-      // Touch event to keep TS happy about unused param.
-      void event;
+      if (!db.objectStoreNames.contains('recent-files')) {
+        const os = db.createObjectStore('recent-files', { keyPath: 'id', autoIncrement: true });
+        os.createIndex('openedAt', 'openedAt', { unique: false });
+        os.createIndex('name', 'name', { unique: false });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('open db failed'));

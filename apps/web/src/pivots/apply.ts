@@ -87,8 +87,8 @@ function readSourceMatrix(ws: any, src: PivotModel['source']): SourceMatrix {
 
 /** Blank an arbitrary rectangle on the sheet — used by refresh to
  *  reset the previous output before writing the new grid. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function clearGridArea(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ws: any,
   target: { row: number; column: number },
   extent: { rows: number; cols: number },

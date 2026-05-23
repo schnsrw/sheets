@@ -34,6 +34,7 @@ import { PanelRail } from './shell/PanelRail';
 import { PanelMutex } from './shell/PanelMutex';
 import { PreviewBanner } from './shell/PreviewBanner';
 import { PreviewDriver } from './shell/PreviewDriver';
+import { ThemeBridge } from './shell/ThemeBridge';
 import { PivotsProvider } from './pivots/pivots-context';
 import { useAutosave } from './autosave/useAutosave';
 import { AutosaveRestoreBanner } from './autosave/AutosaveRestoreBanner';
@@ -277,6 +278,7 @@ export function App() {
             <AutosaveDriver />
             <VersionHistoryDriver />
             <PreviewDriver />
+            <ThemeBridge />
             <CollabDriver>
               <div
                 className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}

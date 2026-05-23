@@ -700,22 +700,28 @@ button {
   justify-content: center;
   flex: 1;
   min-width: 0;
-  padding: 4px 0;
-  gap: 2px;
+  padding: 0;
+  gap: 0;
 }
 .titlebar__center-top {
   display: flex;
   align-items: center;
   min-width: 0;
-  /* Reserve a baseline height so the filename row reads as its own
-     line even before the inline-rename input expands. */
-  min-height: 24px;
+  /* Filename gets its own line height proportional to the text size —
+     `1.6` keeps the gap above/below comparable to the menu row, so the
+     two rows read like a single block instead of floating elements
+     with extra negative space. */
+  min-height: 30px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 .titlebar__center-bottom {
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 26px;
+  height: 28px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 /* MenuBar mounts inline inside the title bar — strip the standalone
    strip's bg/border treatment so it visually belongs to the title bar
@@ -788,31 +794,32 @@ button {
 }
 
 .titlebar__filename {
-  font-weight: var(--weight-regular);
-  color: var(--color-text-secondary);
-  font-size: var(--text-base);
+  font-weight: var(--weight-medium, 500);
+  color: var(--color-text);
+  font-size: inherit;
   background: transparent;
   border: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: 2px var(--space-3);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-family: inherit;
+  line-height: 1.4;
   transition: background var(--motion-fast) var(--ease-out);
 }
 
 .titlebar__filename:hover {
   background: var(--color-hover);
-  color: var(--color-text);
 }
 
 .titlebar__filename-input {
   font-family: inherit;
-  font-size: var(--text-base);
+  font-size: inherit;
+  font-weight: var(--weight-medium, 500);
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-focus-ring);
   border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
+  padding: 2px var(--space-3);
   min-width: 220px;
   outline: none;
 }

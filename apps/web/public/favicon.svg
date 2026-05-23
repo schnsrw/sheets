@@ -8,13 +8,25 @@
     <path d="M16 14 H42 L48 20 V50 H16 Z" fill="#ffffff"/>
     <!-- Folded triangle catching darker page color -->
     <path d="M42 14 L48 20 H42 Z" fill="#d3e6dc"/>
-    <!-- Spreadsheet grid: 4 columns × 4 rows -->
-    <rect x="20" y="26" width="22" height="20" fill="none" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
-    <line x1="25.5" y1="26" x2="25.5" y2="46" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
-    <line x1="31" y1="26" x2="31" y2="46" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
-    <line x1="36.5" y1="26" x2="36.5" y2="46" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
-    <line x1="20" y1="31" x2="42" y2="31" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
-    <line x1="20" y1="36" x2="42" y2="36" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
-    <line x1="20" y1="41" x2="42" y2="41" stroke="#217346" stroke-width="0.6" opacity="0.75"/>
+    <!-- Four rows of grid cells, replacing docx-editor's text lines.
+         Same x/y/height as the original four <rect> rows so the rhythm
+         on the page is identical; each row is split into four cells
+         (5 px wide, 1 px gap) to read as a spreadsheet. -->
+    <rect x="20"   y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="25.5" y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="31"   y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="36.5" y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="20"   y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="25.5" y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="31"   y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="36.5" y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="20"   y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="25.5" y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="31"   y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="36.5" y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
+    <rect x="20"   y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="25.5" y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="31"   y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
+    <rect x="36.5" y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
   </g>
 </svg>

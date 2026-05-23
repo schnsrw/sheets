@@ -100,16 +100,38 @@ lookup (plus an O(K) one-time build on the first call against a
 given selections array). Payoff is small unless N ≥ 50; risk is
 trivial since output is reference-equal to the old path.
 
-### 4. Decouple selection layer from spreadsheet redraw — SMALL payoff
-**Files**: `vendor/univer/packages/sheets-ui/src/services/selection/selection-render.service.ts:66-73`
+### 4. Decouple selection layer from spreadsheet redraw — SMALL payoff  ⏭ obsolete (already done upstream by v0.24.0)
+**Files**: `vendor/univer/packages/sheets-ui/src/services/selection/{selection-layer.ts, base-selection-render.service.ts, selection-control.ts}`,
+`vendor/univer/packages/sheets-ui/src/common/keys.ts`.
 
-`refreshSelectionMoveEnd()` triggers a full `spreadsheet.makeDirty()`
-even when only the selection overlay needs to repaint.
+The original concern was that `refreshSelectionMoveEnd()` triggered
+`spreadsheet.makeDirty()` even when only the marquee moved. Re-checking
+the v0.24.0 code paths:
 
-**Fix**: render selection on its own layer and call `layer.markDirty()`
-so cell content isn't repainted when only the marquee moves. **Payoff**:
-small (~10-15% smoother on multi-selection drags). **Risk**: low —
-layer refactor, no model changes.
+- `SHEET_COMPONENT_SELECTION_LAYER_INDEX = 1` (`common/keys.ts:36`) and
+  `SelectionLayer` (`selection-layer.ts:21`) — a dedicated layer that
+  selection shapes are added to via
+  `scene.addObject(this._selectionShapeGroup, SHEET_COMPONENT_SELECTION_LAYER_INDEX)`
+  (`selection-control.ts:257`). `base-selection-render.service.ts:328`
+  installs the layer on `_changeRuntime`.
+- Selection redraws call `selectionShapeGroup.makeDirtyNoDebounce(true)`
+  / `_columnHeaderGroup.makeDirty(true)` / `_rowHeaderGroup.makeDirty(true)`
+  — all dirty only the SelectionLayer, never the spreadsheet's main
+  component layer.
+- `SetSelectionsOperation` is `CommandType.OPERATION`, so it skips
+  `sheet.render-controller.ts:_markUnitDirty`, which is the path that
+  fires `spreadsheet.makeDirty()` + `scene.makeDirty()` for MUTATIONs.
+- No path from selection code reaches `mainComponent.makeDirty()` —
+  verified via grep across `services/selection/`.
+
+Enabling the Layer's built-in `_allowCache` on `SelectionLayer` would
+actually regress: the marching-ants animation
+(`selection-control.ts:1135 _startAntLineAnimation`) calls
+`dashedRect.setProps({ strokeDashOffset })` per frame, which dirties
+the layer every frame anyway — caching just adds an extra blit per
+frame for zero hit.
+
+**No fork change needed.** Skipping to Item 5.
 
 ---
 

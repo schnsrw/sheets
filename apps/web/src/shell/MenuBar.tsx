@@ -1407,7 +1407,7 @@ export function MenuBar() {
           api={api}
           defaultSourceA1={insertPivotDefault}
           onCancel={() => setShowInsertPivot(false)}
-          onConfirm={({ source, target, rowFieldColumn, valueFieldColumn, aggregation, filters }) => {
+          onConfirm={({ source, target, rowFieldColumns, valueFieldColumn, aggregation, filters }) => {
             const wb = api.getActiveWorkbook();
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const ws = wb?.getActiveSheet() as any;
@@ -1425,8 +1425,9 @@ export function MenuBar() {
               // Column indices in the dialog are relative to the source range's
               // left edge; the model stores absolute column offsets within the
               // range too. The dialog already gives us the in-range index, which
-              // matches what compute.ts expects.
-              rows: [{ column: rowFieldColumn }],
+              // matches what compute.ts expects. The array is outer-first; an
+              // empty array means Grand-Total-only.
+              rows: rowFieldColumns.map((column) => ({ column })),
               cols: [],
               values: [{ column: valueFieldColumn, agg: aggregation }],
               filters,

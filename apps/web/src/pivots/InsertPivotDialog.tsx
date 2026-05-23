@@ -11,7 +11,8 @@ type Props = {
   onConfirm: (args: {
     source: { startRow: number; endRow: number; startColumn: number; endColumn: number };
     target: { row: number; column: number };
-    rowFieldColumn: number;
+    /** Outermost row field first; an empty array means Grand-Total-only. */
+    rowFieldColumns: number[];
     valueFieldColumn: number;
     aggregation: PivotAggregation;
     filters: PivotFilter[];
@@ -38,6 +39,10 @@ export function InsertPivotDialog({ api, defaultSourceA1, onCancel, onConfirm }:
   const [sourceA1, setSourceA1] = useState(defaultSourceA1);
   const [targetA1, setTargetA1] = useState(suggestTarget(defaultSourceA1));
   const [rowField, setRowField] = useState<number>(0);
+  // P1.5 — optional second row field for compact-layout multi-row
+  // grouping. -1 means "no sub-row". A full drag-and-drop field list
+  // (Excel's PivotTable Fields pane) is still deferred.
+  const [subRowField, setSubRowField] = useState<number>(-1);
   const [valueField, setValueField] = useState<number>(1);
   const [aggregation, setAggregation] = useState<PivotAggregation>('sum');
   // P1 — filter field. -1 means "no filter".
@@ -131,10 +136,17 @@ export function InsertPivotDialog({ api, defaultSourceA1, onCancel, onConfirm }:
         allowedValues: [...filterAllowed],
       });
     }
+    // Compose the row-field list. Outer first; the sub-row only joins
+    // when the user picked a different column (picking the same column
+    // would just duplicate the indent levels with identical labels).
+    const rowFieldColumns: number[] = [rowField];
+    if (subRowField >= 0 && subRowField !== rowField) {
+      rowFieldColumns.push(subRowField);
+    }
     onConfirm({
       source,
       target,
-      rowFieldColumn: rowField,
+      rowFieldColumns,
       valueFieldColumn: valueField,
       aggregation,
       filters,
@@ -219,6 +231,23 @@ export function InsertPivotDialog({ api, defaultSourceA1, onCancel, onConfirm }:
               onChange={(e) => setRowField(Number(e.target.value))}
               disabled={headers.length === 0}
             >
+              {headers.map((h, i) => (
+                <option key={i} value={i}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="insert-pivot__field">
+            <span className="insert-pivot__field-label">Sub-row field</span>
+            <select
+              className="insert-pivot__select"
+              data-testid="insert-pivot-sub-row-field"
+              value={subRowField}
+              onChange={(e) => setSubRowField(Number(e.target.value))}
+              disabled={headers.length === 0}
+            >
+              <option value={-1}>— None —</option>
               {headers.map((h, i) => (
                 <option key={i} value={i}>
                   {h}

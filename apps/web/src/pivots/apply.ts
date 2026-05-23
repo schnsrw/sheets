@@ -1,5 +1,5 @@
 import type { FUniver } from '@univerjs/core/facade';
-import { computePivot, type SourceMatrix, type PivotGrid } from './compute';
+import { computePivot, type PivotGrid, type SourceMatrix } from './compute';
 import type { PivotModel } from './types';
 
 /**
@@ -28,7 +28,7 @@ export function applyPivot(
   const matrix = readSourceMatrix(sourceWs, model.source);
   if (matrix.records.length === 0) return null;
 
-  const grid = computePivot(matrix, model);
+  const { grid } = computePivot(matrix, model);
   if (grid.length === 0) return null;
 
   // Clear the previous extent first if we have one — keeps stale rows

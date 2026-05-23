@@ -7,24 +7,50 @@ import { PIVOT_AGG_LABELS } from './types';
  * here so it's trivially testable and so the same routine can run
  * server-side later (e.g. for an "export pivot to CSV" path).
  *
- * P0 scope:
- *   - Single row field (model.rows[0]). Multi-row keys land in P1.
+ * Scope as of P1.5:
+ *   - 1..N row fields (multi-row uses Excel's compact layout — see
+ *     {@link computePivot} below).
  *   - No column field.
- *   - One or more value fields, each gets its own column in the
- *     output, with a Grand Total row at the bottom.
+ *   - One or more value fields, each gets its own column.
+ *   - Filters applied before bucketing (P1).
  *
- * Output cell layout (P0):
+ * Single-row output (unchanged from P0):
  *
- *     [ row-field-name | value-1 header | value-2 header | ... ]
- *     [ row-key 1      | agg(value-1)   | agg(value-2)   | ... ]
- *     [ row-key 2      | ...                                    ]
- *     [ Grand Total    | agg(all value-1) | agg(all value-2) | ]
+ *     [ row-field | Sum of Sales | Avg of Sales ]
+ *     [ North     |          220 |          110 ]
+ *     [ South     |          175 |         87.5 ]
+ *     [ Grand T.  |          395 |         98.7 ]
  *
- * Cells are `string | number | null`. The apply step formats them
- * into Univer's IRange shape.
+ * Multi-row compact layout (rows = [Region, Product], values = [Sum]):
+ *
+ *     [ Region    | Sum of Sales ]
+ *     [ East      |          300 ]   ← outer subtotal on the label row
+ *     [   A       |          100 ]   ← inner leaf, indent depth 1
+ *     [   B       |          200 ]
+ *     [ West      |          150 ]
+ *     [   A       |          150 ]
+ *     [ Grand T.  |          450 ]
+ *
+ * Indentation uses leading spaces in the label string (`'  '.repeat
+ * (depth)`) — Univer's IStyleData has no first-class indent property,
+ * and spaces round-trip losslessly through xlsx.
  */
 export type PivotCell = string | number | null;
 export type PivotGrid = PivotCell[][];
+
+/** Metadata for each row of the output grid — lets drill-down map a
+ *  clicked cell back to the composite key path that produced it
+ *  without re-running the bucketing walk. */
+export type PivotRowMeta =
+  | { kind: 'header' }
+  | { kind: 'subtotal'; keyPath: string[]; depth: number }
+  | { kind: 'leaf'; keyPath: string[]; depth: number }
+  | { kind: 'grand-total' };
+
+export type PivotComputeResult = {
+  grid: PivotGrid;
+  rowMeta: PivotRowMeta[];
+};
 
 /**
  * Raw records read from the workbook source range. Row 0 is the
@@ -37,15 +63,10 @@ export type SourceMatrix = {
   records: PivotCell[][];
 };
 
-export function computePivot(source: SourceMatrix, model: PivotModel): PivotGrid {
+export function computePivot(source: SourceMatrix, model: PivotModel): PivotComputeResult {
   if (model.values.length === 0) {
-    // No value field — nothing to aggregate. Caller probably bailed
-    // already, but return an empty grid so we don't crash if it didn't.
-    return [];
+    return { grid: [], rowMeta: [] };
   }
-
-  const rowFieldCol = model.rows[0]?.column;
-  const hasRowField = typeof rowFieldCol === 'number';
 
   // P1 — apply filter fields BEFORE bucketing. Each filter restricts
   // records to those whose value in `column` is one of `allowedValues`
@@ -65,55 +86,98 @@ export function computePivot(source: SourceMatrix, model: PivotModel): PivotGrid
   const filteredRecords =
     filters.length > 0 ? source.records.filter(passesFilters) : source.records;
 
-  // Bucket records by row key — when no row field is configured we
-  // collapse everything into one anonymous bucket (Grand-Total-only).
-  const buckets = new Map<string, PivotCell[][]>();
-  for (const rec of filteredRecords) {
-    const key = hasRowField ? String(rec[rowFieldCol!] ?? '') : '';
-    let bucket = buckets.get(key);
-    if (!bucket) {
-      bucket = [];
-      buckets.set(key, bucket);
-    }
-    bucket.push(rec);
-  }
-
-  // Header row: row-field name (if any) + value-field headers like
-  // "Sum of Sales" — matches Excel's auto-generated value-column
-  // captions exactly.
+  // Header row — column 0 is the outermost row field name (compact
+  // layout uses one label column shared across all row-field levels);
+  // subsequent columns are the value-field headers in model order.
+  const rowFieldCols = model.rows.map((r) => r.column);
+  const hasRowField = rowFieldCols.length > 0;
   const header: PivotCell[] = [];
   if (hasRowField) {
-    header.push(source.headers[rowFieldCol!] ?? '');
+    header.push(source.headers[rowFieldCols[0]] ?? '');
   }
   for (const v of model.values) {
     header.push(`${PIVOT_AGG_LABELS[v.agg]} of ${source.headers[v.column] ?? ''}`);
   }
 
   const grid: PivotGrid = [header];
-  // Sort row keys ascending — Excel sorts alphabetically by default
-  // when no explicit sort order is set.
-  const keys = [...buckets.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  for (const key of keys) {
-    const rec = buckets.get(key)!;
-    const row: PivotCell[] = [];
-    if (hasRowField) row.push(key);
+  const rowMeta: PivotRowMeta[] = [{ kind: 'header' }];
+
+  if (!hasRowField) {
+    // No row field — Grand Total only.
+    const total: PivotCell[] = [];
     for (const v of model.values) {
-      row.push(aggregate(rec.map((r) => r[v.column]), v.agg));
+      total.push(aggregate(filteredRecords.map((r) => r[v.column]), v.agg));
     }
-    grid.push(row);
+    grid.push(total);
+    rowMeta.push({ kind: 'grand-total' });
+    return { grid, rowMeta };
   }
 
-  // Grand total — even when there's no row field this provides the
-  // single aggregated cell row. Aggregates the FILTERED records so the
-  // total matches the visible rows above it.
-  const total: PivotCell[] = [];
-  if (hasRowField) total.push('Grand Total');
+  // Build the nested bucket tree. Each level keys by the value of the
+  // corresponding row field; leaves hold the contributing record list.
+  const root = buildTree(filteredRecords, rowFieldCols);
+
+  // Walk the tree in compact-layout order. For each row-field level we
+  // emit either a subtotal row (intermediate levels) or a leaf row
+  // (innermost level), then recurse into children.
+  const walk = (node: TreeNode, keyPath: string[], depth: number): void => {
+    // Sort keys ascending — Excel default sort order.
+    const keys = [...node.children.keys()].sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true }),
+    );
+    const isInnermost = depth === rowFieldCols.length - 1;
+    for (const key of keys) {
+      const child = node.children.get(key)!;
+      const path = [...keyPath, key];
+      const cells: PivotCell[] = [`${'  '.repeat(depth)}${key}`];
+      for (const v of model.values) {
+        cells.push(aggregate(child.records.map((r) => r[v.column]), v.agg));
+      }
+      grid.push(cells);
+      rowMeta.push(
+        isInnermost
+          ? { kind: 'leaf', keyPath: path, depth }
+          : { kind: 'subtotal', keyPath: path, depth },
+      );
+      if (!isInnermost) walk(child, path, depth + 1);
+    }
+  };
+  walk(root, [], 0);
+
+  // Grand Total — aggregates ALL filtered records (regardless of row
+  // bucketing depth) so the total always matches the visible records.
+  const total: PivotCell[] = ['Grand Total'];
   for (const v of model.values) {
     total.push(aggregate(filteredRecords.map((r) => r[v.column]), v.agg));
   }
   grid.push(total);
+  rowMeta.push({ kind: 'grand-total' });
 
-  return grid;
+  return { grid, rowMeta };
+}
+
+type TreeNode = {
+  records: PivotCell[][];
+  children: Map<string, TreeNode>;
+};
+
+function buildTree(records: PivotCell[][], rowFieldCols: number[]): TreeNode {
+  const root: TreeNode = { records: [], children: new Map() };
+  for (const rec of records) {
+    let node = root;
+    node.records.push(rec);
+    for (const col of rowFieldCols) {
+      const key = rec[col] == null ? '' : String(rec[col]);
+      let child = node.children.get(key);
+      if (!child) {
+        child = { records: [], children: new Map() };
+        node.children.set(key, child);
+      }
+      child.records.push(rec);
+      node = child;
+    }
+  }
+  return root;
 }
 
 function aggregate(values: PivotCell[], agg: PivotAggregation): PivotCell {
@@ -146,7 +210,7 @@ export function defaultPivotTitle(source: SourceMatrix, model: PivotModel): stri
   const value = model.values[0];
   if (!value) return 'PivotTable';
   const valuePart = `${PIVOT_AGG_LABELS[value.agg]} of ${source.headers[value.column] ?? 'value'}`;
-  const rowField = model.rows[0];
-  if (!rowField) return valuePart;
-  return `${valuePart} by ${source.headers[rowField.column] ?? 'group'}`;
+  const rowFields = model.rows.map((r) => source.headers[r.column] ?? 'group');
+  if (rowFields.length === 0) return valuePart;
+  return `${valuePart} by ${rowFields.join(' / ')}`;
 }

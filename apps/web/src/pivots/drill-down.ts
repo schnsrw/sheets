@@ -1,6 +1,6 @@
 import type { FUniver } from '@univerjs/core/facade';
 import type { PivotModel } from './types';
-import type { PivotCell, SourceMatrix } from './compute';
+import { computePivot, type PivotCell, type SourceMatrix } from './compute';
 
 /**
  * "Drill down" — given a click on a pivot result cell, return the
@@ -8,16 +8,16 @@ import type { PivotCell, SourceMatrix } from './compute';
  * details" and dumps them into a fresh worksheet; we render them in a
  * popup instead (less disruption + no sheet sprawl).
  *
- * Cell-coordinate convention inside the pivot output rectangle:
+ * The clicked-cell → key-path mapping is sourced from the same
+ * `rowMeta` that `computePivot` produced when the output was last
+ * written — re-running compute on click is cheap (small grids) and
+ * keeps the walk logic in one place.
  *
- *     [ row-field-name | Sum of … | Avg of … | ... ]     ← header (offsetRow = 0)
- *     [ row-key 1      |   …      |    …      | ... ]   ← offsetRow ≥ 1
- *     [ row-key 2      |   …      |    …      | ... ]
- *     [ Grand Total    |   …      |    …      | ... ]   ← offsetRow = lastRow
- *
- * Drilling on the header row is meaningless (returns null). Drilling
- * on the row-field column itself behaves the same as a Grand-Total
- * for that key. Drilling on Grand Total returns every filtered record.
+ * Drilling on the header row returns null. Drilling on a subtotal row
+ * (multi-row pivots only) returns every record under the partial key
+ * prefix. Drilling on a leaf returns the records that share the full
+ * composite key path. Drilling on Grand Total returns every filtered
+ * record.
  */
 
 export type DrillDownResult = {
@@ -81,10 +81,10 @@ export function computeDrillDown(
   const offsetRow = row - pivot.target.row;
   const ext = pivot.lastOutputExtent;
   if (!ext) return null;
-  if (offsetRow <= 0 || offsetRow >= ext.rows) return null; // header or out of bounds
+  if (offsetRow < 0 || offsetRow >= ext.rows) return null;
 
-  // Apply the same filters compute does, so drill-down rows match
-  // what's visible in the pivot above.
+  // Same filter pass compute uses — drill rows must match what's
+  // visible in the pivot above.
   const filters = pivot.filters ?? [];
   const filtered = filters.length === 0
     ? source.records
@@ -98,56 +98,46 @@ export function computeDrillDown(
         return true;
       });
 
-  // Re-derive the row-key listing the same way compute.ts does so we
-  // know which key the clicked row corresponds to. compute sorts the
-  // keys ascending — match that order.
-  const rowFieldCol = pivot.rows[0]?.column;
-  const hasRowField = typeof rowFieldCol === 'number';
-  const isGrandTotal = offsetRow === ext.rows - 1;
+  // Re-run compute to get the rowMeta. Cheap (output grids are tiny)
+  // and avoids duplicating the bucket-and-walk logic here.
+  const { rowMeta } = computePivot(source, pivot);
+  const meta = rowMeta[offsetRow];
+  if (!meta) return null;
 
-  if (isGrandTotal) {
-    return {
-      headers: source.headers,
-      rows: filtered,
-      summary: `Grand Total · ${filtered.length} rows`,
-    };
-  }
-
-  if (!hasRowField) {
-    // No row field + non-header / non-grand-total cell shouldn't
-    // exist in compute's output, but if we get here, fall back to
-    // returning every filtered record.
-    return {
-      headers: source.headers,
-      rows: filtered,
-      summary: `All rows · ${filtered.length} rows`,
-    };
-  }
-
-  // Build the sorted key list and find the one at offsetRow - 1
-  // (header occupies offsetRow = 0).
-  const buckets = new Map<string, PivotCell[][]>();
-  for (const rec of filtered) {
-    const key = String(rec[rowFieldCol!] ?? '');
-    let bucket = buckets.get(key);
-    if (!bucket) {
-      bucket = [];
-      buckets.set(key, bucket);
+  switch (meta.kind) {
+    case 'header':
+      return null;
+    case 'grand-total':
+      return {
+        headers: source.headers,
+        rows: filtered,
+        summary: `Grand Total · ${filtered.length} rows`,
+      };
+    case 'subtotal':
+    case 'leaf': {
+      // Filter to records matching every row-field value along the
+      // path. For a single-row pivot the path is one entry — same as
+      // the pre-compact behavior. For multi-row the path narrows
+      // progressively as the depth increases.
+      const records = filtered.filter((rec) =>
+        meta.keyPath.every((key, i) => {
+          const col = pivot.rows[i]?.column;
+          if (col == null) return false;
+          const v = rec[col];
+          return (v == null ? '' : String(v)) === key;
+        }),
+      );
+      const labels = meta.keyPath.map((key, i) => {
+        const fieldName = source.headers[pivot.rows[i]?.column ?? -1] ?? 'value';
+        return `${fieldName} = "${key || '(blank)'}"`;
+      });
+      return {
+        headers: source.headers,
+        rows: records,
+        summary: `${labels.join(' · ')} · ${records.length} rows`,
+      };
     }
-    bucket.push(rec);
   }
-  const keys = [...buckets.keys()].sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
-  );
-  const targetKey = keys[offsetRow - 1];
-  if (targetKey == null) return null;
-  const records = buckets.get(targetKey) ?? [];
-  const fieldName = source.headers[rowFieldCol!] ?? 'value';
-  return {
-    headers: source.headers,
-    rows: records,
-    summary: `${fieldName} = "${targetKey || '(blank)'}" · ${records.length} rows`,
-  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

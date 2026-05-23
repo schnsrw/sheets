@@ -1,9 +1,8 @@
 diff --git a/lib/cjs/index.js b/lib/cjs/index.js
-index 3018878bbe100e9669f2ae1fada340727e213ee9..f59154c0cfef1df08a02c477db4f9d1bc93d3996 100644
+index 3f4557fa19b49ec00d5f511ace2d301997ec9012..01455ea2574c819195f1c7935d0967e2a84a6ee4 100644
 --- a/lib/cjs/index.js
 +++ b/lib/cjs/index.js
-@@ -3190,12 +3190,14 @@ class HtmlToUSMService {
- 			const cellValue = (value === null || value === void 0 || (_value$richTextParma8 = value.richTextParma) === null || _value$richTextParma8 === void 0 || (_value$richTextParma8 = _value$richTextParma8.p) === null || _value$richTextParma8 === void 0 || (_value$richTextParma8 = _value$richTextParma8.body) === null || _value$richTextParma8 === void 0 ? void 0 : _value$richTextParma8.textRuns) ? {
+@@ -3202,11 +3202,13 @@ var HtmlToUSMService = class HtmlToUSMService {
  				v: value.richTextParma.v,
  				p: value.richTextParma.p,
  				s: style,
@@ -17,7 +16,7 @@ index 3018878bbe100e9669f2ae1fada340727e213ee9..f59154c0cfef1df08a02c477db4f9d1b
  				rowSpan: value.rowSpan,
  				colSpan: value.colSpan
  			};
-@@ -3252,6 +3254,8 @@ class HtmlToUSMService {
+@@ -3261,6 +3263,8 @@ var HtmlToUSMService = class HtmlToUSMService {
  				let cellText = "";
  				let cellRichStyle;
  				let numfmtPattern;
@@ -26,7 +25,7 @@ index 3018878bbe100e9669f2ae1fada340727e213ee9..f59154c0cfef1df08a02c477db4f9d1b
  				const pattern = this._getMsoNumfmtForNode(cell);
  				if (pattern) {
  					cellText = cell.innerHTML;
-@@ -3278,6 +3281,7 @@ class HtmlToUSMService {
+@@ -3289,6 +3293,7 @@ var HtmlToUSMService = class HtmlToUSMService {
  					rowSpan,
  					colSpan,
  					content: cellText,
@@ -34,7 +33,7 @@ index 3018878bbe100e9669f2ae1fada340727e213ee9..f59154c0cfef1df08a02c477db4f9d1b
  					style: cellStyle,
  					richTextParma: {
  						p: cellRichStyle,
-@@ -4444,11 +4444,13 @@ let SheetClipboardService = class SheetClipboardService extends _univerjs_core.D
+@@ -4452,11 +4457,13 @@ let SheetClipboardService = class SheetClipboardService extends _univerjs_core.D
  		const filteredHooks = enabledHooks.filter((h) => !h.specialPasteInfo && h.id !== PREDEFINED_HOOK_NAME_PASTE.DEFAULT_PASTE || pasteType === h.id);
  		filteredHooks.forEach((h) => {
  			var _h$onPasteRows, _h$onPasteColumns, _h$onPasteCells;
@@ -50,11 +49,10 @@ index 3018878bbe100e9669f2ae1fada340727e213ee9..f59154c0cfef1df08a02c477db4f9d1b
  				redoMutationsInfo.push(...rowReturn.redos);
  				undoMutationsInfo.push(...rowReturn.undos);
 diff --git a/lib/es/index.js b/lib/es/index.js
-index 8c9e6600971d658e95109d58a8e11258c81a19da..76da463a6b46db19fc44ba1f84371479f2bbe4e0 100644
+index 02b57bed9a3503688aea74393dffb652f4b0eabc..2bb819505e6e984b04644db7cc913a36caa228bb 100644
 --- a/lib/es/index.js
 +++ b/lib/es/index.js
-@@ -3161,12 +3161,14 @@ var HtmlToUSMService = class HtmlToUSMService {
- 			const cellValue = (value === null || value === void 0 || (_value$richTextParma8 = value.richTextParma) === null || _value$richTextParma8 === void 0 || (_value$richTextParma8 = _value$richTextParma8.p) === null || _value$richTextParma8 === void 0 || (_value$richTextParma8 = _value$richTextParma8.body) === null || _value$richTextParma8 === void 0 ? void 0 : _value$richTextParma8.textRuns) ? {
+@@ -3173,11 +3173,13 @@ var HtmlToUSMService = class HtmlToUSMService {
  				v: value.richTextParma.v,
  				p: value.richTextParma.p,
  				s: style,
@@ -68,7 +66,7 @@ index 8c9e6600971d658e95109d58a8e11258c81a19da..76da463a6b46db19fc44ba1f84371479
  				rowSpan: value.rowSpan,
  				colSpan: value.colSpan
  			};
-@@ -3223,6 +3225,8 @@ var HtmlToUSMService = class HtmlToUSMService {
+@@ -3232,6 +3234,8 @@ var HtmlToUSMService = class HtmlToUSMService {
  				let cellText = "";
  				let cellRichStyle;
  				let numfmtPattern;
@@ -77,7 +75,7 @@ index 8c9e6600971d658e95109d58a8e11258c81a19da..76da463a6b46db19fc44ba1f84371479
  				const pattern = this._getMsoNumfmtForNode(cell);
  				if (pattern) {
  					cellText = cell.innerHTML;
-@@ -3249,6 +3252,7 @@ var HtmlToUSMService = class HtmlToUSMService {
+@@ -3260,6 +3264,7 @@ var HtmlToUSMService = class HtmlToUSMService {
  					rowSpan,
  					colSpan,
  					content: cellText,
@@ -85,15 +83,14 @@ index 8c9e6600971d658e95109d58a8e11258c81a19da..76da463a6b46db19fc44ba1f84371479
  					style: cellStyle,
  					richTextParma: {
  						p: cellRichStyle,
-@@ -4415,11 +4415,16 @@ let SheetClipboardService = class SheetClipboardService extends Disposable {
+@@ -4423,11 +4428,15 @@ let SheetClipboardService = class SheetClipboardService extends Disposable {
  		const filteredHooks = enabledHooks.filter((h) => !h.specialPasteInfo && h.id !== PREDEFINED_HOOK_NAME_PASTE.DEFAULT_PASTE || pasteType === h.id);
  		filteredHooks.forEach((h) => {
  			var _h$onPasteRows, _h$onPasteColumns, _h$onPasteCells;
 +			// PATCH(casual-sheets): pass rowProperties (Univer's parser fills
 +			// them from `<tr height="…">` / inline styles) and the payload so
 +			// clipboard hooks can read row heights on a regular paste, the
-+			// same way onPasteColumns already gets colProperties. Without
-+			// this, row heights from Excel HTML are silently dropped.
++			// same way onPasteColumns already gets colProperties.
  			const rowReturn = (_h$onPasteRows = h.onPasteRows) === null || _h$onPasteRows === void 0 ? void 0 : _h$onPasteRows.call(h, {
  				range: pastedRange,
  				unitId,

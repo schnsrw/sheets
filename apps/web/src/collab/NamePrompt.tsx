@@ -37,7 +37,7 @@ export function NamePrompt({
         <div className="dialog__body">
           <p style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.5 }}>
             Other people in the room will see this name next to your cursor.
-            You can change it later from the share menu.
+            You can change it later by clicking the name pill in the title bar.
           </p>
           <input
             autoFocus

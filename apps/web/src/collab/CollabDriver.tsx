@@ -531,19 +531,30 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
         {passwordPrompt && (
           <PasswordPrompt
             state={passwordPrompt}
+            currentName={identity?.name ?? suggestAnonName()}
             onCancel={() => {
               setPasswordPrompt(null);
               passwordPromptResolverRef.current?.reject(new Error('cancelled'));
               passwordPromptResolverRef.current = null;
             }}
-            onSubmit={(pw) => {
+            onSubmit={({ password, name }) => {
+              // Apply the (possibly edited) display name BEFORE the WS
+              // upgrade resolves — peers see the chosen name from their
+              // first awareness broadcast, never the prior identity.
+              if (name && name !== identity?.name) {
+                presenceCtx.setName(name);
+              }
               setPasswordPrompt(null);
-              passwordPromptResolverRef.current?.resolve(pw);
+              passwordPromptResolverRef.current?.resolve(password);
               passwordPromptResolverRef.current = null;
             }}
           />
         )}
-        {needsNamePrompt && identity && (
+        {/* Suppress the standalone first-time NamePrompt while the join
+         *  prompt is open — the join prompt already carries the
+         *  display-name field, and stacking two modals would trap the
+         *  user behind an unrelated picker. */}
+        {needsNamePrompt && !passwordPrompt && identity && (
           <NamePrompt
             suggestion={identity.name}
             onSubmit={(name) => presenceCtx.setName(name)}
@@ -615,16 +626,35 @@ function OfflineBanner() {
 
 /** Password prompt modal. Render-blocking — user can't get into the
  *  room without satisfying it. */
+/**
+ * Render-blocking join modal. Two fields:
+ *
+ *   1. Display name — pre-filled with the current identity name. Peers
+ *      see it the moment we connect, so letting the user override here
+ *      (instead of forcing them to use the title-bar NamePill *after*
+ *      joining) means a fresh tab can pick a fresh persona for one room
+ *      without leaking the previous identity even briefly.
+ *   2. Password — the existing gate. Disabled the Join button until a
+ *      non-empty password is entered (room actually needs one to let us
+ *      through the WS upgrade).
+ */
 function PasswordPrompt({
   state,
+  currentName,
   onSubmit,
   onCancel,
 }: {
   state: { roomId: string; role: CollabRole; error?: string };
-  onSubmit: (pw: string) => void;
+  currentName: string;
+  onSubmit: (args: { password: string; name: string }) => void;
   onCancel: () => void;
 }) {
   const [value, setValue] = useState('');
+  const [name, setName] = useState(currentName);
+  const submit = () => {
+    if (value.length === 0) return;
+    onSubmit({ password: value, name: name.trim() || currentName });
+  };
   return (
     <div className="dialog-backdrop" data-testid="collab-password-backdrop">
       <div
@@ -636,10 +666,32 @@ function PasswordPrompt({
       >
         <div className="dialog__header">
           <h2 className="dialog__title" id="collab-password-title">
-            Password required
+            Joining room {state.roomId}
           </h2>
         </div>
         <div className="dialog__body">
+          <label
+            style={{
+              display: 'block',
+              margin: '0 0 6px',
+              fontSize: 13,
+              color: 'var(--color-fg-muted, #5f6368)',
+            }}
+            htmlFor="collab-join-name"
+          >
+            Joining as
+          </label>
+          <input
+            id="collab-join-name"
+            type="text"
+            maxLength={32}
+            className="page-setup__select"
+            data-testid="collab-join-name-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{ marginBottom: 12 }}
+            aria-label="Your display name for this room"
+          />
           <p style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.5 }}>
             Room <code>{state.roomId}</code> is password-protected.
             Enter the password the owner shared with you.
@@ -652,7 +704,7 @@ function PasswordPrompt({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && value.length > 0) onSubmit(value);
+              if (e.key === 'Enter' && value.length > 0) submit();
             }}
           />
           {state.error && (
@@ -678,7 +730,7 @@ function PasswordPrompt({
             className="btn-primary"
             data-testid="collab-password-submit"
             disabled={value.length === 0}
-            onClick={() => onSubmit(value)}
+            onClick={submit}
           >
             Join
           </button>

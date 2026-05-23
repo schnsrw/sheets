@@ -98,7 +98,7 @@ All three technical risks proved out:
 | --- | --- |
 | Pivots | ~~Multi-row-field with Excel's compact layout~~ ✅ (P1.5 — outer subtotals + indented inner rows + grand total; sub-row dropdown on Insert dialog; drill-down follows the full composite key path) |
 | xlsx round-trip | Complex pivot cache, VBA stub passthrough; numfmt long tail ✅ (lossiness audit now 41/41) |
-| UX | Display-name edit surface post-join (NamePill covers the title bar; still no in-prompt edit) |
+| UX | ~~Display-name edit surface post-join~~ ✅ (join prompt now carries a "Joining as" field so users can override their stored name BEFORE peers see them; NamePill stays the post-join surface) |
 
 ### P7 — WOPI host integration (deferred)
 

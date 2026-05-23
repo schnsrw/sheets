@@ -2824,7 +2824,11 @@ button {
 }
 
 .dialog {
-  width: min(540px, 92vw);
+  /* Sized to fit our widest content (insert-function at 620px,
+     command-search results) without forcing a horizontal scroll on
+     `.dialog__body`. Use `--narrow` for confirm/password dialogs
+     that don't need this much room. */
+  width: min(640px, 92vw);
   max-height: 86vh;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -2852,7 +2856,13 @@ button {
 
 .dialog__body {
   padding: var(--space-5) var(--space-6);
-  overflow: auto;
+  /* Vertical-only — `overflow: auto` enables BOTH axes which exposes
+     a horizontal scrollbar the moment any child renders wider than
+     the dialog (e.g. a long Tell Me result row). Children should
+     truncate their own overflow, not force the body to scroll
+     sideways. */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .dialog__footer {
@@ -4033,7 +4043,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-width: 640px;
+  /* No `min-width` — the parent `.dialog` is min(540px, 92vw), so a
+     min-width here that exceeds the dialog forced the body to
+     horizontally scroll. Width comes from the dialog; rows truncate
+     overflowing label/path text via ellipsis. */
+  width: 100%;
 }
 
 .command-search__results {

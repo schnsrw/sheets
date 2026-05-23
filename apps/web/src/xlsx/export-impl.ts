@@ -1,11 +1,28 @@
 import ExcelJS from 'exceljs';
-import type { IStyleData, IWorkbookData } from '@univerjs/core';
+import { CustomRangeType, type IStyleData, type IWorkbookData } from '@univerjs/core';
 import { univerStyleToExcel } from './style-mapping';
 import { writeOutlineIntoSnapshot } from '../outline/resources';
 import { writeChartsIntoSnapshot } from '../charts/resources';
 import { writePivotsIntoSnapshot } from '../pivots/resources';
 import { writeSparklinesIntoSnapshot } from '../sparklines/resources';
 import { RESOURCES_SHEET } from './constants';
+import {
+  commentBodyToString,
+  readCommentsFromSnapshot,
+  refToRowCol,
+} from './comments-resource';
+import {
+  applyPageSetupToXlsxWorksheet,
+  readPageSetupFromSnapshot,
+} from './page-setup-resource';
+import {
+  applyDataValidationToXlsxWorksheet,
+  readDataValidationFromSnapshot,
+} from './data-validation-resource';
+import {
+  applyTablesToXlsxWorksheet,
+  readTablesFromSnapshot,
+} from './tables-resource';
 import type { ExportExtras } from './export';
 
 /**
@@ -78,6 +95,23 @@ export async function workbookDataToXlsxImpl(
     return s as IStyleData;
   };
 
+  // Read the thread-comment resource once — the per-sheet loop just
+  // indexes into the resulting map. Cheap when no comments exist
+  // (the helper returns `{}` without touching JSON.parse).
+  const commentsBySheet = readCommentsFromSnapshot(data);
+  // Same pre-parse for page setup so each sheet just looks up its
+  // entry below — keeps the JSON.parse out of the per-sheet loop.
+  const pageSetupBySheet = readPageSetupFromSnapshot(data);
+  // Data-validation rules live in Univer's plugin resource. We pull
+  // them up-front and apply per-sheet below so a file opened in real
+  // Excel keeps its list / whole / date / etc. constraints — and the
+  // round-trip via our pipeline doesn't quietly drop them.
+  const dataValidationBySheet = readDataValidationFromSnapshot(data);
+  // Tables (xlsx ListObjects) round-trip through a passthrough
+  // sidecar — Univer doesn't model them as first-class objects, so we
+  // re-add via ExcelJS's `addTable` on save.
+  const tablesBySheet = readTablesFromSnapshot(data);
+
   for (const sheetId of data.sheetOrder) {
     const wsd = data.sheets[sheetId];
     if (!wsd) continue;
@@ -124,6 +158,29 @@ export async function workbookDataToXlsxImpl(
           excelCell.value = cell.v as ExcelJS.CellValue;
         }
 
+        // Hyperlink encoded by the parser into `cell.p.body.customRanges`
+        // (the shape sheets-hyper-link's AddHyperLinkCommand writes).
+        // Promote that to the ExcelJS-native `{ text, hyperlink }`
+        // value so a foreign reader (real Excel, gsheets) sees a live
+        // link instead of just the display text. extras.hyperlinks
+        // below still wins for the live save path — this branch only
+        // matters when the exporter is called without extras (audit
+        // round-trip, headless seed-back).
+        const cellP = (cell as ICellSnapshot & { p?: unknown }).p as
+          | { body?: { dataStream?: string; customRanges?: Array<{ rangeType?: number; properties?: { url?: string } }> } }
+          | undefined;
+        if (cellP?.body?.customRanges) {
+          for (const cr of cellP.body.customRanges) {
+            if (cr.rangeType === CustomRangeType.HYPERLINK && typeof cr.properties?.url === 'string' && cr.properties.url) {
+              const display =
+                cellP.body.dataStream?.replace(/[\r\n]+$/, '') ??
+                (typeof cell.v === 'string' ? cell.v : String(cell.v ?? ''));
+              excelCell.value = { text: display, hyperlink: cr.properties.url } as ExcelJS.CellValue;
+              break;
+            }
+          }
+        }
+
         const styleObj = resolveStyle(cell.s);
         if (styleObj) {
           Object.assign(excelCell, univerStyleToExcel(styleObj));
@@ -136,6 +193,46 @@ export async function workbookDataToXlsxImpl(
         ws.mergeCells(m.startRow + 1, m.startColumn + 1, m.endRow + 1, m.endColumn + 1);
       }
     }
+
+    // Page-setup passthrough — orientation / paper / header-footer
+    // text the parser stashed. Apply BEFORE comments so anything in
+    // the header that references page state lands in a consistent
+    // worksheet object (ExcelJS is OK either way; ordering is for
+    // readers of this file).
+    const ps = pageSetupBySheet[sheetId];
+    if (ps) applyPageSetupToXlsxWorksheet(ws, ps);
+
+    // Thread-comment resource → xlsx-native cell notes. Comments
+    // round-trip through `data.resources` for our own re-open
+    // (Univer's plugin loads them) AND via `excelCell.note` so a
+    // file opened in real Excel renders the same yellow triangle +
+    // pop-up. The JSON parse happens once below the loop start;
+    // each sheet just looks up its bucket.
+    const sheetComments = commentsBySheet[sheetId] ?? [];
+    for (const c of sheetComments) {
+      const { row, column } = refToRowCol(c.ref);
+      if (row < 0 || column < 0) continue;
+      const excelCell = ws.getCell(row + 1, column + 1);
+      const text = commentBodyToString(c.text);
+      if (!text) continue;
+      // ExcelJS accepts a string for the simple note case. The
+      // expanded `{ texts: [{ text }] }` form lets us carry rich
+      // styling later; not used today because the audit only
+      // verifies text and the import path doesn't preserve runs.
+      (excelCell as unknown as { note: string }).note = text;
+    }
+
+    // Data validation rules — re-apply so list dropdowns / whole-number
+    // / etc. constraints survive Save→Open in Excel. Skipped for sheets
+    // without any rules to avoid touching ExcelJS's lazy model.
+    const dvRules = dataValidationBySheet[sheetId];
+    if (dvRules?.length) applyDataValidationToXlsxWorksheet(ws, dvRules);
+
+    // Tables (xlsx ListObjects). Re-added before extras.hyperlinks so
+    // any link written into a table cell still overrides the table's
+    // initial value below.
+    const tablesForSheet = tablesBySheet[sheetId];
+    if (tablesForSheet?.length) applyTablesToXlsxWorksheet(ws, tablesForSheet);
 
     const sheetHyperlinks = extras.hyperlinks?.[sheetId] ?? [];
     for (const hl of sheetHyperlinks) {

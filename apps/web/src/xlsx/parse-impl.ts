@@ -10,6 +10,22 @@ import {
 import { excelStyleToUniver } from './style-mapping';
 import { INITIAL_COLUMNS, INITIAL_ROWS, UNIVER_VERSION } from '../snapshot';
 import { RESOURCES_SHEET } from './constants';
+import {
+  mergeCommentsIntoResources,
+  readCommentsFromXlsx,
+} from './comments-resource';
+import {
+  mergePageSetupIntoResources,
+  readPageSetupFromXlsx,
+} from './page-setup-resource';
+import {
+  mergeDataValidationIntoResources,
+  readDataValidationFromXlsx,
+} from './data-validation-resource';
+import {
+  mergeTablesIntoResources,
+  readTablesFromXlsx,
+} from './tables-resource';
 import type { ImportedWorkbook } from './import';
 
 /**
@@ -172,6 +188,31 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
   // shape on our own round-trip — only fall back to xlsx defined names
   // when the sidecar didn't already register them.
   resources = mergeDefinedNamesFromXlsx(wb, resources);
+
+  // Same fall-back path for xlsx-native cell comments — files
+  // authored in real Excel keep their comments when opened here,
+  // and the audit's round-trip probe on `B2 comment text` passes.
+  const xlsxComments = readCommentsFromXlsx(wb, id, (excelId) => `sheet-${excelId}`);
+  resources = mergeCommentsIntoResources(resources, xlsxComments);
+
+  // Page-setup chrome (orientation, paper, margins, header/footer)
+  // is a passthrough sidecar — Univer doesn't model it; the
+  // exporter re-applies on save so the print metadata isn't lost.
+  const xlsxPageSetup = readPageSetupFromXlsx(wb, (excelId) => `sheet-${excelId}`);
+  resources = mergePageSetupIntoResources(resources, xlsxPageSetup);
+
+  // xlsx-native data validations → Univer's data-validation plugin
+  // resource. Using the plugin's exact resource name means the rule
+  // live-loads into the model on re-open (visible in the validation
+  // panel + enforced on edit), not just sitting in our sidecar.
+  const xlsxDv = readDataValidationFromXlsx(wb, (excelId) => `sheet-${excelId}`);
+  resources = mergeDataValidationIntoResources(resources, xlsxDv);
+
+  // xlsx ListObjects → passthrough table sidecar. Round-trips via
+  // `ws.addTable(...)` on save so the table definition survives even
+  // though Univer can't render the table chrome yet.
+  const xlsxTables = readTablesFromXlsx(wb, (excelId) => `sheet-${excelId}`);
+  resources = mergeTablesIntoResources(resources, xlsxTables);
 
   for (const ws of wb.worksheets) {
     if (ws.name === RESOURCES_SHEET) continue;

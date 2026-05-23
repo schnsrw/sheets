@@ -1,32 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Casual Sheets">
+<svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Casual Sheets">
   <title>Casual Sheets</title>
-  <!-- Soft green rounded tile -->
-  <rect width="64" height="64" rx="14" fill="#217346"/>
-  <!-- Tilted document — slight rotation gives the "casual" lean -->
-  <g transform="rotate(-6 32 32)">
-    <!-- Page body with folded corner -->
-    <path d="M16 14 H42 L48 20 V50 H16 Z" fill="#ffffff"/>
-    <!-- Folded triangle catching darker page color -->
-    <path d="M42 14 L48 20 H42 Z" fill="#d3e6dc"/>
-    <!-- Four rows of grid cells, replacing docx-editor's text lines.
-         Same x/y/height as the original four <rect> rows so the rhythm
-         on the page is identical; each row is split into four cells
-         (5 px wide, 1 px gap) to read as a spreadsheet. -->
-    <rect x="20"   y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="25.5" y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="31"   y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="36.5" y="26" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="20"   y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="25.5" y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="31"   y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="36.5" y="32" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="20"   y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="25.5" y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="31"   y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="36.5" y="38" width="5" height="2" rx="0.4" fill="#217346" opacity="0.75"/>
-    <rect x="20"   y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="25.5" y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="31"   y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-    <rect x="36.5" y="44" width="5" height="2" rx="0.4" fill="#217346" opacity="0.55"/>
-  </g>
+  <!-- Page body — same path as docx-editor's title-bar icon, only the
+       fill changed from blue (#1a73e8) to Excel green (#217346). -->
+  <path d="M2 0C0.9 0 0 0.9 0 2V38C0 39.1 0.9 40 2 40H30C31.1 40 32 39.1 32 38V10L22 0H2Z" fill="#217346"/>
+  <!-- Folded corner, darker shade of the same green. -->
+  <path d="M22 0L32 10H24C22.9 10 22 9.1 22 8V0Z" fill="#185a36"/>
+  <!-- The three text-line rects from docx-editor are at y=18, 23, 28,
+       x=7, width=18. Replace each with a row of 4 cells so the icon
+       signals "spreadsheet" while keeping the same vertical rhythm,
+       opacities, and overall mass. -->
+  <rect x="7"    y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="11.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="16"   y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="20.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="7"    y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="11.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="16"   y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="20.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="7"    y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="11.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="16"   y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+  <rect x="20.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
 </svg>

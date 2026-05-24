@@ -34,7 +34,7 @@ import { PanelMutex } from './shell/PanelMutex';
 import { PreviewBanner } from './shell/PreviewBanner';
 import { PreviewDriver } from './shell/PreviewDriver';
 import { ThemeBridge } from './shell/ThemeBridge';
-import { RecentFilesLanding } from './shell/RecentFilesLanding';
+import { HomeScreen } from './home/HomeScreen';
 import { ShowFormulasLayer } from './shell/ShowFormulasLayer';
 import { PivotsProvider } from './pivots/pivots-context';
 import { SparklinesProvider } from './sparklines/sparklines-context';
@@ -299,7 +299,7 @@ export function App() {
                 <div className="grid-row">
                   <main className="grid-host" data-testid="grid-host">
                     <UniverSheet revision={meta.revision} initialSnapshot={initial} />
-                    <RecentFilesLanding />
+                    <HomeScreen />
                   </main>
                   {tablesPanelVisible && <TablesPanel />}
                   {outlinePanelVisible && <OutlinePanel />}

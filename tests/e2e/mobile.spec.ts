@@ -88,11 +88,13 @@ test.describe('Mobile shell (375 × 667)', () => {
 
   test('touch-drag on the canvas dispatches wheel events (TouchPanDriver wired)', async ({ page }) => {
     // Univer 0.24 has no native touch-pan — we synthesize wheel events
-    // from touchmove deltas in `useTouchPan`. Dismiss the home overlay,
+    // from pointermove deltas in `useTouchPan`. Dismiss the home,
     // instrument the canvas to count wheel events, simulate a single-
-    // finger upward swipe, and assert the wheel counter went up. That
-    // proves the touch→wheel translation works without depending on
-    // Univer's scroll-state being observable from the DOM.
+    // finger vertical swipe via pointer events, and assert the wheel
+    // counter went up. Uses pointer events (not touch) because Univer's
+    // own drag-to-select listens on pointermove — the hook has to
+    // block the SAME stream Univer reads, otherwise the swipe extends
+    // a phantom cell selection.
     await dismissHome(page);
 
     // Wait for the visible render-canvas. Univer mounts two canvases —
@@ -105,8 +107,7 @@ test.describe('Mobile shell (375 × 667)', () => {
       { timeout: 10_000 },
     );
 
-    // Instrument the canvas: count wheel events. Listen on the
-    // visible canvas (the print one is 0×0).
+    // Instrument the canvas: count wheel events.
     await page.evaluate(() => {
       const all = Array.from(document.querySelectorAll('canvas[data-u-comp="render-canvas"]'));
       const c = all.find((el) => (el as HTMLCanvasElement).width > 0) as HTMLCanvasElement | undefined;
@@ -131,33 +132,24 @@ test.describe('Mobile shell (375 × 667)', () => {
     const startY = box.y + box.height - 60;
     const endY = box.y + 80;
 
-    // Drive raw TouchEvents — Playwright's touchscreen API only does
-    // tap/discrete, not drag. Capture-phase listener in useTouchPan
-    // picks these up and re-dispatches as wheel events.
+    // Drive raw PointerEvents (with pointerType: 'touch') in capture
+    // order so useTouchPan's document-level listener gets them.
     for (let step = 0; step <= 4; step++) {
       const y = startY - ((startY - endY) * (step / 4));
       await page.evaluate(
         ({ x, y, step }) => {
           const targetEl = document.elementFromPoint(x, y) ?? document.body;
-          const type = step === 0 ? 'touchstart' : step === 4 ? 'touchend' : 'touchmove';
-          const touch = new Touch({
-            identifier: 1,
-            target: targetEl,
-            clientX: x,
-            clientY: y,
-            pageX: x,
-            pageY: y,
-            radiusX: 5,
-            radiusY: 5,
-            rotationAngle: 0,
-            force: 1,
-          });
-          const ev = new TouchEvent(type, {
+          const type = step === 0 ? 'pointerdown' : step === 4 ? 'pointerup' : 'pointermove';
+          const ev = new PointerEvent(type, {
+            pointerId: 1,
+            pointerType: 'touch',
             bubbles: true,
             cancelable: true,
-            touches: type === 'touchend' ? [] : [touch],
-            targetTouches: type === 'touchend' ? [] : [touch],
-            changedTouches: [touch],
+            clientX: x,
+            clientY: y,
+            isPrimary: true,
+            button: step === 4 ? -1 : 0,
+            buttons: step === 4 ? 0 : 1,
           });
           targetEl.dispatchEvent(ev);
         },
@@ -166,9 +158,8 @@ test.describe('Mobile shell (375 × 667)', () => {
       await page.waitForTimeout(40);
     }
 
-    // useTouchPan dispatches one wheel per touchmove past the threshold —
-    // we ran 3 moves, so we expect at least 2 wheels (the first move
-    // crosses the threshold; the rest each fire one).
+    // useTouchPan dispatches one wheel per pointermove past the
+    // threshold — we ran 3 moves, so we expect at least 2 wheels.
     const wheelCount = await page.evaluate(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       () => (window as any).__wheelCount as number | undefined,

@@ -8,24 +8,31 @@ import { useEffect } from 'react';
  * canvas is `touch-action: none` (set by Univer itself), so the browser
  * also won't pan the page for us.
  *
- * This hook listens to touchmove on the document in capture phase. When
- * a single-finger touch on a Univer render-canvas drags more than the
- * tap-vs-drag threshold, we:
+ * We listen on POINTER events (pointertype = 'touch') in capture phase,
+ * not touch events. Univer's drag-to-select runs off `pointermove` on
+ * the canvas — touch events and pointer events are SEPARATE streams, so
+ * blocking touchmove doesn't stop pointermove from extending the
+ * selection. (First version of this hook used touch events; the
+ * symptom was "horizontal swipe scrolls + selects, vertical swipe
+ * selects only" because the selection extension visually dominated.)
  *
- *   1. Stop the touch from reaching Univer's pointer-down/move handlers
- *      (those would interpret the drag as a cell-selection extend, so
- *      the user would scroll AND extend a selection at the same time).
- *   2. Dispatch a synthetic `WheelEvent` at the canvas with the delta,
- *      which Univer's existing wheel handler translates to a viewport
- *      scroll — the same code path desktop uses.
+ * Flow:
+ *   1. pointerdown (touch) — note the canvas + start coords. Don't
+ *      block — Univer needs to register the initial cell for tap-
+ *      to-select. If the user lifts without moving past the
+ *      threshold, that tap-select stands.
+ *   2. pointermove (touch) — once movement crosses the tap-vs-drag
+ *      threshold, stopImmediatePropagation so Univer's pointermove
+ *      handler never fires (no rogue selection-extend), then
+ *      dispatch a synthetic WheelEvent at the canvas with the delta.
+ *      Univer's wheel handler scrolls the viewport via the same
+ *      code path desktop uses.
+ *   3. pointerup / pointercancel — clear state.
  *
- * Short stationary taps fall through unchanged, so tap-to-select still
- * works exactly like desktop click-to-select. Two-finger gestures are
- * left alone (Univer's input manager handles them; users get native
- * browser pinch-zoom for scaling when applicable).
+ * Mouse and pen pointers fall through unchanged so desktop behaviour
+ * is identical.
  *
- * If/when Univer adds first-class touch-pan to its viewport, drop this
- * hook entirely.
+ * If/when Univer ships first-class touch-pan upstream, delete this.
  */
 
 const CANVAS_SELECTOR = '[data-u-comp="render-canvas"]';
@@ -34,95 +41,102 @@ const PAN_THRESHOLD_PX = 6;
 export function useTouchPan(): void {
   useEffect(() => {
     let canvas: HTMLCanvasElement | null = null;
+    let activePointerId: number | null = null;
     let startX = 0;
     let startY = 0;
     let lastX = 0;
     let lastY = 0;
     let panning = false;
 
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) {
-        // Two-finger gestures — leave them for Univer / browser pinch.
-        canvas = null;
-        panning = false;
-        return;
-      }
-      const t = e.touches[0];
-      // closest() walks up from the touch target — works whether the
-      // touch lands on the canvas itself or an overlaid Univer element.
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      // Only track one finger at a time. Two-finger gestures are
+      // left to Univer / the browser (pinch-zoom etc.).
+      if (activePointerId !== null) return;
       const target = (e.target as HTMLElement | null)?.closest(CANVAS_SELECTOR) as
         | HTMLCanvasElement
         | null;
-      if (!target) {
-        canvas = null;
-        return;
-      }
+      if (!target) return;
       canvas = target;
-      startX = lastX = t.clientX;
-      startY = lastY = t.clientY;
+      activePointerId = e.pointerId;
+      startX = lastX = e.clientX;
+      startY = lastY = e.clientY;
       panning = false;
     };
 
-    const onTouchMove = (e: TouchEvent) => {
-      if (!canvas || e.touches.length !== 1) return;
-      const t = e.touches[0];
+    const onPointerMove = (e: PointerEvent) => {
+      if (
+        !canvas ||
+        e.pointerType !== 'touch' ||
+        e.pointerId !== activePointerId
+      )
+        return;
 
       if (!panning) {
-        // Wait until movement crosses the tap-vs-drag threshold before
-        // committing to pan mode. Below the threshold, a stationary or
-        // near-stationary touch counts as a tap and falls through to
-        // Univer's pointer handler unchanged.
-        const totalDx = t.clientX - startX;
-        const totalDy = t.clientY - startY;
-        if (Math.abs(totalDx) < PAN_THRESHOLD_PX && Math.abs(totalDy) < PAN_THRESHOLD_PX) {
+        // Wait until movement crosses the tap-vs-drag threshold
+        // before committing to pan mode. Below the threshold, fall
+        // through unchanged so a stationary tap reaches Univer's
+        // pointer handler and the cell selects normally.
+        const totalDx = e.clientX - startX;
+        const totalDy = e.clientY - startY;
+        if (
+          Math.abs(totalDx) < PAN_THRESHOLD_PX &&
+          Math.abs(totalDy) < PAN_THRESHOLD_PX
+        ) {
           return;
         }
         panning = true;
       }
 
-      // Stop the touch from propagating to Univer's pointer-move
-      // handler. Otherwise Univer interprets the drag as a cell-
-      // selection extend AND we scroll — two motions at once.
+      // CRITICAL: stop the pointer move from reaching Univer's own
+      // pointermove handler. Without this, Univer reads the move as
+      // a cell-selection extend and the user gets a phantom grid
+      // selection on every vertical swipe.
       e.stopImmediatePropagation();
       e.preventDefault();
 
-      const dx = lastX - t.clientX;
-      const dy = lastY - t.clientY;
-      lastX = t.clientX;
-      lastY = t.clientY;
+      const dx = lastX - e.clientX;
+      const dy = lastY - e.clientY;
+      lastX = e.clientX;
+      lastY = e.clientY;
 
-      // Synthesise a wheel event at the canvas. Univer's _pointerWheelEvent
-      // listens on the canvas; this is exactly what a trackpad two-finger
-      // scroll would dispatch.
+      // Synthesise a wheel at the canvas. Same shape as a trackpad
+      // two-finger scroll — Univer's _pointerWheelEvent picks it up
+      // and translates to a viewport scroll.
       const wheel = new WheelEvent('wheel', {
         deltaX: dx,
         deltaY: dy,
-        deltaMode: 0, // pixel units
+        deltaMode: 0,
         bubbles: true,
         cancelable: true,
-        clientX: t.clientX,
-        clientY: t.clientY,
+        clientX: e.clientX,
+        clientY: e.clientY,
       });
       canvas.dispatchEvent(wheel);
     };
 
-    const onTouchEnd = () => {
+    const onPointerEnd = (e: PointerEvent) => {
+      if (e.pointerId !== activePointerId) return;
+      // If a pan was in progress, swallow the final pointerup so
+      // Univer doesn't interpret the gesture as a click.
+      if (panning) {
+        e.stopImmediatePropagation();
+      }
       canvas = null;
+      activePointerId = null;
       panning = false;
     };
 
-    // Capture phase so we get the touch before Univer's pointer handlers.
-    // `passive: false` is required to call preventDefault on touchmove.
-    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
-    document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
-    document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
-    document.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: true });
+    document.addEventListener('pointerdown', onPointerDown, { capture: true });
+    document.addEventListener('pointermove', onPointerMove, { capture: true, passive: false });
+    document.addEventListener('pointerup', onPointerEnd, { capture: true });
+    document.addEventListener('pointercancel', onPointerEnd, { capture: true });
 
     return () => {
-      document.removeEventListener('touchstart', onTouchStart, { capture: true } as EventListenerOptions);
-      document.removeEventListener('touchmove', onTouchMove, { capture: true } as EventListenerOptions);
-      document.removeEventListener('touchend', onTouchEnd, { capture: true } as EventListenerOptions);
-      document.removeEventListener('touchcancel', onTouchEnd, { capture: true } as EventListenerOptions);
+      document.removeEventListener('pointerdown', onPointerDown, { capture: true } as EventListenerOptions);
+      document.removeEventListener('pointermove', onPointerMove, { capture: true } as EventListenerOptions);
+      document.removeEventListener('pointerup', onPointerEnd, { capture: true } as EventListenerOptions);
+      document.removeEventListener('pointercancel', onPointerEnd, { capture: true } as EventListenerOptions);
     };
   }, []);
 }

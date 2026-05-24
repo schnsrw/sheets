@@ -1,5 +1,11 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import { LocaleType, LogLevel, Univer, UniverInstanceType, type IWorkbookData } from '@univerjs/core';
+import {
+  LocaleType,
+  LogLevel,
+  Univer,
+  UniverInstanceType,
+  type IWorkbookData,
+} from '@univerjs/core';
 import { FUniver } from '@univerjs/core/facade';
 import type { FWorkbook } from '@univerjs/sheets/facade';
 import { defaultTheme } from '@univerjs/themes';
@@ -13,11 +19,7 @@ import { useSetUniverAPI } from './use-univer';
 import { useLoading } from './loading-context';
 import { extendContextMenu } from './context-menu-extensions';
 import { registerPlugins } from './univer/plugins';
-import {
-  eagerLoadForSnapshot,
-  idleLoadAll,
-  setUniverForLazyLoad,
-} from './univer/lazy-plugins';
+import { eagerLoadForSnapshot, idleLoadAll, setUniverForLazyLoad } from './univer/lazy-plugins';
 import { installDevHelpers } from './univer/dev-helpers';
 import { disableUniverZoomShortcut } from './univer/disable-zoom-shortcut';
 import { registerPasteMergeHook } from './univer/paste-merge-hook';
@@ -72,7 +74,9 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       // registered when Univer's resource manager reads the snapshot.
       await timeItAsync('eager-plugins', () => eagerLoadForSnapshot(univer, initialSnapshot));
       if (cancelled) return;
-      timeIt('mount-unit', () => univer.createUnit(UniverInstanceType.UNIVER_SHEET, initialSnapshot));
+      timeIt('mount-unit', () =>
+        univer.createUnit(UniverInstanceType.UNIVER_SHEET, initialSnapshot),
+      );
 
       // Augment the built-in cell context menu with Merge / Unmerge entries.
       extendContextMenu(univer);
@@ -80,6 +84,14 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       const api = FUniver.newAPI(univer);
       apiRef.current = api;
       setApi(api);
+
+      // Force a workbook-wide recalc so formula cells that ship without
+      // cached `<v>` values (common in hand-authored templates) populate
+      // on first paint — otherwise they render blank until the user
+      // edits a cell and triggers cascade. Wrapped in try/catch because
+      // the formula facade is loaded lazily and might not be ready on
+      // very fresh installs; the worst case is a deferred recalc.
+      runInitialRecalc(api);
 
       // Excel-paste merge preservation: registers a clipboard hook
       // that emits AddWorksheetMergeMutation for any colspan/rowspan
@@ -152,9 +164,7 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apiAny = api as any;
-    const createSheet = apiAny.createUniverSheet as
-      | ((data: IWorkbookData) => unknown)
-      | undefined;
+    const createSheet = apiAny.createUniverSheet as ((data: IWorkbookData) => unknown) | undefined;
     const disposeUnit = apiAny.disposeUnit as ((id: string) => void) | undefined;
     if (!createSheet) {
       console.warn('[open-xlsx] swap aborted: createUniverSheet missing on facade');
@@ -164,51 +174,54 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
     // sequentially. .catch swallows the previous error to keep the
     // chain alive — the previous swap already reported via the loading
     // overlay.
-    swapChainRef.current = swapChainRef.current.catch(() => undefined).then(async () => {
-      try {
-        const u = univerRef.current;
-        if (u) {
-          await timeItAsync('eager-plugins', () => eagerLoadForSnapshot(u, snapshot));
-        }
-        timeIt('swap-unit', () => {
-          // Re-read `current` HERE, AFTER eager-load + after any
-          // previous chained swap completed. Reading it before the
-          // chain wait would give us a stale unit id that the previous
-          // swap already disposed.
-          const current = api.getActiveWorkbook() as unknown as FWorkbook | null;
-          const currentId = current?.getId();
-          // Defensive: if a unit with the snapshot's id already exists
-          // (e.g. someone called replaceWorkbook twice with the same
-          // data), dispose it first so createUnit doesn't collide.
-          if (currentId && currentId !== snapshot.id) {
-            disposeUnit?.call(api, currentId);
+    swapChainRef.current = swapChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          const u = univerRef.current;
+          if (u) {
+            await timeItAsync('eager-plugins', () => eagerLoadForSnapshot(u, snapshot));
           }
-          if (snapshot.id && currentId !== snapshot.id) {
-            // Dispose any orphaned unit holding the target id.
-            try {
-              disposeUnit?.call(api, snapshot.id);
-            } catch {
-              /* fine — unit didn't exist */
+          timeIt('swap-unit', () => {
+            // Re-read `current` HERE, AFTER eager-load + after any
+            // previous chained swap completed. Reading it before the
+            // chain wait would give us a stale unit id that the previous
+            // swap already disposed.
+            const current = api.getActiveWorkbook() as unknown as FWorkbook | null;
+            const currentId = current?.getId();
+            // Defensive: if a unit with the snapshot's id already exists
+            // (e.g. someone called replaceWorkbook twice with the same
+            // data), dispose it first so createUnit doesn't collide.
+            if (currentId && currentId !== snapshot.id) {
+              disposeUnit?.call(api, currentId);
             }
-          } else if (currentId === snapshot.id) {
-            // Same id as the current unit — dispose it explicitly so
-            // createUnit gets a clean slot.
-            disposeUnit?.call(api, currentId);
-          }
-          createSheet.call(api, snapshot);
-        });
-        console.info('[open-xlsx] swap complete', { to: snapshot.id });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[open-xlsx] swap failed', err);
-        loading.set({
-          fileName: snapshot.name ?? 'workbook',
-          phase: 'mounting',
-          error: `Couldn't mount the workbook: ${msg}`,
-        });
-        throw err; // keep the chain's error visible to the next .catch
-      }
-    });
+            if (snapshot.id && currentId !== snapshot.id) {
+              // Dispose any orphaned unit holding the target id.
+              try {
+                disposeUnit?.call(api, snapshot.id);
+              } catch {
+                /* fine — unit didn't exist */
+              }
+            } else if (currentId === snapshot.id) {
+              // Same id as the current unit — dispose it explicitly so
+              // createUnit gets a clean slot.
+              disposeUnit?.call(api, currentId);
+            }
+            createSheet.call(api, snapshot);
+          });
+          runInitialRecalc(api);
+          console.info('[open-xlsx] swap complete', { to: snapshot.id });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[open-xlsx] swap failed', err);
+          loading.set({
+            fileName: snapshot.name ?? 'workbook',
+            phase: 'mounting',
+            error: `Couldn't mount the workbook: ${msg}`,
+          });
+          throw err; // keep the chain's error visible to the next .catch
+        }
+      });
   }, [revision, ctx, loading]);
 
   return (
@@ -224,4 +237,48 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
       <div ref={hostRef} data-testid="univer-host" />
     </>
   );
+}
+
+/**
+ * Trigger a one-shot workbook-wide formula recalc immediately after
+ * mount/swap. Templates ship as `.xlsx` files; ExcelJS only populates
+ * a cell's `result` (which becomes Univer's `v`) when the OOXML has a
+ * cached `<v>` next to the `<f>`. Hand-authored templates often omit
+ * the cache, so formulas land in Univer with `f` set and `v` empty —
+ * the renderer shows a blank cell until something forces the engine
+ * to compute. Editing any cell triggers a cascade and reveals all
+ * pending formulas, which is exactly the "press Enter once and it
+ * appears" workaround the user reported.
+ *
+ * `getFormula().executeCalculation()` dispatches the trigger mutation
+ * with `forceCalculation: true`, which the calc controller reads as
+ * "recompute everything regardless of dirty state."
+ */
+function runInitialRecalc(api: FUniver): void {
+  try {
+    // The facade extension is loaded lazily; if it hasn't been
+    // initialised yet, retry on the next microtask. Logging on the
+    // outer call site would be noisy — the recalc is idempotent and
+    // safe to retry.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formula = (api as any).getFormula?.() as { executeCalculation: () => void } | undefined;
+    if (formula?.executeCalculation) {
+      formula.executeCalculation();
+      return;
+    }
+  } catch (err) {
+    console.warn('[recalc] initial recalc failed', err);
+  }
+  // Best-effort retry: the formula plugin loads on a microtask, so a
+  // queueMicrotask defer gives it a chance to register before we give
+  // up entirely.
+  queueMicrotask(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formula = (api as any).getFormula?.() as { executeCalculation: () => void } | undefined;
+      formula?.executeCalculation?.();
+    } catch {
+      /* give up — user can force recalc with F9 */
+    }
+  });
 }

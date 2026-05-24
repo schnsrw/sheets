@@ -32,14 +32,12 @@ export function InputParserDriver() {
   useEffect(() => {
     if (!api) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const injector = (api as any)._injector as
-      | { get: (token: unknown) => unknown }
-      | undefined;
+    const injector = (api as any)._injector as { get: (token: unknown) => unknown } | undefined;
     if (!injector) return;
     const cmdSvc = injector.get(ICommandService) as {
-      beforeCommandExecuted: (
-        l: (info: ICommandInfo, options?: IExecutionOptions) => void,
-      ) => { dispose: () => void };
+      beforeCommandExecuted: (l: (info: ICommandInfo, options?: IExecutionOptions) => void) => {
+        dispose: () => void;
+      };
     };
 
     const sub = cmdSvc.beforeCommandExecuted((info, options) => {

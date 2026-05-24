@@ -16,11 +16,7 @@ export type CommitDirection = 'down' | 'up' | 'right' | 'left' | 'none';
  * After write, optionally move the active cell by one in `direction`.
  * Clamped at the sheet edges (no wrap; Excel doesn't wrap either).
  */
-export function commitToActiveCell(
-  api: FUniver,
-  raw: string,
-  direction: CommitDirection = 'none',
-) {
+export function commitToActiveCell(api: FUniver, raw: string, direction: CommitDirection = 'none') {
   const sheet = api.getActiveWorkbook()?.getActiveSheet();
   const range = sheet?.getActiveRange();
   if (!range) return;
@@ -128,7 +124,8 @@ export function insertRefAtCaret(
   // Match a trailing ref token at the end of `before` — optional
   // sheet qualifier (quoted or bare) + `!`, then `$?col$?row` with an
   // optional `:end` half.
-  const trailRe = /(?:'[^']*'|[A-Za-z_][A-Za-z0-9_]*)?!?\$?[A-Za-z]+\$?\d+(?::\$?[A-Za-z]+\$?\d+)?$/;
+  const trailRe =
+    /(?:'[^']*'|[A-Za-z_][A-Za-z0-9_]*)?!?\$?[A-Za-z]+\$?\d+(?::\$?[A-Za-z]+\$?\d+)?$/;
   const m = before.match(trailRe);
   const start = m ? caret - m[0].length : caret;
   const next = value.slice(0, start) + ref + after;

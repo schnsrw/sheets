@@ -550,11 +550,35 @@
   font-size: 13px;
 }
 
-/* ── Narrow layout (the app is desktop-primary, but keep it sane) ────── */
+/* ── Narrow layout — viewer + light editor on mobile ───────────────── */
 
 @media (max-width: 720px) {
   .home__hero { padding: 32px 24px 16px; }
   .home__title { font-size: 32px; }
   .home__section { padding: 12px 24px 6px; }
   .home__foot { padding: 12px 24px 0; }
+
+  /* Hero actions stack on phone — search becomes full-width and the
+     open-file button sits below at 100% so it's a comfortable tap. */
+  .home__hero-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .home__search { min-width: 0; width: 100%; }
+  .home__open-file { justify-content: center; }
+  .home__cats { gap: 8px; }
+  .home__cat { padding: 10px 14px; min-height: 40px; }
+
+  /* Featured strip switches from auto-fit minmax(260px,1fr) to a single
+     column — three large cards stacked is the better mobile rhythm than
+     a single one with a horizontal scroll. */
+  .home__featured-row { grid-template-columns: 1fr; }
+
+  /* Close (X) button: keep but bring slightly tighter to the corner. */
+  .home__close { top: 12px; right: 16px; width: 44px; height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .home__title { font-size: 28px; }
+  .home__lede { font-size: 15px; }
+  .home__hero { padding: 24px 20px 12px; }
+  .home__section { padding: 10px 20px 6px; }
+  .home__grid { grid-template-columns: 1fr; }
 }

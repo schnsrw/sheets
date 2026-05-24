@@ -6,28 +6,38 @@ import { waitForUniver } from './_helpers';
 const PHONE_VIEWPORT = { width: 375, height: 667 };
 
 /**
- * Phone-viewport smoke tests. Univer's grid handles touch natively; the
- * job here is making sure our React shell doesn't break or hide critical
- * surfaces on a 375 px screen.
+ * Mobile shell — viewer + light-editor lane per CLAUDE.md's mobile
+ * scope. Univer's canvas owns its own touch gestures; the React shell's
+ * job is making sure the chrome around the canvas reads and behaves
+ * properly on a phone.
  *
- * Not a "full mobile editing" suite — editing on touch is a Phase 3
- * polish job. These tests just lock down that the app renders without
- * horizontal overflow and the essential nav surfaces are still reachable.
+ * NOT a "full mobile editing" suite — chart insert, pivot field-list,
+ * complex formula composition are explicitly out-of-scope on mobile.
+ * These tests lock the surfaces a viewer + casual editor needs.
  */
 test.describe('Mobile shell (375 × 667)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(PHONE_VIEWPORT);
   });
 
+  // Dismiss the home overlay (added in the home-gallery commit) so the
+  // editor chrome behind it is reachable. The home is the right default
+  // for real users but it covers menu bar / toolbar / formula bar for
+  // the chrome assertions below.
+  async function dismissHome(page: import('@playwright/test').Page) {
+    await page.goto('/');
+    await waitForUniver(page);
+    const home = page.getByTestId('home-screen');
+    if (await home.count()) {
+      await page.getByTestId('home-close').click();
+      await expect(home).toHaveCount(0);
+    }
+  }
+
   test('renders without horizontal overflow', async ({ page }) => {
     await page.goto('/');
     await waitForUniver(page);
 
-    const overflow = await page.evaluate(() => {
-      const docW = document.documentElement.scrollWidth;
-      const viewW = window.innerWidth;
-      return { docW, viewW };
-    });
     // Document width may slightly exceed viewport because the menubar +
     // toolbar are designed to horizontally scroll on phones. The BODY
     // itself shouldn't overflow.
@@ -35,12 +45,11 @@ test.describe('Mobile shell (375 × 667)', () => {
       const body = document.body;
       return body.scrollWidth - body.clientWidth;
     });
-    expect(bodyOverflow, `body overflowed by ${bodyOverflow}px (viewport ${overflow.viewW})`).toBeLessThanOrEqual(2);
+    expect(bodyOverflow, `body overflowed by ${bodyOverflow}px`).toBeLessThanOrEqual(2);
   });
 
   test('menu bar is reachable and scrolls horizontally to reveal all items', async ({ page }) => {
-    await page.goto('/');
-    await waitForUniver(page);
+    await dismissHome(page);
 
     // Every menubar item must still exist in the DOM (we don't drop any
     // on mobile — they're scrollable, not hidden).
@@ -54,14 +63,27 @@ test.describe('Mobile shell (375 × 667)', () => {
     await expect(page.getByTestId('menu-item-save')).toBeVisible();
   });
 
-  test('toolbar is hidden on a 375 px viewport but the formula bar stays', async ({ page }) => {
-    await page.goto('/');
-    await waitForUniver(page);
-    // Below 480 px the toolbar is intentionally hidden — menus carry the
-    // same commands. Formula bar + grid are the working surface.
-    await expect(page.getByTestId('toolbar')).toBeHidden();
+  test('toolbar stays visible (compact) on a 375 px viewport', async ({ page }) => {
+    await dismissHome(page);
+    // Mobile-pass change (was hidden previously): the toolbar is now
+    // a single-row horizontal-scroll strip so light formatting is one
+    // tap away. Row 2 of every ribbon group is hidden via CSS.
+    await expect(page.getByTestId('toolbar')).toBeVisible();
     await expect(page.getByTestId('formula-bar')).toBeVisible();
     await expect(page.getByTestId('grid-host')).toBeVisible();
+  });
+
+  test('formula-bar input is ≥ 16 px so iOS Safari does not focus-zoom', async ({ page }) => {
+    await dismissHome(page);
+    const input = page.locator('.formula-bar__input').first();
+    await expect(input).toBeAttached();
+    const fontSize = await input.evaluate(
+      (el) => parseFloat(window.getComputedStyle(el).fontSize),
+    );
+    // iOS Safari triggers an auto-zoom on inputs with computed font-size
+    // < 16 px. The mobile breakpoint pins this; if it ever regresses,
+    // the whole layout shifts on focus and editing becomes unusable.
+    expect(fontSize, `formula-bar input font-size was ${fontSize}px`).toBeGreaterThanOrEqual(16);
   });
 });
 

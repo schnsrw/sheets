@@ -5044,18 +5044,76 @@ button {
   .collab-banner { bottom: 72px; max-width: calc(100vw - 16px); }
 }
 
-@media (max-width: 480px) {
-  /* Very narrow: hide the entire toolbar — menus carry the same commands.
-     The grid + formula bar are the working surface; everything else is
-     scrollable chrome the user can swipe to when they need it.
+@media (max-width: 720px) {
+  /* Mobile polish layered on top of the existing 720px rules.
+     CLAUDE.md flipped mobile from out-of-scope to "viewer + light editor"
+     — these tighten chrome behaviour for touch + on-screen-keyboard use. */
 
-     CRITICAL: collapse the toolbar's grid track too. `display: none` on
-     the item leaves the declared track size intact, which broke the
-     1fr row sizing on the .app grid — the grid host was collapsing to
-     a few-pixel sliver because of how grid auto-placement walks the
-     remaining items into the wrong tracks. Set `--toolbar-h: 0` so the
-     toolbar's row literally disappears and the 1fr below fills the
-     remaining viewport. */
-  :root { --toolbar-h: 0px; }
-  .toolbar { display: none; }
+  /* Menu-bar overflow affordance — the horizontal scroll is silent without
+     a hint. Fade the right edge so the user knows there's more. */
+  .menubar {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 18px), transparent);
+            mask-image: linear-gradient(to right, black calc(100% - 18px), transparent);
+  }
+  .menubar__item { min-height: 36px; padding: 0 12px; }
+
+  /* Formula-bar input gets a discoverable underline + a comfortable hit
+     area. The empty input was invisible on phone (no border, no
+     placeholder) — easy to miss as a tap target.
+     Font size MUST be ≥ 16 px because iOS Safari auto-zooms text inputs
+     under 16 px on focus, which throws the whole page off. */
+  .formula-bar__input {
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 16px;
+    height: calc(100% - 2px);
+  }
+  .formula-bar__input:focus {
+    background: var(--color-surface);
+    border-bottom: 2px solid var(--color-accent);
+  }
+
+  /* Touch tap-target minimums on every chrome button. The Univer canvas
+     handles its own gestures; this is the outer chrome only. */
+  .title-bar .btn,
+  .toolbar .btn,
+  .formula-bar .formula-bar__action,
+  .formula-bar .formula-bar__fx { min-height: 36px; min-width: 36px; }
+
+  /* Sheet-tabs strip: same fade as the menu bar so the trailing pills
+     (Solo / Save / actions) feel reachable rather than clipped. */
+  .sheet-tabs {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 22px), transparent);
+            mask-image: linear-gradient(to right, black calc(100% - 22px), transparent);
+  }
+}
+
+@media (max-width: 480px) {
+  /* Very narrow phones — pre-mobile-pass behaviour hid the toolbar
+     entirely so the menus carried every command. After the mobile flip,
+     light formatting (B/I/U + currency/percent/comma) needs to be one
+     tap away too, so we keep the toolbar visible but compact it into a
+     single-row scrollable strip.
+     Row 2 of every ribbon group is hidden, labels collapse to icons,
+     overflow goes horizontal with the same fade affordance as the
+     menu bar. */
+  :root { --toolbar-h: 48px; }
+  .toolbar {
+    display: block;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
+            mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  /* Hide row 2 of every ribbon group (keeps the primary buttons up top). */
+  .toolbar .ribbon__group-row[data-row='2'] { display: none; }
+  /* Big-button labels off; chevrons off — icon-only, ~36 px square. */
+  .toolbar .btn__big-label,
+  .toolbar .btn__big-chevron { display: none; }
+  .toolbar .btn--big { padding: 0 8px; min-width: 40px; }
+  .toolbar .btn--big .icon { font-size: 20px; }
+  /* Hide the group-lead "more" chevrons too at this width. */
+  .toolbar .ribbon__group-lead { display: none; }
 }

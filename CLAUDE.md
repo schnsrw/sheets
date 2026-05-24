@@ -15,7 +15,7 @@ A web-based **Excel-equivalent** with real-time collaborative editing, built on 
 - **Persistence / WOPI** — explicitly deferred. Don't add Postgres, S3, autosave, or version history.
 - **AI / LLM features** — the user will plug in a self-hosted LLM later through Univer's command bus. Don't pre-design for it.
 - **Auth / sharing UI / permissions model** — anonymous sessions by room URL.
-- **Mobile** — desktop browsers only.
+- **Mobile** — supported as a **viewer + light editor** down to ~360 px (iPhone SE+). Open files, scroll, single-cell value edits, basic formatting via the menu strip + compact toolbar, sheet switching. NOT supported: chart insert dialogs, pivot field-list, complex formula composition, or any flow that needs hover + right-click on phone. Breakpoints live in `apps/web/src/styles.css` at `@media (max-width: 720px)` and `@media (max-width: 480px)`. iOS Safari requires input font-size ≥ 16 px to avoid focus-zoom; honour that on any input inside the chrome. Univer's canvas owns its own touch gestures — don't try to wrap them.
 - **Univer Pro features** — collab, xlsx I/O, charts, pivots, print, history are all paid in Univer's commercial offering. We are *not* using Univer Pro. We build the collab + xlsx layers ourselves on OSS.
 
 ## Required reading before substantive work

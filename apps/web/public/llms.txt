@@ -14,7 +14,7 @@
 - **Docker:** https://hub.docker.com/r/schnsrw/casual-sheets
 - **Marketing site:** https://schnsrw.live/casual-sheets/
 - **Author:** Sachin Sarwa — https://schnsrw.live/
-- **Current version:** v0.0.6
+- **Current version:** v0.1.0
 - **Test coverage:** 357 Playwright end-to-end tests on every push
 
 ## What it does

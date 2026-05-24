@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
-import { MemoryHost } from './host/memory.ts';
-import { registerWopiRoutes } from './wopi.ts';
+import { MemoryHost } from './host/memory';
+import { registerWopiRoutes } from './wopi';
 
 /**
  * WOPI endpoint integration test — runs against a Fastify instance with

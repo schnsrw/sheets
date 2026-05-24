@@ -123,7 +123,7 @@ Multi-arch manifest: `linux/amd64` + `linux/arm64`. SBOM + provenance attestatio
 
 | Tag | Description |
 | --- | --- |
-| _next_ | **v0.1.0** — WOPI host integration (3 backends), admin panel, complex pivot cache passthrough, OCI labels, self-hosting docs |
+| `0.1.0` | **WOPI host integration** (memory · local · S3 · Postgres backends) — **JWT auth** with role + permission + feature claims — **admin panel** at `/admin` (branding · base path · storage · networking · room limits · auth providers · webhooks) — **webhook dispatcher** with HMAC-SHA256 signing — **complex pivot cache passthrough** (audit 54/54 pristine) — **OCI image labels** + rolling-tag scheme — full self-hosting + customization docs on schnsrw.live |
 | `0.0.6` | Excel-parity wave — Pivots P1 + drill-down, Sparklines, Goal Seek, Name Manager, Flash Fill, Show Formulas, dark theme, Google-Docs title bar, inline SVG icons, server-side view-only enforcement, recent files, 357 e2e tests |
 | `0.0.5` | Co-edit fidelity pass — charts, pivots, CF/DV/drawings sync, autosave, 337 e2e tests |
 | `0.0.4` | Co-edit polish + large-file pipeline |

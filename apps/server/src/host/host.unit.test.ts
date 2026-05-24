@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MemoryHost } from './memory.ts';
-import { LocalHost } from './local.ts';
-import { VersionMismatchError } from './integration.ts';
+import { MemoryHost } from './memory';
+import { LocalHost } from './local';
+import { VersionMismatchError } from './integration';
 
 /**
  * MemoryHost + LocalHost regression. S3 + Postgres aren't covered here

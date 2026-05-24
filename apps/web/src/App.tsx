@@ -33,6 +33,7 @@ import { PanelRail } from './shell/PanelRail';
 import { PanelMutex } from './shell/PanelMutex';
 import { PreviewBanner } from './shell/PreviewBanner';
 import { PreviewDriver } from './shell/PreviewDriver';
+import { InputParserDriver } from './shell/InputParserDriver';
 import { ThemeBridge } from './shell/ThemeBridge';
 import { HomeScreen } from './home/HomeScreen';
 import { ShowFormulasLayer } from './shell/ShowFormulasLayer';
@@ -289,6 +290,7 @@ export function App() {
             <TouchPanDriver />
             <VersionHistoryDriver />
             <PreviewDriver />
+            <InputParserDriver />
             <ThemeBridge />
             <CollabDriver>
               <div

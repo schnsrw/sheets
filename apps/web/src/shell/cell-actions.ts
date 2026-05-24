@@ -1,4 +1,5 @@
 import type { FUniver } from '@univerjs/core/facade';
+import { parseExcelStyleValue } from './excel-input-parser';
 
 /** Direction for the selection to move after commit. Mirrors Excel's
  *  Enter / Shift+Enter / Tab / Shift+Tab behavior in the formula bar. */
@@ -7,7 +8,9 @@ export type CommitDirection = 'down' | 'up' | 'right' | 'left' | 'none';
 /**
  * Commit a string the user typed into the formula bar to the active cell.
  *   - Strings starting with `=` are treated as formulas.
- *   - Numeric strings are coerced to numbers so the cell isn't stored as text.
+ *   - Excel-style decorated input ($1,234 · 15% · (500) · €99) is parsed
+ *     to a number so the cell isn't stored as text — see
+ *     `parseExcelStyleValue` for the full grammar.
  *   - Empty string clears the cell.
  *
  * After write, optionally move the active cell by one in `direction`.
@@ -30,11 +33,13 @@ export function commitToActiveCell(
     cell.setValue({ v: null });
   } else if (text.startsWith('=')) {
     cell.setValue({ f: text });
-  } else if (!Number.isNaN(Number(text))) {
-    // Coerce pure numbers — Univer treats string-typed numbers as text otherwise.
-    cell.setValue({ v: Number(text) });
   } else {
-    cell.setValue({ v: text });
+    const parsed = parseExcelStyleValue(text);
+    if (parsed.kind === 'number') {
+      cell.setValue({ v: parsed.value });
+    } else {
+      cell.setValue({ v: text });
+    }
   }
 
   if (direction === 'none') return;

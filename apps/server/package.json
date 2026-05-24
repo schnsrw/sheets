@@ -16,12 +16,14 @@
     "@hocuspocus/server": "^2.15.2",
     "fastify": "^5.2.0",
     "ioredis": "^5.4.2",
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "tsx": "^4.19.2",
     "ws": "^8.18.0",
     "yjs": "^13.6.21"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "@types/ws": "^8.5.13",

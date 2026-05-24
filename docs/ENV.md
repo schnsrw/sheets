@@ -72,6 +72,65 @@ on `main`.
 
 ---
 
+## Auth (runtime · JWT access tokens · v0.1.0)
+
+When `CASUAL_JWT_SECRET` is set, every `/wopi/files/*` request must
+carry a valid JWT (in `Authorization: Bearer …` or via the
+`?access_token=…` query string — WOPI's standard placement). When
+unset, WOPI routes fall through to v0.0.x anonymous-by-URL behaviour
+— operators opt in to auth by setting the secret.
+
+| Var | Default | Description |
+|---|---|---|
+| `CASUAL_JWT_SECRET` | _unset (auth disabled)_ | HMAC-SHA256 shared secret used to sign + verify access tokens. Minimum 16 chars; recommend ≥ 32 random bytes (e.g. `openssl rand -hex 32`). Treat as secret. |
+| `CASUAL_JWT_DEFAULT_TTL` | `3600` | Default token lifetime in seconds when `ttl_seconds` is omitted from the `POST /api/tokens` body. |
+
+### Token claims (signed payload)
+
+| Claim | Type | Description |
+|---|---|---|
+| `sub` | string | Username, email, or any stable user identifier. Surfaces as `UserId` in CheckFileInfo. |
+| `file_id` | string | The single file this token authorises. WOPI routes reject when the URL `:id` ≠ this claim. |
+| `role` | `'admin' \| 'editor' \| 'commenter' \| 'viewer'` | Coarse role. Default permission map applied unless `permissions` overrides. |
+| `permissions` | object _(optional)_ | Per-flag override: `{ read, write, comment, download, share, admin }`. |
+| `features` | object _(optional)_ | Feature toggles consumed by the client UI: `{ charts, pivots, conditionalFormatting, sharing, exportFiles, collab, ai }`. |
+| `password_required` | boolean _(optional)_ | When true, the legacy `x-room-password` header gate also applies on top of the JWT. |
+| `display_name` | string _(optional)_ | Human label for presence + cursor markers. Falls back to `sub`. |
+| `aud` | string _(optional)_ | Audience — typically the deployment's public origin. |
+| `iss` | string _(optional)_ | Issuer — useful when downstream SSO mints tokens. |
+| `exp`, `iat` | number | Standard JWT expiry + issued-at, set by the signer. |
+
+### Endpoints exposed when JWT is configured
+
+| Path | Method | Auth | Description |
+|---|---|---|---|
+| `/api/me` | GET | optional | Decodes the token + returns resolved role / permissions / features / `passwordRequired` / `exp`. Returns `{ anonymous: true }` without a token. |
+| `/api/tokens` | POST | admin role required | Mint a new token. Body: `{ sub, file_id, role, permissions?, features?, password_required?, display_name?, ttl_seconds?, aud?, iss? }`. Returns the signed JWT + the resolved claim summary. |
+| `/api/files` | GET | admin role required | List every file id the host backend knows about. |
+
+### Bootstrapping the first admin token
+
+Tokens are minted by tokens — chicken-and-egg. Sign the first admin
+token manually using the secret:
+
+```sh
+docker compose exec app node -e '
+  import("jsonwebtoken").then(({ default: jwt }) => {
+    const tok = jwt.sign(
+      { sub: "owner", file_id: "*", role: "admin" },
+      process.env.CASUAL_JWT_SECRET,
+      { algorithm: "HS256", expiresIn: "8h" },
+    );
+    console.log(tok);
+  });
+'
+```
+
+After that, the admin panel (v0.1.0) issues subsequent tokens through
+its UI; the bootstrap step happens once per deployment.
+
+---
+
 ## Web build (Vite — bake-time only)
 
 These are read at `pnpm --filter @sheet/web build` and bundled into

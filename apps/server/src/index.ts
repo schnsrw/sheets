@@ -8,6 +8,8 @@ import { existsSync } from 'node:fs';
 import { RoomRegistry } from './rooms.js';
 import { attachHocuspocus } from './yjs.js';
 import { createStorage } from './storage.js';
+import { createHost } from './host/index.js';
+import { registerWopiRoutes } from './wopi.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -64,6 +66,13 @@ const storage = await createStorage();
 app.log.info(
   `doc storage: ${process.env.REDIS_URL ? `redis (${process.env.REDIS_URL})` : 'in-memory'}`,
 );
+
+// Workbook FILE storage — separate concern from Y.Doc update storage
+// above (rooms vs files). Drives the WOPI /wopi/files/:id routes and
+// the admin-panel storage page in v0.1.0.
+const host = await createHost();
+app.log.info(`workbook host: ${host.label}`);
+registerWopiRoutes(app, host);
 
 const rooms = new RoomRegistry();
 rooms.start((evictedId) => {
@@ -254,6 +263,7 @@ const shutdown = async () => {
   app.log.info('shutting down');
   await hocus.close();
   await storage.close();
+  if (host.close) await host.close();
   await app.close();
   process.exit(0);
 };

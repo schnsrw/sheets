@@ -10,6 +10,9 @@ import { attachHocuspocus } from './yjs.js';
 import { createStorage } from './storage.js';
 import { createHost } from './host/index.js';
 import { registerWopiRoutes } from './wopi.js';
+import { AdminConfigStore } from './admin/config.js';
+import { registerAdminRoutes } from './admin/routes.js';
+import { WebhookDispatcher } from './admin/webhooks.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -73,6 +76,26 @@ app.log.info(
 const host = await createHost();
 app.log.info(`workbook host: ${host.label}`);
 registerWopiRoutes(app, host);
+
+// Admin panel config + REST routes. The on-disk config (default
+// `/data/casual-admin.json`) drives runtime customisation: branding,
+// storage backend selection, networking, room limits, auth provider
+// hooks, base path, webhook subscriptions. Admin auth = env-only
+// (CASUAL_ADMIN_USERNAME + CASUAL_ADMIN_PASSWORD); login mints a
+// short-lived admin-role JWT for the session.
+const adminConfigPath =
+  process.env.CASUAL_ADMIN_CONFIG_PATH ?? '/data/casual-admin.json';
+const adminStore = new AdminConfigStore(adminConfigPath);
+const webhooks = new WebhookDispatcher(adminStore, {
+  info: (...a) => app.log.info(a.join(' ')),
+  warn: (...a) => app.log.warn(a.join(' ')),
+});
+registerAdminRoutes(app, adminStore);
+app.log.info(`admin config: ${adminConfigPath}`);
+// Webhook dispatcher is held in `webhooks` so call sites can fire
+// events on demand. The dispatcher reloads the config on every emit
+// so admin-panel edits to subscriptions take effect immediately.
+void webhooks;
 
 const rooms = new RoomRegistry();
 rooms.start((evictedId) => {

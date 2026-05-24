@@ -63,12 +63,121 @@ on `main`.
 
 ---
 
-## Admin (runtime · landing in v0.1.0)
+## Admin (runtime · v0.1.0)
+
+The admin panel at `/admin` is gated by env-driven credentials. Set
+`CASUAL_ADMIN_USERNAME` + `CASUAL_ADMIN_PASSWORD` to enable; the
+panel POSTs them to `/api/admin/login` which constant-time-compares
+against env and mints a short-lived admin-role JWT for the session.
+`CASUAL_JWT_SECRET` must also be set (≥ 16 chars) so the session
+token can be signed.
 
 | Var | Default | Description |
 |---|---|---|
-| `CASUAL_ADMIN_PASSWORD` | _unset (panel disabled)_ | Required to unlock the admin panel at `/admin`. v0.1 ships single-admin auth; v0.2 will add proper admin accounts. |
-| `CASUAL_ADMIN_CONFIG_PATH` | `/data/casual-admin.json` | Filesystem path where the admin panel persists its JSON config (branding, storage, networking, room limits, auth-hook config). |
+| `CASUAL_ADMIN_USERNAME` | _unset (panel disabled)_ | Operator login username for the admin panel. Compared constant-time against `/api/admin/login` body. |
+| `CASUAL_ADMIN_PASSWORD` | _unset (panel disabled)_ | Operator login password. Treat as secret. |
+| `CASUAL_ADMIN_SESSION_TTL` | `3600` | Admin session JWT lifetime in seconds. |
+| `CASUAL_ADMIN_CONFIG_PATH` | `/data/casual-admin.json` | Filesystem path where the admin panel persists its JSON config (branding, storage, networking, room limits, auth-hook config, base path, webhook subscriptions). Atomically written with mode 0600 — treat the file as a secret. |
+
+### Admin REST endpoints
+
+| Path | Method | Auth | Description |
+|---|---|---|---|
+| `/api/admin/status` | GET | public | `{ configured: bool }` — bootstrap probe for the panel. |
+| `/api/admin/login` | POST | env creds | Returns `{ token, ttl_seconds, username }`. Token is an admin-role JWT. |
+| `/api/admin/config` | GET | admin JWT | Current config; secret fields redacted to `***`. |
+| `/api/admin/config` | PUT | admin JWT | Patch-merge the on-disk config. Secret fields sent as `***` keep the prior value. |
+
+### Admin config — runtime overrides
+
+The on-disk config persisted at `CASUAL_ADMIN_CONFIG_PATH` overrides
+env at runtime. Env provides the bootstrap floor; the admin panel
+writes win once set. Fields:
+
+- **branding** — `appName`, `accentColor`, `logoUrl`
+- **basePath** — reverse-proxy mount path (e.g. `/sheets`); empty
+  means served at root. Affects Fastify route prefix + the SPA's
+  asset base.
+- **storage** — `backend` (`memory` | `local` | `s3` | `postgres`)
+  + per-backend creds. Mirrors the `CASUAL_STORAGE` env above.
+- **networking** — `publicOrigin`, `corsOrigins`, `trustProxy`,
+  `hstsMaxAge`. Mirrors the networking env vars.
+- **limits** — `maxRooms`, `maxFileSizeMb`, `roomTtlMin`,
+  `maxUsersPerRoom`.
+- **auth** — OIDC / SAML / JWT provider config (OIDC + SAML stub
+  in v0.1; JWT actively wired).
+- **webhooks** — array of `{ name, url, events, secret, enabled }`
+  subscriptions. See _Webhooks_ below.
+
+---
+
+## Webhooks (runtime · v0.1.0)
+
+Server-side events fire HTTP POSTs to operator-configured URLs.
+HMAC-SHA256 signs the JSON body when a subscription has a `secret`
+— receivers verify via the `X-Casual-Signature: sha256=<hex>`
+header.
+
+Subscriptions live in `admin-config.webhooks` (writable via the
+admin panel). Each subscription:
+
+```json
+{
+  "name": "audit-log",
+  "url": "https://example.com/hooks/casual",
+  "events": ["file.saved", "admin.login"],
+  "secret": "shh",
+  "enabled": true
+}
+```
+
+Empty `events` array = subscribed to every event.
+
+### Events
+
+| Event | Fired when |
+|---|---|
+| `room.created` | `POST /api/rooms` creates a new room |
+| `room.dropped` | Last client leaves + GC ticks (after `roomTtlMin`) |
+| `file.uploaded` | `POST /api/rooms/:id/seed` succeeds |
+| `file.saved` | `POST /wopi/files/:id/contents` succeeds (download → edit → save flow) |
+| `file.deleted` | `DELETE /wopi/files/:id` (admin only) |
+| `user.joined` | New client joins a room |
+| `user.left` | Client disconnects from a room |
+| `admin.login` | Successful `/api/admin/login` |
+| `admin.login_failed` | Failed `/api/admin/login` |
+
+### Payload shape
+
+```json
+{
+  "event": "file.saved",
+  "timestamp": "2026-06-01T14:23:09.123Z",
+  "payload": {
+    "fileId": "wb-q3-budget",
+    "size": 12345,
+    "version": "1748872989123-abc12345",
+    "user": "alice@acme.example"
+  }
+}
+```
+
+Headers on every dispatch:
+
+| Header | Description |
+|---|---|
+| `Content-Type` | `application/json` |
+| `User-Agent` | `CasualSheets-Webhook/0.1` |
+| `X-Casual-Event` | The event name |
+| `X-Casual-Attempt` | `1` or `2` — see retry policy below |
+| `X-Casual-Signature` | `sha256=<hex>` when subscription has a secret. Compute the same way to verify: `hmac-sha256(secret, raw_body)`. |
+
+### Retry policy (v0.1)
+
+- Single retry on non-2xx response or network error.
+- Retry fires after 5 s.
+- After 2 attempts, the dispatch is logged + dropped. v0.2 adds a
+  proper queue with exponential back-off + a dead-letter store.
 
 ---
 

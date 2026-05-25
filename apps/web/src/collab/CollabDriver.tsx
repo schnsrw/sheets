@@ -9,6 +9,7 @@ import { xlsxToWorkbookData } from '../xlsx';
 import { startBridge, type BridgeHandle } from './bridge';
 import type { ReplayFailureRecord } from './replay-retry';
 import { CollabContext, type CollabRole, type CollabStatus, type SyncHealth } from './collab-context';
+import { viteEnv, windowStringGlobal } from '../univer-facade';
 import { useCharts } from '../charts/charts-context';
 import type { ChartModel } from '../charts/types';
 import { PresenceContext } from './presence-context';
@@ -894,10 +895,8 @@ async function fetchRoomInfo(
 }
 
 function isCollabEnabled(): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (typeof (window as any).__COLLAB_WS_URL__ === 'string') return true;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const flag = (import.meta.env as any).VITE_COLLAB_ENABLED as string | undefined;
+  if (windowStringGlobal('__COLLAB_WS_URL__')) return true;
+  const flag = viteEnv('VITE_COLLAB_ENABLED');
   return flag === '1' || flag === 'true';
 }
 
@@ -923,11 +922,9 @@ function readRoleFromLocation(): CollabRole {
 }
 
 function wsUrl(): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const winOverride = (window as any).__COLLAB_WS_URL__ as string | undefined;
-  if (typeof winOverride === 'string' && winOverride) return winOverride;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const envOverride = (import.meta.env as any).VITE_COLLAB_WS_URL as string | undefined;
+  const winOverride = windowStringGlobal('__COLLAB_WS_URL__');
+  if (winOverride) return winOverride;
+  const envOverride = viteEnv('VITE_COLLAB_WS_URL');
   if (envOverride) return envOverride;
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${window.location.host}/yjs`;

@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { FUniver } from '@univerjs/core/facade';
 import { Icon } from './Icon';
+import {
+  activeSheet,
+  rangeFromA1,
+  sheetId as facadeSheetId,
+} from '../univer-facade';
 import { PropertiesDialog } from './PropertiesDialog';
 import { FormatCellsDialog } from './FormatCellsDialog';
 import { AboutDialog } from './AboutDialog';
@@ -182,10 +187,13 @@ function primaryFor(range: SheetRange) {
 }
 
 function getSelectionRanges(api: FUniver): SheetRange[] {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = api.getActiveWorkbook()?.getActiveSheet() as any;
+  const sheet = activeSheet(api);
   if (!sheet) return [];
-  const list = sheet.getSelection?.()?.getActiveRangeList?.();
+  // getSelection / getActiveRangeList live on the @univerjs/sheets-ui
+  // facade extension, not the core facade — cast is scoped to the one
+  // expression that needs the multi-selection API.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const list = (sheet as any).getSelection?.()?.getActiveRangeList?.();
   if (Array.isArray(list) && list.length > 0) {
     return list
       .map((range) => range?.getRange?.())
@@ -209,22 +217,25 @@ function broadcastAddToSelectionMode(active: boolean): void {
 function openContextMenuForActiveCell(api: FUniver): void {
   const canvas = document.querySelector('[id^="univer-sheet-main-canvas_"]') as HTMLCanvasElement | null;
   if (!canvas) return;
-  const wb = api.getActiveWorkbook();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = wb?.getActiveSheet() as any;
-  const range = sheet?.getActiveRange?.();
+  const sheet = activeSheet(api);
+  const range = sheet?.getActiveRange();
   if (!sheet || !range) return;
+  // getScrollState + getCellRect live on the sheets-ui facade
+  // extension (rendering layer), not the core sheets facade. The
+  // cast stays scoped to the one expression that needs them.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheetUi = sheet as any;
 
   let sx = 0;
   let sy = 0;
-  const scrollState = sheet.getScrollState?.() as
+  const scrollState = sheetUi.getScrollState?.() as
     | { sheetViewStartRow?: number; sheetViewStartColumn?: number; offsetX?: number; offsetY?: number }
     | undefined;
   if (scrollState) {
     try {
       const r = scrollState.sheetViewStartRow ?? 0;
       const c = scrollState.sheetViewStartColumn ?? 0;
-      const topLeft = sheet.getRange(r, c).getCellRect();
+      const topLeft = sheetUi.getRange(r, c).getCellRect();
       if (topLeft) {
         sx = topLeft.left + (scrollState.offsetX ?? 0);
         sy = topLeft.top + (scrollState.offsetY ?? 0);
@@ -235,7 +246,7 @@ function openContextMenuForActiveCell(api: FUniver): void {
   }
 
   try {
-    const rect = sheet.getRange(range.getRow(), range.getColumn()).getCellRect();
+    const rect = sheetUi.getRange(range.getRow(), range.getColumn()).getCellRect();
     if (!rect) return;
     const canvasRect = canvas.getBoundingClientRect();
     const clientX = canvasRect.left + (rect.left - sx) + Math.max(6, Math.min(20, rect.right - rect.left - 6));
@@ -801,17 +812,18 @@ export function MenuBar() {
       const target = (event as CustomEvent<{ target?: string }>).detail?.target?.trim();
       if (!target) return;
       const wb = api.getActiveWorkbook();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sheet = wb?.getActiveSheet() as any;
+      const sheet = wb?.getActiveSheet();
       if (!wb || !sheet) return;
       try {
-        const nextRange = normalizeRange(sheet.getRange(target).getRange());
+        const aRange = rangeFromA1(sheet, target);
+        if (!aRange) return;
+        const nextRange = normalizeRange(aRange.getRange());
         const next = [...selectionRangesRef.current];
         if (!next.some((existing) => sameRange(existing, nextRange))) next.push(nextRange);
         selectionRangesRef.current = next;
         api.executeCommand('sheet.operation.set-selections', {
           unitId: wb.getId(),
-          subUnitId: sheet.getSheetId(),
+          subUnitId: facadeSheetId(sheet),
           selections: next.map((range, index) => ({
             range,
             primary: index === next.length - 1 ? primaryFor(range) : null,
@@ -843,14 +855,13 @@ export function MenuBar() {
         return;
       }
       const wb = api.getActiveWorkbook();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sheet = wb?.getActiveSheet() as any;
+      const sheet = activeSheet(api);
       if (!wb || !sheet) return;
       syntheticSelectionRef.current = true;
       queueMicrotask(() => {
         api.executeCommand('sheet.operation.set-selections', {
           unitId: wb.getId(),
-          subUnitId: sheet.getSheetId(),
+          subUnitId: facadeSheetId(sheet),
           selections: next.map((range, index) => ({
             range,
             primary: index === next.length - 1 ? primaryFor(range) : null,
@@ -912,11 +923,11 @@ export function MenuBar() {
   const runDrillDown = () => {
     if (!api) return;
     const wb = api.getActiveWorkbook();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ws = wb?.getActiveSheet() as any;
-    const range = ws?.getActiveRange?.();
+    const ws = activeSheet(api);
+    const range = ws?.getActiveRange();
     if (!wb || !ws || !range) return;
-    const sheetId = ws.getSheetId?.();
+    const sheetId = facadeSheetId(ws);
+    if (!sheetId) return;
     const row = range.getRow();
     const col = range.getColumn();
     const pivot = findPivotAtCell(pivots.pivots, sheetId, row, col);
@@ -1550,13 +1561,16 @@ export function MenuBar() {
           onCancel={() => setShowInsertPivot(false)}
           onConfirm={({ source, target, rowFieldColumns, valueFieldColumn, aggregation, filters }) => {
             const wb = api.getActiveWorkbook();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ws = wb?.getActiveSheet() as any;
+            const ws = activeSheet(api);
             if (!wb || !ws) {
               setShowInsertPivot(false);
               return;
             }
-            const sheetId = ws.getSheetId();
+            const sheetId = facadeSheetId(ws);
+            if (!sheetId) {
+              setShowInsertPivot(false);
+              return;
+            }
             const model = {
               id: newPivotId(),
               sourceSheetId: sheetId,
@@ -1657,9 +1671,9 @@ export function MenuBar() {
           onConfirm={({ type, source, anchor }) => {
             setShowInsertSparkline(false);
             const wb = api.getActiveWorkbook();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ws = wb?.getActiveSheet() as any;
-            if (!wb || !ws) {
+            const ws = activeSheet(api);
+            const sheetId = ws ? facadeSheetId(ws) : null;
+            if (!wb || !ws || !sheetId) {
               toast.error("Couldn't add sparkline: no active sheet");
               return;
             }
@@ -1667,7 +1681,7 @@ export function MenuBar() {
               sparklinesCtx.add({
                 type,
                 unitId: wb.getId(),
-                sheetId: ws.getSheetId(),
+                sheetId,
                 source,
                 anchor,
               });

@@ -247,3 +247,21 @@ export function viteEnvNumber(key: string, fallback: number): number {
   const n = Number(raw);
   return Number.isFinite(n) ? n : fallback;
 }
+
+/* ── Window globals ─────────────────────────────────────────────── */
+
+/**
+ * Read a string-valued window global (e.g. `__COLLAB_WS_URL__` set
+ * by an integration host before our bundle loads). Replaces the
+ * `(window as any).__X__` pattern with a typed accessor.
+ *
+ * Only accepts string values; returns undefined for missing /
+ * non-string globals. Callers that need other types should add a
+ * specific helper rather than expanding this one.
+ */
+export function windowStringGlobal(key: string): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const v = (window as any)[key];
+  return typeof v === 'string' && v.length > 0 ? v : undefined;
+}

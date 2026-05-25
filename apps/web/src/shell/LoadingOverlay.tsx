@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLoading, type LoadingPhase } from '../loading-context';
 import { Icon } from './Icon';
 import { SOFT_WARN_BYTES } from './file-actions';
+import { humanizeOpenError } from './humanize-error';
 
 /**
  * Centered modal shown while a multi-MB workbook is being opened. The
@@ -52,8 +53,16 @@ export function LoadingOverlay() {
   // Error flavor — same shell, different content. We keep the modal
   // blocking so the user explicitly dismisses; otherwise a fast-fail
   // would flash and vanish before they can read the message.
+  //
+  // The raw `state.error` is usually an ExcelJS / JSZip / parser
+  // message that's gibberish to non-developers ("end of central
+  // directory not found", "BIFF stream truncated", "HTTP 5xx"). Run
+  // it through humanizeOpenError to get a friendly headline + one-
+  // line hint; tuck the raw text into a collapsible <details> so
+  // power users + bug reporters still get the diagnostic.
   if (state.error) {
     const retry = state.onRetry;
+    const friendly = humanizeOpenError(state.error, state.fileName);
     return (
       <div
         className="loading-overlay"
@@ -66,13 +75,51 @@ export function LoadingOverlay() {
           <div className="loading-overlay__icon loading-overlay__icon--error" aria-hidden="true">
             <Icon name="error" size="md" />
           </div>
-          <div className="loading-overlay__title">
-            Couldn't open <strong>{state.fileName}</strong>
-          </div>
-          <pre className="loading-overlay__error-text" data-testid="loading-overlay-error">
-            {state.error}
-          </pre>
-          <div className="loading-overlay__actions" style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <div className="loading-overlay__title">{friendly.title}</div>
+          {friendly.hint && (
+            <div
+              className="loading-overlay__hint"
+              data-testid="loading-overlay-hint"
+              style={{
+                marginTop: 8,
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: 'var(--color-text-secondary)',
+                textAlign: 'center',
+                maxWidth: 380,
+              }}
+            >
+              {friendly.hint}
+            </div>
+          )}
+          <details
+            className="loading-overlay__details"
+            data-testid="loading-overlay-error-details"
+            style={{ marginTop: 14, fontSize: 12, color: 'var(--color-text-secondary)' }}
+          >
+            <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
+              Technical details
+            </summary>
+            <pre
+              className="loading-overlay__error-text"
+              data-testid="loading-overlay-error"
+              style={{
+                marginTop: 8,
+                padding: 10,
+                background: 'var(--color-surface-alt)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                maxHeight: 140,
+                overflowY: 'auto',
+                textAlign: 'left',
+              }}
+            >
+              {state.error}
+            </pre>
+          </details>
+          <div className="loading-overlay__actions" style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center' }}>
             <button
               type="button"
               className="btn-secondary"
@@ -91,7 +138,7 @@ export function LoadingOverlay() {
                   retry();
                 }}
               >
-                Try again
+                {friendly.retryLabel ?? 'Try again'}
               </button>
             )}
           </div>

@@ -19,12 +19,13 @@ know our limits), then release.
 | C2     | Request size + room eviction caps      | done        |
 | D1     | Load test script + baseline numbers    | done        |
 | D2     | Capacity model + sizing tiers          | done        |
-| E      | Tag v0.1 — UNBLOCKED                   | ready       |
+| E      | Cut v0.2.0 release                     | done        |
 
-**v0.1 is unblocked.** All four blocking streams (A1, C1, C2, D1) plus
-the optional A2 / D2 enhancements have shipped. B1 is rolling — the
-foundation + 5 highest-traffic files are converted; remaining files
-are mechanical follow-up that doesn't gate the release.
+**v0.2.0 cut on 2026-05-26.** v0.1.0/v0.1.1 had already been tagged
+when this pipeline started; the production-readiness work landed as
+the v0.2.0 release. B1 is rolling — the foundation + 5 highest-
+traffic files are converted; remaining files are mechanical follow-up
+under the v0.2.x patch series.
 
 ## Stream A — Co-edit reliability
 
@@ -149,8 +150,17 @@ broadcast latency, gateway RSS, RSS-per-room. Document numbers in
 `docs/LOAD_TEST.md`. Target floor for v0.1: 100 rooms × 2 clients
 without p99 > 500 ms or RSS > 1 GB.
 
-## Stream E — v0.1 release
+## Stream E — v0.2.0 release (done)
 
-Cut once A1, C1, C2, D1 are merged. Includes `CHANGELOG.md`,
-release notes, updated README badges. Pin known-good Univer commit
-to prevent upstream churn during the release window.
+Cut on 2026-05-26 once A1, A2, C1, C2, D1, D2 had shipped. The
+release bundle:
+
+- Bumped `0.1.1` → `0.2.0` in root + `apps/server` + `apps/web`.
+- Started `CHANGELOG.md` (previously missing) — entry for v0.2.0
+  + back-fills for v0.1.1 and v0.1.0; older v0.0.x via site +
+  GitHub release pages.
+- Per-product changelog entries on
+  [schnsrw.live/changelog/](https://schnsrw.live/changelog/) —
+  back-filled the missing v0.1.1 entry + added v0.2.0.
+- Tagged `v0.2.0` + pushed; GitHub release created with the
+  v0.2.0 CHANGELOG section as the body.

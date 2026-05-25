@@ -67,7 +67,14 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
     });
   }
 
-  test('phone breakpoint (<= 480) collapses the toolbar grid track', async ({ page }) => {
+  test('phone breakpoint (<= 480) keeps toolbar visible but compact', async ({ page }) => {
+    // Earlier behaviour (Polish #4) hid the toolbar on phone. The
+    // mobile-pass rework (see commit 255ba43) reversed that: the
+    // toolbar stays visible as a single-row horizontal-scroll strip so
+    // light formatting (B/I/U + currency/percent/comma + font picker)
+    // stays one tap away. mobile.spec.ts:66 enforces the same. This
+    // test pins the height at <=44 px so the chrome stays thumb-
+    // reachable above the formula bar.
     await page.setViewportSize({ width: 480, height: 800 });
     await page.goto('/');
     await waitForUniver(page);
@@ -76,15 +83,15 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
       const cs = el ? window.getComputedStyle(el) : null;
       return { display: cs?.display, rect: el?.getBoundingClientRect() };
     });
-    expect(toolbar.display).toBe('none');
-    expect(toolbar.rect?.height ?? 0).toBe(0);
+    expect(toolbar.display).not.toBe('none');
+    expect(toolbar.rect?.height ?? 0).toBeGreaterThan(0);
+    expect(toolbar.rect?.height ?? 0).toBeLessThanOrEqual(48);
   });
 
-  test('grid track for toolbar is 0px at phone, full --toolbar-h at wider viewports', async ({
+  test('grid track for toolbar is compact at phone, full --toolbar-h at wider viewports', async ({
     page,
   }) => {
-    // Phone: toolbar's grid track collapses; the gridTemplateRows
-    // third value should report `0px`.
+    // Phone: toolbar collapses to its --toolbar-h (40 px at ≤480).
     await page.setViewportSize({ width: 480, height: 800 });
     await page.goto('/');
     await waitForUniver(page);
@@ -92,11 +99,14 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
       const el = document.querySelector('[data-testid="app-shell"]') as HTMLElement;
       return window.getComputedStyle(el).gridTemplateRows;
     });
-    // 5-row layout: titlebar, toolbar, formulabar, gridrow, sheettabs.
-    // Track index [1] is the toolbar — collapses to 0px at phone.
-    expect(rowsAtPhone.split(/\s+/)[1]).toBe('0px');
+    // Layout rows (in order): titlebar, toolbar, banner (auto-collapses
+    // to 0 when no banner present), formulabar, gridrow, mobilebar,
+    // sheettabs. Track index [1] is the toolbar.
+    const toolbarTrackAtPhone = parseInt(rowsAtPhone.split(/\s+/)[1], 10);
+    expect(toolbarTrackAtPhone).toBeGreaterThan(0);
+    expect(toolbarTrackAtPhone).toBeLessThanOrEqual(48);
 
-    // Laptop: toolbar's grid track is the full --toolbar-h.
+    // Laptop: toolbar's grid track is the full --toolbar-h (≥36px).
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await waitForUniver(page);

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { IWorkbookData } from '@univerjs/core';
 import { useWorkbook } from '../use-workbook';
 import { useCollab } from '../collab/collab-context';
+import { useToast } from '../shell/toast/toast-context';
 import { clearAutosave, readAutosave, type AutosaveRecord } from './store';
 
 /**
@@ -60,6 +61,7 @@ function countMeaningfulCells(data: IWorkbookData | null | undefined): number {
 export function AutosaveRestoreBanner() {
   const workbook = useWorkbook();
   const collab = useCollab();
+  const toast = useToast();
   const [rec, setRec] = useState<AutosaveRecord | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -108,7 +110,22 @@ export function AutosaveRestoreBanner() {
         className="autosave-banner__btn autosave-banner__btn--primary"
         data-testid="autosave-restore"
         onClick={async () => {
-          workbook.replaceWorkbook(rec.data, rec.sourceFormat as Parameters<typeof workbook.replaceWorkbook>[1]);
+          // Restore + clear + toast feedback. Wrapping
+          // replaceWorkbook in try/catch is paranoid — the function
+          // is sync and shouldn't throw — but if a future Univer
+          // upgrade makes unit-swap async or the snapshot turns out
+          // to be corrupt, we want the user to see a message
+          // instead of a silently blank grid (audit finding 1.3).
+          try {
+            workbook.replaceWorkbook(
+              rec.data,
+              rec.sourceFormat as Parameters<typeof workbook.replaceWorkbook>[1],
+            );
+            toast.success(`Restored ${rec.name}`);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            toast.error(`Couldn't restore ${rec.name}: ${msg}`);
+          }
           // Await the IDB delete so a fast reload (e.g. test harness)
           // can't beat us to the next read and resurrect the banner.
           await clearAutosave();

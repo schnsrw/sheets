@@ -4,6 +4,7 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/pro
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
 import { useLoading } from '../loading-context';
+import { useToast } from '../shell/toast/toast-context';
 import { xlsxToWorkbookData } from '../xlsx';
 import { startBridge, type BridgeHandle } from './bridge';
 import { CollabContext, type CollabRole, type CollabStatus, type SyncHealth } from './collab-context';
@@ -42,6 +43,7 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   const api = useUniverAPI();
   const workbook = useWorkbook();
   const loading = useLoading();
+  const toast = useToast();
   const charts = useCharts();
   const handleRef = useRef<BridgeHandle | null>(null);
   const docRef = useRef<Y.Doc | null>(null);
@@ -496,6 +498,33 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
     const id = setInterval(compute, 2000);
     return () => clearInterval(id);
   }, [status, peers]);
+
+  // Reconnect feedback — fire a transient toast when the WS
+  // transitions from `offline` back to `live`. Pre-toast, the
+  // OfflineBanner appeared during the outage and then silently
+  // disappeared on reconnect, leaving the user unsure whether the
+  // queued edits actually flushed (audit finding 1.4). Track the
+  // previous status via a ref so the effect fires once per
+  // transition rather than on every status read.
+  const prevStatusRef = useRef<CollabStatus>('off');
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    if (prev === 'offline' && status === 'live') {
+      toast.success(
+        queuedLocal > 0
+          ? `Reconnected — ${queuedLocal} ${queuedLocal === 1 ? 'change' : 'changes'} synced`
+          : 'Reconnected — sync resumed',
+      );
+    }
+    prevStatusRef.current = status;
+    // queuedLocal isn't in deps on purpose: by the time we re-enter
+    // live, the queuedLocal effect (further down) resets it to 0;
+    // we want the count AT the moment of transition, which the
+    // closure captures via the `queuedLocal` reference above. Read
+    // it lazily so the toast text reflects what actually queued
+    // during the outage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   // Replay-failure counter — the bridge increments this every time
   // a remote mutation throws on local apply. Each one is a candidate

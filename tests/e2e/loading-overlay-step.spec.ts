@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { waitForUniver } from './_helpers';
 
 /**
  * Loading overlay surfaces a "Step N of 3" indicator alongside the
@@ -25,6 +26,11 @@ test.describe('Loading overlay step indicator', () => {
     // back to opening an actual small file. The repo's File-Open
     // path drives the overlay through its real phases.
     await page.waitForSelector('[data-testid="univer-host"]');
+    // Dismiss the home-template-gallery overlay so menubar clicks land
+    // on the editor menu, not the home hero. (waitForUniver does this
+    // for the rest of the suite; this test originally pre-dated the
+    // helper, so just inline the same dismiss here.)
+    await waitForUniver(page);
 
     // Construct a minimal xlsx in-page (via the exposed converter),
     // write to /tmp, hand to the file picker. Mirrors multi-sheet-open.

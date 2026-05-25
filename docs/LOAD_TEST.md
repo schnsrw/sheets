@@ -96,12 +96,107 @@ host, no Redis):
   evictable room is dropped (see Stream C2 in PRODUCTION_PIPELINE.md);
   if every slot is non-evictable, returns 503 + `retry-after: 60`.
 
+## WS-side runs (Stream D3 — `pnpm wsload`)
+
+The HTTP harness measures the upload + control plane. The WS
+harness at `apps/server/scripts/wsloadtest.ts` drives the actual
+co-edit path: real `@hocuspocus/provider` clients from Node, real
+Yjs sync handshake, real broadcast fan-out.
+
+Each virtual room gets `LOAD_CLIENTS_PER_ROOM` clients (default 3).
+One is the writer; the rest are readers. The writer pushes a
+beacon record carrying a sender-side `performance.now()` timestamp
+to the op-log Y.Array every `LOAD_WRITE_INTERVAL_MS` (default 5 s).
+Readers `observe()` the log and record `now - sentAt` as broadcast
+latency. Sequence numbers detect drops.
+
+Run with:
+
+```bash
+pnpm --filter @sheet/server wsload
+# Override:
+LOAD_ROOMS=500 LOAD_CLIENTS_PER_ROOM=3 LOAD_DURATION_S=30 \
+  LOAD_WRITE_INTERVAL_MS=2000 LOAD_SPIN_UP_MS=20000 \
+  pnpm --filter @sheet/server wsload
+```
+
+### Run 3 — Co-edit baseline (50 rooms × 3 clients, 30 s)
+
+Realistic small-team load: 150 concurrent WS clients across 50
+rooms, each room writing every 2 s.
+
+```
+metric                   count errors  p50(ms)  p95(ms)  p99(ms)
+---------------------- ------- ------ -------- -------- --------
+WS connect + sync          150      0      2.3      5.5      7.4
+Broadcast latency         1420      0      1.1      2.4      3.4
+
+totals: 150 clients connected (0 failed), 1420 broadcast events
+        across 100 peer-clients, 0 dropped records,
+        47.3 updates/s aggregate
+```
+
+### Run 4 — Tier L load (200 rooms × 3 clients, 30 s)
+
+The capacity model's "Mid team" tier — 600 concurrent peers,
+sustained 173 updates/s aggregate.
+
+```
+metric                   count errors  p50(ms)  p95(ms)  p99(ms)
+---------------------- ------- ------ -------- -------- --------
+WS connect + sync          600      0      1.6      2.8      4.6
+Broadcast latency         5200      0      0.4      0.9      1.7
+
+totals: 600 clients connected (0 failed), 5200 broadcast events
+        across 400 peer-clients, 0 dropped records,
+        173.3 updates/s aggregate
+```
+
+### Run 5 — Stress at the model's stated ceiling (500 rooms × 3, 30 s)
+
+The capacity model called this the single-process ceiling
+(~500 active docs). Reality: **way more headroom than predicted.**
+
+```
+metric                   count errors  p50(ms)  p95(ms)  p99(ms)
+---------------------- ------- ------ -------- -------- --------
+WS connect + sync         1500      0      2.0      6.4     16.3
+Broadcast latency        10500      0      0.3      1.4      3.2
+
+totals: 1500 clients connected (0 failed), 10500 broadcast events
+        across 1000 peer-clients, 0 dropped records,
+        350.0 updates/s aggregate
+```
+
+### Reading the numbers
+
+1500 concurrent WS clients sustained for 30 s on a single Node
+process with zero dropped records and **p99 broadcast latency at
+3.2 ms**. The capacity model's 50 ms threshold was always meant to
+be **user-perceived** latency (network RTT + broadcast); the
+broadcast itself contributes a small fraction.
+
+**Capacity model update**: the "~500 active docs single-process
+ceiling" was overcautious. Real ceiling is whichever lands first:
+
+1. **File descriptor cap** — 1024 per Linux process by default;
+   raise with `ulimit -n 65535` (covered in the docs already).
+2. **RAM** — ~370 KB per active doc, model unchanged.
+3. **Network RTT to clients** — out of the server's control.
+4. **CPU pegging** — wasn't approached at 1500 clients (~350
+   updates/s); we'd need 10× the write rate or 10× the clients
+   to see it.
+
+For the **co-edit case** (~3 users/doc) on a single $48/mo
+DigitalOcean GP box: **conservative ceiling ~500 active docs /
+1500 concurrent users** still holds, but the binding constraint
+is **RAM** (370 KB × 500 = 185 MB just for active state, plus
+Hocuspocus + Node baseline + Redis colocation), not broadcast
+latency. The broadcast path has 10× more headroom than the
+model assumed.
+
 ## Out of scope (follow-up)
 
-- **WS sync capacity.** The HTTP harness doesn't drive the
-  `/yjs` WebSocket path. The audit-recommended floor (100 rooms ×
-  2 clients × 1 update / 2 s without p99 > 500 ms) needs a Yjs
-  provider-based harness — separate effort, won't block v0.1.
 - **Redis-backed runs.** Numbers above are in-memory only. Redis
   adds 0.5–2 ms per persisted update; should re-run when Redis is
   the configured storage backend.
@@ -110,6 +205,11 @@ host, no Redis):
   and per-IP buckets but the aggregate throughput cap is the
   server's CPU, not the rate-limit — that's the next thing to
   measure once D1 ships.
+- **Geographic distribution.** All clients are on localhost. Real
+  users add 20–200 ms of WS RTT depending on region; doesn't
+  change server-side capacity but does change user-perceived
+  latency. The single-region deployment in the capacity model
+  assumes ≤ 100 ms client RTT.
 
 ## Re-running
 

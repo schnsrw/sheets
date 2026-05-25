@@ -104,7 +104,7 @@ Single process, 4 GB RAM, 2 vCPU, in-memory storage:
 |---|---|---|
 | MAX_ROOMS hard cap | 256 default, raisable to ~2000 before RAM matters | Each empty room is ~1 KB; the cost is in active rooms (250–400 KB each) |
 | Concurrent WS clients | ~1500 | Hocuspocus + `ws` library handle this fine on Node 20; past it, send-queue contention starts to appear |
-| Active concurrent docs | **~500** (soft) | This is the latency knee: p99 broadcast climbs above 50 ms past this point on a single core |
+| Active concurrent docs | **~500** (RAM-bound, not CPU) | Measured at 500 rooms × 3 clients: p99 broadcast 3.2 ms (not the predicted 50 ms knee — see WS load test run 5). The real binding constraint at this size is RAM (~370 KB × 500 = 185 MB just for active state) + Hocuspocus + Node baseline + Redis colocation. |
 | Edits/sec aggregate | ~1000 sustained | CPU ceiling for the single-threaded broadcast loop |
 | Idle (cold) rooms in registry | 2000+ | Bounded only by RAM (1 KB each) and `MAX_ROOMS` env |
 
@@ -159,13 +159,23 @@ Single process, 4 GB RAM, 2 vCPU, in-memory storage:
 
 ## Bottlenecks in order
 
-When the system starts to hurt, the order is:
+When the system starts to hurt, the order is (updated 2026-05-26
+with measured numbers from `docs/LOAD_TEST.md` runs 3–5):
 
-1. **WS broadcast latency** (p99 > 50 ms). Single-core Node bottleneck.
-   **Fix:** shard processes; one process per ~500 docs.
-2. **Redis RAM.** Each Y.Doc grows; 7-day TTL cleans up but heavy
+1. **File descriptor cap** — Linux default 1024 per process. Hits
+   FIRST in any uncapped deployment. **Fix:** `ulimit -n 65535` in
+   the systemd unit or `--ulimit nofile=65535:65535` for Docker.
+2. **RAM for active docs** — 370 KB × N active docs. At 8 GB RAM
+   minus baseline, you fit ~10 000 active docs before swapping;
+   safe operating point is ~5 000.
+3. **Redis RAM.** Each Y.Doc grows; 7-day TTL cleans up but heavy
    churn can push you past Redis's working set. **Fix:** Redis
    cluster or lower TTL.
+4. **CPU pegging on the broadcast loop.** Measured wasn't approached
+   at 1500 concurrent WS clients × 350 updates/s (run 5 in the
+   load test doc). **Fix:** shard processes once you actually
+   see it; should be > 5 000 active rooms or > 1 000 updates/s.
+5. **Network egress.** Doesn't matter below 10k+ docs.
 3. **CPU on snapshot writes.** Compaction takes ~100 ms per room
    and runs every 7–60 min. If 500 docs all compact in the same
    second you'll see a CPU spike. **Fix:** the existing

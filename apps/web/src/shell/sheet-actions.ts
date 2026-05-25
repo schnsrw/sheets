@@ -1,4 +1,5 @@
 import type { FUniver } from '@univerjs/core/facade';
+import { isHidden } from '../univer-facade';
 
 /**
  * Sheet-tab imperative actions.
@@ -66,8 +67,7 @@ export function hideSheet(api: FUniver, sheetId: string): boolean {
   const wb = api.getActiveWorkbook();
   if (!wb) return false;
   const sheets = wb.getSheets();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const visibleCount = sheets.filter((s) => (s as any).isSheetHidden?.() !== true).length;
+  const visibleCount = sheets.filter((s) => !isHidden(s)).length;
   if (visibleCount <= 1) return false;
   const target = sheets.find((s) => s.getSheetId() === sheetId);
   if (!target) return false;

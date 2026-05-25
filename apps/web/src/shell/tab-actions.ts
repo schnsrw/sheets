@@ -1,18 +1,19 @@
 import type { FUniver } from '@univerjs/core/facade';
 import type { FRange } from '@univerjs/sheets/facade';
 import { ensurePluginByName } from '../univer/lazy-plugins';
+import {
+  activateRange,
+  activeRange,
+  activeSheet,
+  isHidden,
+  maxColumns,
+  maxRows,
+  rangeBox as facadeRangeBox,
+  saveWorkbook,
+  sheetId as facadeSheetId,
+} from '../univer-facade';
 
 /** Imperative dispatchers used by Insert / Formulas / Data tabs. */
-
-function activeRange(api: FUniver) {
-  const wb = api.getActiveWorkbook();
-  const sheet = wb?.getActiveSheet();
-  return sheet?.getActiveRange() ?? null;
-}
-
-function activeSheet(api: FUniver) {
-  return api.getActiveWorkbook()?.getActiveSheet() ?? null;
-}
 
 /* ── Insert tab ─────────────────────────────────────────────────────────── */
 
@@ -68,37 +69,42 @@ export function insertNewSheet(api: FUniver) {
  *  of every column it touches. No-op if there's no active range. */
 export function selectEntireColumns(api: FUniver) {
   const range = activeRange(api);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = activeSheet(api) as any;
+  const sheet = activeSheet(api);
   if (!range || !sheet) return;
   const startColumn = range.getColumn();
   const endColumn = startColumn + range.getWidth() - 1;
-  const maxRow = Number(sheet.getMaxRows?.() ?? 1024) - 1;
-  sheet
-    .getRange({ startRow: 0, endRow: maxRow, startColumn, endColumn })
-    .activate();
+  const lastRow = maxRows(sheet) - 1;
+  const box = facadeRangeBox(sheet, {
+    startRow: 0,
+    endRow: lastRow,
+    startColumn,
+    endColumn,
+  });
+  if (box) activateRange(box);
 }
 
 /** Excel's Shift+Space — extend the current selection to span every
  *  column of every row it touches. */
 export function selectEntireRows(api: FUniver) {
   const range = activeRange(api);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = activeSheet(api) as any;
+  const sheet = activeSheet(api);
   if (!range || !sheet) return;
   const startRow = range.getRow();
   const endRow = startRow + range.getHeight() - 1;
-  const maxCol = Number(sheet.getMaxColumns?.() ?? 128) - 1;
-  sheet
-    .getRange({ startRow, endRow, startColumn: 0, endColumn: maxCol })
-    .activate();
+  const lastCol = maxColumns(sheet) - 1;
+  const box = facadeRangeBox(sheet, {
+    startRow,
+    endRow,
+    startColumn: 0,
+    endColumn: lastCol,
+  });
+  if (box) activateRange(box);
 }
 
 /** Excel's F2 — enter edit mode on the active cell. Dispatches the
  *  Univer command that the canvas listens for. */
 export function enterCellEditMode(api: FUniver) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  void (api as any).executeCommand?.('sheet.operation.start-edit', {});
+  void api.executeCommand('sheet.operation.start-edit', {});
 }
 
 /** Insert/Delete cells with one of the four Excel directions. The
@@ -109,9 +115,8 @@ export type CellsOpDirection = 'shift-right' | 'shift-down' | 'entire-row' | 'en
 export async function insertCellsAt(api: FUniver, dir: CellsOpDirection): Promise<void> {
   const range = activeRange(api);
   const wb = api.getActiveWorkbook();
-  if (!range || !wb) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = activeSheet(api) as any;
+  const sheet = activeSheet(api);
+  if (!range || !wb || !sheet) return;
   if (dir === 'entire-row') {
     insertRowAbove(api);
     return;
@@ -126,7 +131,7 @@ export async function insertCellsAt(api: FUniver, dir: CellsOpDirection): Promis
       : 'sheet.command.insert-range-move-right';
   await api.executeCommand(cmd, {
     unitId: wb.getId(),
-    subUnitId: sheet?.getSheetId?.(),
+    subUnitId: facadeSheetId(sheet),
     range: rangeBox(range),
   });
 }
@@ -134,9 +139,8 @@ export async function insertCellsAt(api: FUniver, dir: CellsOpDirection): Promis
 export async function deleteCellsAt(api: FUniver, dir: CellsOpDirection): Promise<void> {
   const range = activeRange(api);
   const wb = api.getActiveWorkbook();
-  if (!range || !wb) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = activeSheet(api) as any;
+  const sheet = activeSheet(api);
+  if (!range || !wb || !sheet) return;
   if (dir === 'entire-row') {
     deleteSelectedRow(api);
     return;
@@ -151,7 +155,7 @@ export async function deleteCellsAt(api: FUniver, dir: CellsOpDirection): Promis
       : 'sheet.command.delete-range-move-left';
   await api.executeCommand(cmd, {
     unitId: wb.getId(),
-    subUnitId: sheet?.getSheetId?.(),
+    subUnitId: facadeSheetId(sheet),
     range: rangeBox(range),
   });
 }
@@ -181,13 +185,11 @@ function switchSheetByDelta(api: FUniver, delta: -1 | 1): void {
   const wb = api.getActiveWorkbook();
   const active = wb?.getActiveSheet();
   if (!wb || !active) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const visible = wb.getSheets().filter((s: any) => !s.isSheetHidden?.());
+  const visible = wb.getSheets().filter((s) => !isHidden(s));
   if (visible.length <= 1) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeId = (active as any).getSheetId?.();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const idx = visible.findIndex((s: any) => s.getSheetId?.() === activeId);
+  const activeId = facadeSheetId(active);
+  if (!activeId) return;
+  const idx = visible.findIndex((s) => facadeSheetId(s) === activeId);
   if (idx < 0) return;
   const nextIdx = idx + delta;
   if (nextIdx < 0 || nextIdx >= visible.length) return;
@@ -206,24 +208,26 @@ export function jumpToFirstCell(api: FUniver) {
  *  last allocated cell (which would be far out at the workbook growth
  *  cap). Falls back to A1 if the sheet has no data. */
 export function jumpToLastCell(api: FUniver) {
-  const ws = api.getActiveWorkbook()?.getActiveSheet();
-  if (!ws) return;
-  let maxRow = 0;
-  let maxCol = 0;
+  const wb = api.getActiveWorkbook();
+  const ws = wb?.getActiveSheet();
+  if (!wb || !ws) return;
+  let lastRow = 0;
+  let lastCol = 0;
   let found = false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const snap = (api as any).getActiveWorkbook?.()?.save?.();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sheetId = (ws as any).getSheetId?.();
-    const sheet = snap?.sheets?.[sheetId];
+    const snap = saveWorkbook(wb);
+    const sId = facadeSheetId(ws);
+    const sheet = sId ? snap?.sheets?.[sId] : undefined;
     const cellData = sheet?.cellData ?? {};
-    for (const r of Object.keys(cellData)) {
+    // cellData is typed `{[row: number]: {...}}` upstream so
+    // Object.keys()'s string return needs an indexer cast to look up.
+    const cd = cellData as Record<string, Record<string, unknown>>;
+    for (const r of Object.keys(cd)) {
       const rNum = Number(r);
-      if (rNum > maxRow) maxRow = rNum;
-      for (const c of Object.keys(cellData[r])) {
+      if (rNum > lastRow) lastRow = rNum;
+      for (const c of Object.keys(cd[r] ?? {})) {
         const cNum = Number(c);
-        if (cNum > maxCol) maxCol = cNum;
+        if (cNum > lastCol) lastCol = cNum;
         found = true;
       }
     }
@@ -234,7 +238,7 @@ export function jumpToLastCell(api: FUniver) {
     ws.getRange(0, 0).activate();
     return;
   }
-  ws.getRange(maxRow, maxCol).activate();
+  ws.getRange(lastRow, lastCol).activate();
 }
 
 /** Ctrl+; — insert today's date (yyyy-mm-dd) into the active cell. */
@@ -437,7 +441,7 @@ export function removeDuplicates(api: FUniver) {
   const seen = new Set<string>();
   for (let r = 0; r < height; r++) {
     const row = values[r] ?? [];
-    const key = row.map((v) => stringify(v)).join('|');
+    const key = row.map((v: unknown) => stringify(v)).join('|');
     if (seen.has(key)) {
       // Wipe this row's values inside the selection.
       for (let c = 0; c < width; c++) {
@@ -647,6 +651,10 @@ export async function formatAsTable(api: FUniver, themeId?: TableThemeId) {
     // has finished registering by the time the second click runs —
     // creates a duplicate. The `formatAsTableInFlight` boolean only
     // catches truly synchronous double-fires.
+    // TODO(B1-followup): tables-plugin-specific API (`getTableList`,
+    // `addTable`); not on the standard FWorkbook/FWorksheet facade.
+    // Add typed wrappers to univer-facade.ts when we tackle plugin
+    // surfaces in a follow-up pass.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = (wb as any).getTableList?.() ?? [];
     const overlaps = existing.some(

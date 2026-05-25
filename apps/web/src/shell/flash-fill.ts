@@ -1,4 +1,6 @@
 import type { FUniver } from '@univerjs/core/facade';
+import type { FWorksheet } from '@univerjs/sheets/facade';
+import { rangeAt, sheetId as facadeSheetId } from '../univer-facade';
 
 /**
  * Excel's Ctrl+E "Flash Fill" — heuristic pattern detection.
@@ -135,10 +137,9 @@ export type FlashFillResult =
 
 export function flashFill(api: FUniver): FlashFillResult {
   const wb = api.getActiveWorkbook();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheet = wb?.getActiveSheet() as any;
+  const sheet = wb?.getActiveSheet() ?? null;
   if (!wb || !sheet) return { status: 'no-source' };
-  const range = sheet.getActiveRange?.();
+  const range = sheet.getActiveRange();
   if (!range) return { status: 'no-examples' };
 
   const startRow: number = range.getRow();
@@ -196,7 +197,7 @@ export function flashFill(api: FUniver): FlashFillResult {
   }));
 
   const unitId = wb.getId();
-  const subUnitId = sheet.getSheetId();
+  const subUnitId = facadeSheetId(sheet);
   // Single set-range-values command containing every fill — one
   // undo entry, one collab broadcast. The command takes a `value`
   // param shaped as the object-matrix Univer expects (row → col → cell).
@@ -204,8 +205,7 @@ export function flashFill(api: FUniver): FlashFillResult {
   for (const f of filled) {
     value[f.row] = { [startCol]: { v: f.value } };
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (api as any).executeCommand('sheet.command.set-range-values', {
+  void api.executeCommand('sheet.command.set-range-values', {
     unitId,
     subUnitId,
     value,
@@ -214,11 +214,10 @@ export function flashFill(api: FUniver): FlashFillResult {
   return { status: 'filled', count: filled.length };
 }
 
-function readCell(sheet: unknown, row: number, col: number): string {
+function readCell(sheet: FWorksheet, row: number, col: number): string {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = sheet as any;
-    const data = s.getRange(row, col).getCellData();
+    const range = rangeAt(sheet, row, col);
+    const data = range?.getCellData();
     if (data == null) return '';
     const v = data.v;
     if (v == null) return '';

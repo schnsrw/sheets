@@ -41,6 +41,24 @@ type RoomState = {
 const ROOM_TTL_MS = Number(process.env.ROOM_TTL_MIN ?? 60) * 60_000;
 const GC_INTERVAL_MS = 30_000;
 
+// Hard cap on concurrent rooms per process. Bounds memory under a
+// "create rooms in a loop" abuse pattern: even with rate limit on
+// /api/rooms, a script running for hours can accumulate thousands of
+// rooms otherwise. When we'd exceed the cap, LRU-evict the oldest
+// evictable (no password / no seed / no snapshot) room. If every
+// slot is held by a non-evictable room, `create()` returns null and
+// the HTTP layer maps that to 503.
+const MAX_ROOMS = Number(process.env.MAX_ROOMS ?? 256);
+
+/** Thrown when create() can't free a slot because every room is
+ *  non-evictable. Surfaces as 503 service_unavailable at the HTTP layer. */
+export class RoomCapacityError extends Error {
+  constructor(public readonly cap: number) {
+    super(`room registry at capacity (${cap}); all slots non-evictable`);
+    this.name = 'RoomCapacityError';
+  }
+}
+
 export class RoomRegistry {
   private rooms = new Map<string, RoomState>();
   private gc: ReturnType<typeof setInterval> | null = null;
@@ -64,8 +82,21 @@ export class RoomRegistry {
     this.onEvict = null;
   }
 
-  /** Create a fresh room; returns its id. */
+  /**
+   * Create a fresh room; returns its id.
+   *
+   * Enforces MAX_ROOMS by LRU-evicting the oldest *evictable* room
+   * when at capacity. Throws RoomCapacityError if every slot is
+   * non-evictable (password-protected / has seed / has snapshot) —
+   * the HTTP layer maps that to 503.
+   */
   create(opts: { password?: string; seed?: Uint8Array } = {}): string {
+    if (this.rooms.size >= MAX_ROOMS) {
+      const evicted = this.evictLeastRecent();
+      if (!evicted) {
+        throw new RoomCapacityError(MAX_ROOMS);
+      }
+    }
     const id = makeRoomId();
     this.rooms.set(id, {
       id,
@@ -76,6 +107,48 @@ export class RoomRegistry {
       createdAt: new Date().toISOString(),
     });
     return id;
+  }
+
+  /**
+   * Drop the oldest evictable room to free a slot. Returns the evicted
+   * id, or null if no slot can be freed (every room is protected).
+   * Used when create() is at the MAX_ROOMS cap. The same isEvictable()
+   * predicate as the TTL collector ensures we never throw away a
+   * password-protected room or one with uploaded content.
+   */
+  private evictLeastRecent(): string | null {
+    let oldestId: string | null = null;
+    let oldestIdleSince = Infinity;
+    for (const [id, room] of this.rooms) {
+      if (!this.isEvictable(room)) continue;
+      // Treat live-client rooms as least preferred (idleSince === -1
+      // wraps to Infinity-ish via the comparison) — but if EVERY
+      // evictable room has live clients we still need to pick one to
+      // keep create() working. Use a two-pass scheme: prefer idle
+      // rooms first, fall back to live ones.
+      if (room.idleSince > 0 && room.idleSince < oldestIdleSince) {
+        oldestIdleSince = room.idleSince;
+        oldestId = id;
+      }
+    }
+    if (!oldestId) {
+      // No idle-but-evictable room. Fall back to the oldest live room
+      // (by createdAt) among evictable ones. This kills an active
+      // session — not great, but better than refusing service entirely
+      // because someone parked 256 throwaway open rooms.
+      let oldestCreated = '9999-99-99';
+      for (const [id, room] of this.rooms) {
+        if (!this.isEvictable(room)) continue;
+        if (room.createdAt < oldestCreated) {
+          oldestCreated = room.createdAt;
+          oldestId = id;
+        }
+      }
+    }
+    if (!oldestId) return null;
+    this.rooms.delete(oldestId);
+    this.onEvict?.(oldestId);
+    return oldestId;
   }
 
   get(id: string): RoomState | undefined {

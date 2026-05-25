@@ -26,6 +26,10 @@ Two flavours:
 | `REDIS_URL` | _unset_ | Redis connection string for Y.Doc persistence (rooms survive server restarts with a 7-day TTL). Unset → in-memory only; rooms vanish on restart. Compose pattern: `redis://redis:6379`. |
 | `ROOM_TTL_MIN` | `15` | Minutes a room stays in memory after the last client disconnects. Lower → quicker eviction (less idle memory); higher → friendlier reconnect after a short drop. |
 | `MAX_UPLOAD_MB` | `100` | Hard cap on multipart + raw-binary uploads. Bounds the share-room seed (`.xlsx`) and snapshot (gzipped JSON) upload paths. Raise for users with workbooks above this — and bump `VITE_MAX_OPEN_MB` to match so the browser doesn't post something the server will 413. |
+| `MAX_ROOMS` | `256` | Hard cap on concurrent rooms per process. When at cap, `create()` LRU-evicts the oldest evictable room (no password / no seed / no snapshot). If every slot is non-evictable, returns 503 + `retry-after: 60`. Bounds memory under sustained room-creation abuse. |
+| `RATE_LIMIT_ENABLED` | `true` | Master switch for the @fastify/rate-limit plugin. Set to `false` only for load testing or local dev where the bucket would mask real failures. Do not run production with this disabled. |
+| `RATE_LIMIT_PER_MIN` | `60` | General write-endpoint limit per source IP per minute. Applied to `POST /api/rooms` (cheap, but the easiest abuse target). |
+| `UPLOAD_RATE_LIMIT_PER_MIN` | `12` | Upload-endpoint limit per source IP per minute. Applied to `POST /api/rooms/:id/seed` and `POST /api/rooms/:id/snapshot` — they take bytes into memory before persisting, so the bucket is tighter. |
 | `NODE_ENV` | `production` _(in image)_ | Standard Node mode. Set by the Dockerfile; rarely overridden. |
 
 ---

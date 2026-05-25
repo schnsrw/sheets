@@ -2,10 +2,11 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
+import rateLimit from '@fastify/rate-limit';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import { RoomRegistry } from './rooms.js';
+import { RoomRegistry, RoomCapacityError } from './rooms.js';
 import { attachHocuspocus } from './yjs.js';
 import { createStorage } from './storage.js';
 import { createHost } from './host/index.js';
@@ -23,10 +24,64 @@ const HOST = process.env.HOST ?? '0.0.0.0';
 const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 100);
 const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
+// Rate-limit envelope for the write-side endpoints. The defaults are
+// generous enough that a real user editing actively never hits them
+// (creating ~one room per few seconds is plenty for testing), but
+// tight enough that a script trying to enumerate room ids or fill
+// disk via /seed gets a 429 quickly. Tuned per-route below — uploads
+// (seed / snapshot) are slower / larger and get a smaller bucket
+// than the cheap room-create POST.
+//
+// `false` for RATE_LIMIT_ENABLED skips the plugin entirely (useful for
+// load tests + dev where the bucket would mask real failures). On by
+// default for production safety.
+const RATE_LIMIT_ENABLED =
+  (process.env.RATE_LIMIT_ENABLED ?? 'true').toLowerCase() !== 'false';
+const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN ?? 60);
+const UPLOAD_RATE_LIMIT_PER_MIN = Number(
+  process.env.UPLOAD_RATE_LIMIT_PER_MIN ?? 12,
+);
+
 const app = Fastify({ logger: true, bodyLimit: MAX_UPLOAD_BYTES });
 
 await app.register(cors, { origin: true });
 await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES } });
+
+// Rate limit — applied per-route via `config.rateLimit` below so the
+// hot-path GETs (snapshot, seed, info, /health) stay unbounded for
+// returning peers while the WRITE-side endpoints (room create,
+// snapshot upload, seed upload) get throttled per source IP.
+//
+// We DON'T set a global default — turning every route into a 429
+// candidate would make a single noisy client throttle their own
+// /health probes and look like a backend outage. Explicit opt-in
+// per-route is the rule.
+if (RATE_LIMIT_ENABLED) {
+  await app.register(rateLimit, {
+    global: false,
+    // Identify clients by their forwarded IP when behind a proxy
+    // (Caddy / nginx / Cloudflare). Fastify's `req.ip` honours
+    // trustProxy when enabled; we don't enable trustProxy yet
+    // (host-controlled), so this falls back to the socket address.
+    // When self-hosted behind a reverse proxy, set NODE_OPTIONS
+    // or enable trustProxy in the Fastify constructor.
+    keyGenerator: (req) => req.ip,
+    // Plain 429 + Retry-After header — the standard envelope.
+    addHeaders: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+      'retry-after': true,
+    },
+  });
+  app.log.info(
+    `rate limit: ${RATE_LIMIT_PER_MIN}/min general, ${UPLOAD_RATE_LIMIT_PER_MIN}/min uploads`,
+  );
+} else {
+  app.log.warn(
+    'rate limit: DISABLED via RATE_LIMIT_ENABLED=false — do not run this way in production',
+  );
+}
 
 // Accept raw binary uploads (used by /api/rooms/:id/snapshot for the
 // gzipped IWorkbookData cache). Cap matches the multipart limit so a
@@ -108,6 +163,10 @@ rooms.start((evictedId) => {
 });
 app.addHook('onClose', async () => rooms.stop());
 
+app.log.info(
+  `room registry: max ${process.env.MAX_ROOMS ?? 256} concurrent, TTL ${process.env.ROOM_TTL_MIN ?? 60} min, upload ≤ ${MAX_UPLOAD_MB} MB`,
+);
+
 app.get('/health', async () => ({
   ok: true,
   ts: Date.now(),
@@ -121,15 +180,42 @@ app.get('/health', async () => ({
  * to anyone who joins. Keeps the server out of the workbook parsing
  * business; everything goes through the same code path on the client.
  */
-app.post('/api/rooms', async (req) => {
-  const body = (req.body ?? {}) as { password?: unknown };
-  const password =
-    typeof body.password === 'string' && body.password.length > 0
-      ? body.password
-      : undefined;
-  const id = rooms.create({ password });
-  return { roomId: id, needsPassword: Boolean(password) };
-});
+app.post(
+  '/api/rooms',
+  {
+    // Room creation is cheap on the server but a script enumerating
+    // ids or filling the registry with garbage is the easiest abuse
+    // vector. RATE_LIMIT_PER_MIN default = 60/min/IP — 1/sec average,
+    // plenty for a human + their dev tools, throttles a bot.
+    config: RATE_LIMIT_ENABLED
+      ? { rateLimit: { max: RATE_LIMIT_PER_MIN, timeWindow: '1 minute' } }
+      : {},
+  },
+  async (req, reply) => {
+    const body = (req.body ?? {}) as { password?: unknown };
+    const password =
+      typeof body.password === 'string' && body.password.length > 0
+        ? body.password
+        : undefined;
+    try {
+      const id = rooms.create({ password });
+      return { roomId: id, needsPassword: Boolean(password) };
+    } catch (err) {
+      if (err instanceof RoomCapacityError) {
+        // 503 — registry is at the MAX_ROOMS cap and every existing
+        // room is non-evictable (all protected / seeded). Client
+        // should back off and retry; long-term fix is raising the cap
+        // OR clearing stuck rooms via the admin panel.
+        req.log.warn({ cap: err.cap }, 'room create rejected: capacity full');
+        return reply
+          .code(503)
+          .header('retry-after', '60')
+          .send({ error: 'capacity_full', cap: err.cap });
+      }
+      throw err;
+    }
+  },
+);
 
 /**
  * Pre-flight check for a join URL. Lets the client decide whether to
@@ -162,15 +248,28 @@ app.get<{ Params: { id: string } }>('/api/rooms/:id/info', async (req, reply) =>
  * overwrite the seed before the owner uploads" is theoretical and not
  * worth more machinery in a self-hosted v1.
  */
-app.post<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) => {
-  const room = rooms.get(req.params.id);
-  if (!room) return reply.code(404).send({ error: 'room_not_found' });
-  const file = await req.file();
-  if (!file) return reply.code(400).send({ error: 'no_file' });
-  const buf = await file.toBuffer();
-  rooms.setXlsxSeed(req.params.id, new Uint8Array(buf));
-  return { ok: true, bytes: buf.byteLength };
-});
+app.post<{ Params: { id: string } }>(
+  '/api/rooms/:id/seed',
+  {
+    // Upload route — bytes go to memory before we hand them to the
+    // room registry. Even with MAX_UPLOAD_BYTES capping each request,
+    // a script PUT-ing 100 MB blobs in a tight loop can churn GC.
+    // UPLOAD_RATE_LIMIT_PER_MIN default = 12/min/IP (one upload every
+    // 5 s sustained) — fine for the upload-once-per-session real flow.
+    config: RATE_LIMIT_ENABLED
+      ? { rateLimit: { max: UPLOAD_RATE_LIMIT_PER_MIN, timeWindow: '1 minute' } }
+      : {},
+  },
+  async (req, reply) => {
+    const room = rooms.get(req.params.id);
+    if (!room) return reply.code(404).send({ error: 'room_not_found' });
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: 'no_file' });
+    const buf = await file.toBuffer();
+    rooms.setXlsxSeed(req.params.id, new Uint8Array(buf));
+    return { ok: true, bytes: buf.byteLength };
+  },
+);
 
 /**
  * Serve the room's xlsx starting workbook. Joiners apply this locally
@@ -221,21 +320,31 @@ function checkRoomPassword(req: { headers: Record<string, unknown>; query?: unkn
  * upload — joiners then skip parsing entirely. Body is the raw gzipped
  * bytes (no multipart envelope), keeping the upload tiny.
  */
-app.post<{ Params: { id: string } }>('/api/rooms/:id/snapshot', async (req, reply) => {
-  const room = rooms.get(req.params.id);
-  if (!room) return reply.code(404).send({ error: 'room_not_found' });
-  // Fastify gives us the raw body when content-type isn't JSON/form;
-  // ensure we got bytes.
-  const body = req.body as unknown;
-  let bytes: Uint8Array | null = null;
-  if (body instanceof Buffer) bytes = new Uint8Array(body);
-  else if (body instanceof Uint8Array) bytes = body;
-  if (!bytes || bytes.byteLength === 0) {
-    return reply.code(400).send({ error: 'empty_body' });
-  }
-  rooms.setSnapshotGz(req.params.id, bytes);
-  return { ok: true, bytes: bytes.byteLength };
-});
+app.post<{ Params: { id: string } }>(
+  '/api/rooms/:id/snapshot',
+  {
+    // Snapshot upload — same shape and risk profile as /seed (large
+    // binary into memory). Shares the upload bucket.
+    config: RATE_LIMIT_ENABLED
+      ? { rateLimit: { max: UPLOAD_RATE_LIMIT_PER_MIN, timeWindow: '1 minute' } }
+      : {},
+  },
+  async (req, reply) => {
+    const room = rooms.get(req.params.id);
+    if (!room) return reply.code(404).send({ error: 'room_not_found' });
+    // Fastify gives us the raw body when content-type isn't JSON/form;
+    // ensure we got bytes.
+    const body = req.body as unknown;
+    let bytes: Uint8Array | null = null;
+    if (body instanceof Buffer) bytes = new Uint8Array(body);
+    else if (body instanceof Uint8Array) bytes = body;
+    if (!bytes || bytes.byteLength === 0) {
+      return reply.code(400).send({ error: 'empty_body' });
+    }
+    rooms.setSnapshotGz(req.params.id, bytes);
+    return { ok: true, bytes: bytes.byteLength };
+  },
+);
 
 /**
  * Serve the room's pre-parsed gzipped snapshot. Cache-able forever —

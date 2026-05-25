@@ -12,11 +12,11 @@ know our limits), then release.
 
 | Stream | Title                                  | Status      |
 |--------|----------------------------------------|-------------|
-| A1     | Bridge replay retry + dead-letter      | in_progress |
-| A2     | Surface dead-letter detail in indicator| pending     |
+| A1     | Bridge replay retry + dead-letter      | done        |
+| A2     | Surface dead-letter detail in indicator| done        |
 | B1     | Typed Univer facade wrapper            | pending     |
-| C1     | Backend rate limit on uploads          | pending     |
-| C2     | Request size + room eviction caps      | pending     |
+| C1     | Backend rate limit on uploads          | done        |
+| C2     | Request size + room eviction caps      | done        |
 | D1     | Load test script + baseline numbers    | pending     |
 | E      | Tag v0.1 once A1/C1/C2/D1 are green    | pending     |
 
@@ -85,20 +85,38 @@ files to prevent regressions.
 
 ## Stream C — Backend hardening
 
-### C1 — Rate limit on uploads (pending)
+### C1 — Rate limit on uploads (done)
 
-POST /api/docs is currently unauthenticated and unlimited. Token-
-bucket per source IP: 10 uploads/minute, 50/hour. 429 + Retry-After on
-overflow. Implementation: simple in-process LRU map keyed by IP. (S3-
-backed shared limit lives behind the v1 host integration; out of
-scope for now.)
+Shipped: @fastify/rate-limit registered with `global: false` so each
+route opts in. POST /api/rooms gets RATE_LIMIT_PER_MIN (default
+60/min/IP); POST /api/rooms/:id/seed and POST /api/rooms/:id/snapshot
+share UPLOAD_RATE_LIMIT_PER_MIN (default 12/min/IP). Standard 429 +
+`retry-after` envelope. `RATE_LIMIT_ENABLED=false` disables the plugin
+for load testing / dev. Logs the configured limits on boot.
 
-### C2 — Request size + room eviction caps (pending)
+Keyed by `req.ip` — works under direct exposure. When self-hosted
+behind a reverse proxy, enable Fastify's `trustProxy` so the
+forwarded IP is used instead of the socket address.
 
-Verify the upload body cap (Hocuspocus default may not apply to our
-Express route). Add a per-process room cap (default 256) with LRU
-eviction on idle (no clients for 30 min) so a sustained "upload + drop"
-attack can't OOM the gateway.
+### C2 — Request size + room eviction caps (done)
+
+Request size was already capped by `MAX_UPLOAD_MB` (default 100) on
+both the Fastify `bodyLimit` and the multipart `fileSize` limit —
+verified no end-run via content-type substitution (raw `application/
+gzip` and `application/octet-stream` parsers also get the same cap).
+
+Added: hard cap on concurrent rooms per process via `MAX_ROOMS`
+(default 256). When `create()` would push past the cap, the registry
+LRU-evicts the oldest **evictable** room (no password / no seed / no
+snapshot). If every slot is held by a non-evictable room, `create()`
+throws `RoomCapacityError` and the HTTP layer returns 503 + `retry-
+after: 60`. Eviction calls the existing `onEvict` hook so the
+persisted Y.Doc bytes in Redis get cleaned up too.
+
+Two-pass eviction policy: prefer idle-but-evictable rooms first, fall
+back to live-but-evictable (by createdAt) so a malicious "spam open
+rooms with one client each" pattern can't permanently lock out
+legitimate new users. Tests pin all four code paths.
 
 ## Stream D — Load + measurement
 

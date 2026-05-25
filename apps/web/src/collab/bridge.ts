@@ -7,7 +7,7 @@ import {
   type IExecutionOptions,
 } from '@univerjs/core';
 import { SetRangeValuesUndoMutationFactory } from '@univerjs/sheets';
-import { deepRewriteUnitId } from './bridge-helpers';
+import { deepRewriteUnitId, rewriteJson1OpPathUnitId } from './bridge-helpers';
 import { ensurePluginByName, type LazyPluginGroup } from '../univer/lazy-plugins';
 import {
   classifyReplayError,
@@ -537,7 +537,7 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
           // raw replay would target the sender's unit (which doesn't exist
           // here) — rewrite to our local active unit. Sheet ids (`sheet-1`)
           // are already deterministic across the room.
-          const params = rewriteUnitId(api, rec.p);
+          const params = rewriteUnitId(api, rec.p, rec.id);
           // Univer's ActiveWorksheetController unconditionally switches
           // the active sheet on every insert-sheet mutation — there's no
           // `fromCollab` opt-out inside Univer. Save our current active
@@ -799,11 +799,43 @@ export function startBridge(api: FUniver, doc: Y.Doc, opts: BridgeOptions = {}):
  * adds microseconds. Per-cell value maps stay shallow because they're
  * indexed by stringified row/col, not nested objects.
  */
-function rewriteUnitId(api: FUniver, params: unknown): unknown {
+function rewriteUnitId(api: FUniver, params: unknown, mutationId?: string): unknown {
   const wb = api.getActiveWorkbook();
   if (!wb) return params;
   const localUnitId = wb.getId();
-  return deepRewriteUnitId(params, localUnitId);
+  // Capture the sender's unitId BEFORE deepRewriteUnitId swaps it —
+  // drawing mutations need it to patch the json1 op path (which
+  // carries unitId in position [0] of a positional array, out of
+  // deepRewriteUnitId's reach since it only rewrites object KEYS
+  // named `unitId`). See bridge-helpers.ts → rewriteJson1OpPathUnitId.
+  //
+  // Stream F1 fix: without this, set-drawing-apply replays on a
+  // joiner with the OWNER's unitId still embedded in the op,
+  // json1.type.apply walks a path that doesn't exist locally,
+  // throws a bare "Error" with no message, classifier lands it as
+  // PERMANENT, and the drawing silently fails to propagate.
+  let senderUnitId: string | undefined;
+  if (
+    mutationId === 'sheet.mutation.set-drawing-apply' &&
+    params &&
+    typeof params === 'object'
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const u = (params as any).unitId;
+    if (typeof u === 'string') senderUnitId = u;
+  }
+  const rewritten = deepRewriteUnitId(params, localUnitId) as unknown;
+  if (!senderUnitId || senderUnitId === localUnitId) return rewritten;
+  // Drawing mutations only — patch the op's positional path[0].
+  if (rewritten && typeof rewritten === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = rewritten as any;
+    const fixedOp = rewriteJson1OpPathUnitId(r.op, senderUnitId, localUnitId);
+    if (fixedOp !== r.op) {
+      return { ...r, op: fixedOp };
+    }
+  }
+  return rewritten;
 }
 
 /**
@@ -862,3 +894,4 @@ function hasSplitChunkMarker(params: unknown): boolean {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return Object.prototype.hasOwnProperty.call(params, '__splitChunk__');
 }
+

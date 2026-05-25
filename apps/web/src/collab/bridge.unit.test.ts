@@ -100,3 +100,61 @@ test('deepRewriteUnitId preserves null and primitive leaves', () => {
   assert.equal(out.numField, 42);
   assert.equal(out.strField, 'hello');
 });
+
+/* ── rewriteJson1OpPathUnitId — Stream F1 drawing-sync fix ───────── */
+
+import { rewriteJson1OpPathUnitId } from './bridge-helpers';
+
+test('rewriteJson1OpPathUnitId swaps leading unitId in a single JSONOp', () => {
+  // Realistic shape from `sheet.mutation.set-drawing-apply`:
+  // path-prefix...trailing-component. Trailing component is an
+  // object describing the mutation (insert {i: ...}, remove {r: 0},
+  // edit {ed: ...}).
+  const op = ['owner-wb', 'sheet-1', 'data', 'drawing-7', { i: { drawingId: 'drawing-7' } }];
+  const out = rewriteJson1OpPathUnitId(op, 'owner-wb', 'joiner-wb') as unknown[];
+  assert.equal(out[0], 'joiner-wb');
+  assert.equal(out[1], 'sheet-1');
+  assert.equal(out[2], 'data');
+  assert.equal(out[3], 'drawing-7');
+  // Trailing component should be preserved by reference (we shallow-copy).
+  assert.deepEqual(out[4], { i: { drawingId: 'drawing-7' } });
+});
+
+test('rewriteJson1OpPathUnitId walks a JSONOpList (op of ops)', () => {
+  const opList = [
+    ['owner-wb', 'sheet-1', 'data', 'd-1', { i: { x: 1 } }],
+    ['owner-wb', 'sheet-1', 'order', 0, { i: 'd-1' }],
+  ];
+  const out = rewriteJson1OpPathUnitId(opList, 'owner-wb', 'joiner-wb') as unknown[][];
+  assert.equal(out.length, 2);
+  assert.equal(out[0][0], 'joiner-wb');
+  assert.equal(out[1][0], 'joiner-wb');
+});
+
+test('rewriteJson1OpPathUnitId returns input unchanged when no match at [0]', () => {
+  // E.g. some other plugin's json1 op that doesn't lead with unitId.
+  const op = ['something-else', 'whatever', { i: 1 }];
+  const out = rewriteJson1OpPathUnitId(op, 'owner-wb', 'joiner-wb');
+  assert.equal(out, op); // identity — no copy made when nothing to do
+});
+
+test('rewriteJson1OpPathUnitId is a no-op when old === new', () => {
+  const op = ['same-wb', 'sheet-1', 'data', 'd-1', { i: { x: 1 } }];
+  const out = rewriteJson1OpPathUnitId(op, 'same-wb', 'same-wb');
+  assert.equal(out, op);
+});
+
+test('rewriteJson1OpPathUnitId is a no-op for non-array input', () => {
+  assert.equal(rewriteJson1OpPathUnitId(null, 'a', 'b'), null);
+  assert.equal(rewriteJson1OpPathUnitId(undefined, 'a', 'b'), undefined);
+  assert.equal(rewriteJson1OpPathUnitId('string', 'a', 'b'), 'string');
+  assert.equal(rewriteJson1OpPathUnitId(42, 'a', 'b'), 42);
+});
+
+test('rewriteJson1OpPathUnitId preserves a single-element op-list edge case', () => {
+  // JSONOpList with one entry — detection key is "first element is array".
+  const opList = [['owner-wb', 'sheet-1', 'data', 'd-1', { i: 1 }]];
+  const out = rewriteJson1OpPathUnitId(opList, 'owner-wb', 'joiner-wb') as unknown[][];
+  assert.equal(out.length, 1);
+  assert.equal(out[0][0], 'joiner-wb');
+});

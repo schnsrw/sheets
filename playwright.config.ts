@@ -28,7 +28,7 @@ export default defineConfig({
     '**/coedit-conditional-formatting.spec.ts',
     '**/coedit-data-validation.spec.ts',
     '**/coedit-workbook-metadata.spec.ts',
-    '**/coedit-drawings.spec.ts',
+    '**/coedit-drawings.spec.ts', // runs against prod stack via playwright.docker.config.ts
   ],
   use: {
     baseURL: 'http://127.0.0.1:5273',

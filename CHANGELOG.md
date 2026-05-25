@@ -8,6 +8,59 @@ Pre-v0.2.0 releases were tagged without a CHANGELOG file. The site
 (`https://schnsrw.live/changelog/`) carries longer-form release notes
 for v0.1.0+; the GitHub Releases page links to the same content.
 
+## [0.2.1] — 2026-05-26
+
+Patch release — closes the last two known gaps from the
+production-readiness audit:
+
+### Added — measurement
+
+- **WS-side load harness** at `apps/server/scripts/wsloadtest.ts`
+  (`pnpm --filter @sheet/server wsload`). Drives `@hocuspocus/
+  provider` from Node — same handshake + sync protocol as real
+  browsers — and measures connection setup, broadcast latency
+  (sender push → peer observe), and dropped records.
+  Configurable VUs / duration / write cadence.
+- **Measured ceiling** in `docs/LOAD_TEST.md`: 1500 concurrent
+  WS clients across 500 rooms, sustained 350 updates/s aggregate,
+  p99 broadcast latency 3.2 ms, **zero dropped records**. The
+  capacity model's "~500 active docs single-process latency knee"
+  prediction was overcautious by ~10×; real binding constraint
+  at that size is RAM, not broadcast CPU.
+
+### Fixed — drawing-sync regression (cross-peer charts + images)
+
+A drawing (image / chart) inserted by peer A did not appear on
+peer B. Root cause: the bridge's `deepRewriteUnitId` only swaps
+unitIds at object **keys** — but the `sheet.mutation.set-drawing-
+apply` mutation carries its unitId at **position [0] of a json1
+op path** (a positional array, not an object). The op replayed
+on the joiner kept the OWNER's unitId, json1.type.apply walked
+a path that doesn't exist locally, threw a bare "Error" with no
+message, the classifier landed it as PERMANENT, and the drawing
+silently failed to propagate.
+
+Fix: new `rewriteJson1OpPathUnitId` helper in `bridge-helpers.ts`
+walks the op (single JSONOp or JSONOpList) and substitutes the
+leading unitId. Wired into `rewriteUnitId` for the drawing
+mutation id.
+
+Spec: `tests/e2e/coedit-drawings.spec.ts` — previously skipped
+with a wrong-hypothesis comment about `registerDrawingData`;
+now unskipped and passing.
+
+### Capacity model corrections
+
+- Removed the "~500 active docs latency knee" claim — measurement
+  shows broadcast has 10× more headroom than the model assumed.
+- Reordered the bottleneck list: **file descriptors hit first**
+  (Linux default 1024), then RAM, then Redis, then CPU pegging
+  (which wasn't approached even at 1500 concurrent WS).
+
+### Test coverage
+
+139 → 145 (+6 new tests for `rewriteJson1OpPathUnitId`).
+
 ## [0.2.0] — 2026-05-26
 
 **The "production-readiness" release.** Six engineering streams that

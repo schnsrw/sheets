@@ -16,6 +16,55 @@
  * Walks plain objects and arrays only. Class instances are left alone
  * because Univer mutation params are required to be JSON-friendly.
  */
+/**
+ * Drawing mutations (sheets-drawing + drawing plugins) carry an
+ * `op` field that's a json1 patch — a positional array whose first
+ * element is the unitId. `deepRewriteUnitId` only rewrites the
+ * `unitId` KEY in objects; the json1 path is a bare array of strings
+ * so the unitId at position 0 stays as the OWNER's id and the apply
+ * fails on the joiner with no useful message ("Error" at
+ * json1.type.apply).
+ *
+ * This walks the op shape — single JSONOp (array of mixed strings +
+ * numbers + a final mutation component object) OR JSONOpList (array
+ * of JSONOps) — and substitutes the leading unitId where it matches.
+ * Returns a fresh structure on change so peers can identity-compare.
+ *
+ * Scope deliberately narrow: only checks element [0] of each op
+ * (where the unitId always lives in our path schema). A deeper
+ * path-rewrite would invent semantics the Univer source doesn't
+ * document.
+ */
+export function rewriteJson1OpPathUnitId(
+  op: unknown,
+  oldUnitId: string,
+  newUnitId: string,
+): unknown {
+  if (oldUnitId === newUnitId) return op;
+  if (!Array.isArray(op)) return op;
+  // Distinguish single JSONOp (path...component) from JSONOpList
+  // (array of JSONOps). A JSONOp's elements are strings, numbers, or
+  // a single trailing component object. A JSONOpList's elements are
+  // themselves arrays.
+  const looksLikeOpList = op.length > 0 && Array.isArray(op[0]);
+  if (looksLikeOpList) {
+    let changed = false;
+    const next = op.map((entry) => {
+      const r = rewriteJson1OpPathUnitId(entry, oldUnitId, newUnitId);
+      if (r !== entry) changed = true;
+      return r;
+    });
+    return changed ? next : op;
+  }
+  // Single JSONOp — substitute element [0] if it matches.
+  if (op[0] === oldUnitId) {
+    const next = [...op];
+    next[0] = newUnitId;
+    return next;
+  }
+  return op;
+}
+
 export function deepRewriteUnitId(value: unknown, localUnitId: string): unknown {
   if (Array.isArray(value)) {
     let changed = false;

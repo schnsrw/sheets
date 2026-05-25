@@ -4,24 +4,17 @@ import { waitForUniver } from './_helpers';
 /**
  * Cross-peer drawings propagation.
  *
- * STATUS: SKIPPED — replay throws on the joiner with a json1 apply error
- * from `SheetDrawingService.applyJson1` because the joiner's drawing
- * service has no entry for the unit when the bridge replays the
- * `sheet.mutation.set-drawing-apply` op. The op was generated against
- * the owner's empty state and assumes the unit path exists; on a peer
- * that has never run an Insert/SetSheetDrawing locally, the path is
- * missing and json1 throws. Fix is a bridge-side pre-replay hook that
- * calls `sheetDrawingService.registerDrawingData(unitId, {})` (and
- * the matching drawingManagerService init) the first time we see a
- * drawing mutation for a unit. Wiring that up needs its own commit;
- * this spec is the regression that will guard the fix.
+ * STATUS: GUARDED. Originally skipped — replay threw on the joiner
+ * with a json1 apply error from `SheetDrawingService.applyJson1`
+ * because the joiner's drawing service had no entry for the unit when
+ * the bridge replayed the `sheet.mutation.set-drawing-apply` op. Fix
+ * landed in `apps/web/src/collab/bridge.ts` as
+ * `ensureUnitDrawingDataReady` — a pre-replay hook that calls
+ * `sheetDrawingService.registerDrawingData(unitId, {})` before the
+ * first drawing mutation for a unit on each peer. Idempotent —
+ * re-registering an existing entry is a no-op.
  *
- * Captured failure (set-drawing-apply on joiner):
- *   Error
- *     at Object.T [as apply] (json1 apply)
- *     at SheetDrawingService.applyJson1
- *     at handler (SetDrawingApplyMutation)
- *     at ICommandService.executeCommand
+ * This spec is the regression test that pins the fix.
  */
 
 const PROD_BASE = process.env.PROD_BASE ?? 'http://localhost:3000';
@@ -83,7 +76,7 @@ async function joinTwoPeerRoom() {
   };
 }
 
-test.skip('image inserted by peer A appears on peer B', async () => {
+test('image inserted by peer A appears on peer B', async () => {
   const { owner, joiner, cleanup } = await joinTwoPeerRoom();
 
   await owner.waitForFunction(() => typeof window.__ensurePlugin__ === 'function', null, {

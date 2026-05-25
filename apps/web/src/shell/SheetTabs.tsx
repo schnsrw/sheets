@@ -17,6 +17,7 @@ import { setZoom } from './tab-actions';
 import { Icon } from './Icon';
 import { Tooltip } from './Tooltip';
 import { CollabIndicator } from './CollabIndicator';
+import { useToast } from './toast/toast-context';
 import { STAT_LABELS, useStatPrefs, type StatKey } from './use-statbar-prefs';
 
 const NUM = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
@@ -34,6 +35,7 @@ const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 200, 300, 400];
  */
 export function SheetTabs() {
   const api = useUniverAPI();
+  const toast = useToast();
   const { sheets, activeSheetId, ready } = useSheets();
   const { stats } = useActiveCellState();
 
@@ -69,13 +71,56 @@ export function SheetTabs() {
   };
   const commitRename = () => {
     if (!api || !editingId) return;
-    renameSheet(api, editingId, draftName.trim());
+    const trimmed = draftName.trim();
+    const previous = sheets.find((s) => s.id === editingId)?.name ?? '';
+    const ok = renameSheet(api, editingId, trimmed);
+    if (ok && trimmed !== previous) {
+      toast.success(`Renamed to ${trimmed.slice(0, 31)}`);
+    } else if (!ok && trimmed) {
+      // renameSheet returns false on empty / duplicate / missing
+      // sheet. Empty cancels silently (no-op edit); a duplicate
+      // gets an explicit toast since the rename appears to succeed
+      // visually but the name doesn't actually change.
+      toast.error(`Couldn't rename — "${trimmed.slice(0, 31)}" is already used`);
+    }
     setEditingId(null);
     setDraftName('');
   };
   const cancelRename = () => {
     setEditingId(null);
     setDraftName('');
+  };
+
+  // Delete-with-Undo — captures the sheet name BEFORE the delete
+  // command runs so the toast can show what's gone, and offers an
+  // Undo action button that fires Univer's command-stack undo.
+  // Univer's RemoveSheetCommand pushes a redo/undo pair on the
+  // history stack, so the undo recovers the deleted sheet + all
+  // its data. Gmail / Google Sheets canonical pattern.
+  const handleDelete = (sheetId: string) => {
+    if (!api) return;
+    const name = sheets.find((s) => s.id === sheetId)?.name ?? 'Sheet';
+    const ok = deleteSheetById(api, sheetId);
+    if (!ok) {
+      toast.error("Can't delete the only sheet");
+      return;
+    }
+    toast.success(`Deleted ${name}`, {
+      action: { label: 'Undo', onClick: () => api && undo(api) },
+      duration: 8000, // longer than the default so the user has
+      // time to read + click Undo before it auto-dismisses.
+    });
+  };
+
+  const handleDuplicate = (sheetId: string) => {
+    if (!api) return;
+    const name = sheets.find((s) => s.id === sheetId)?.name ?? 'Sheet';
+    duplicateSheet(api, sheetId);
+    // Univer mints the new sheet name asynchronously ("Sheet1
+    // (2)"), so we can't tell the user the new name in this same
+    // tick. Confirm the action with the SOURCE name — the new tab
+    // appears in the strip in the next render.
+    toast.success(`Duplicated ${name}`);
   };
 
   const visibleSheets = sheets.filter((s) => !s.hidden);
@@ -133,7 +178,7 @@ export function SheetTabs() {
             onDraftChange={setDraftName}
             onCommit={commitRename}
             onCancel={cancelRename}
-            onDelete={() => api && deleteSheetById(api, s.id)}
+            onDelete={() => handleDelete(s.id)}
             onContextMenu={(e) => {
               e.preventDefault();
               setTabMenu({ sheetId: s.id, x: e.clientX, y: e.clientY });
@@ -259,9 +304,9 @@ export function SheetTabs() {
             const target = sheets.find((s) => s.id === tabMenu.sheetId);
             if (target) startRename(target.id, target.name);
           }}
-          onDuplicate={() => api && duplicateSheet(api, tabMenu.sheetId)}
+          onDuplicate={() => handleDuplicate(tabMenu.sheetId)}
           onHide={() => api && hideSheet(api, tabMenu.sheetId)}
-          onDelete={() => api && deleteSheetById(api, tabMenu.sheetId)}
+          onDelete={() => handleDelete(tabMenu.sheetId)}
         />
       )}
 

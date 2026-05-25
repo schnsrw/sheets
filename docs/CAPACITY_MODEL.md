@@ -212,6 +212,88 @@ machine.
   (default 1s). Acceptable for v0.1, would need cross-region Redis
   replication for stricter SLAs.
 
+## Worked example — $48 DigitalOcean General Purpose droplet, 1 user / 1 doc
+
+Common question: "What does X dollars of server actually get me?" A
+real config to anchor the model:
+
+| Spec | Value |
+|---|---|
+| Hardware | 4 dedicated vCPU, 8 GB RAM, 180 GB SSD |
+| Cost | $48/mo (DigitalOcean General Purpose) |
+| Workload | 1 user per doc (single-player editor with cloud persistence — no co-edit fan-out) |
+
+**Headline: ~5 000–8 000 concurrent users on a single Node process,
+~10 000–15 000 with Node cluster mode + sticky room-to-worker
+routing.**
+
+### Resource budget
+
+| Resource | Budget | Per active user | Ceiling reason |
+|---|---|---|---|
+| RAM | 6.5 GB (after ~1.5 GB OS + Redis + Node baseline) | ~370 KB (300 KB Y.Doc + 64 KB WS buffer + ~5 KB Hocuspocus session) | Theoretical 17 500 users, but other walls hit first |
+| WebSocket file descriptors | needs `ulimit -n 65535` | 1 fd | ~5 000–8 000 per Node process before event-loop lag |
+| CPU | 4 dedicated cores | ~negligible | NO broadcast fan-out at 1 user/doc — CPU is not the bottleneck |
+| Network | 1 Gbps | ~0.4 KB/s steady | Doesn't matter at this scale |
+| Disk | 180 GB SSD | ~0 (Y.Doc lives in Redis RAM) | Massively over-provisioned — actual use < 20 GB |
+
+### Why "1 user/doc" lifts the ceiling vs the 3-user case
+
+With 1 user / 1 doc there's **no Yjs broadcast cost** — the single-
+core CPU bottleneck that caps co-edit workloads at ~500 active docs
+disappears entirely. The new bottleneck is **WebSocket connection
+management on Node's single thread**: at ~5 000 concurrent active
+connections, event-loop lag creeps above 50 ms, which feels laggy
+for keystroke echo.
+
+### Sizing table for this box
+
+| Concurrent users | What fits |
+|---|---|
+| 1 000 | ✅ Trivial. Use the box for other things too. |
+| 5 000 | ✅ Single process, default config + raised ulimit. |
+| 10 000 | ✅ Needs Node cluster mode + sticky routing. |
+| 15 000 | ⚠️ Possible but past the comfort zone. Move Redis off the box. |
+| 25 000+ | ❌ Need a second app server. |
+
+### Three things that'll bite first
+
+1. **File descriptor limit.** Linux default is 1024. You'll hit a
+   wall at exactly 1024 connections looking like mysterious WS
+   failures. Set `ulimit -n 65535` in your systemd unit or pass
+   `--ulimit nofile=65535:65535` to Docker. Non-negotiable.
+2. **Rate limit + corporate NAT.** Default is 60 room-creates/min/IP.
+   If 500 users share one office IP they all share one bucket and
+   throttle each other. Raise the limit or add authenticated user
+   buckets behind the IP bucket.
+3. **Redis on same box.** ~5 000 active users × 500 KB Y.Doc avg
+   ≈ 2.5 GB Redis. Fine for 8 GB. Past ~8 000 users, move Redis
+   to its own droplet.
+
+### When you outgrow this box
+
+Not when CPU/RAM is full — when event-loop p99 latency creeps above
+50 ms during peak. At that point you don't need a **bigger** box, you
+need a **second** $48 box behind a load balancer doing consistent
+hash on room id. Linear scaling from there.
+
+### What this box ISN'T good for
+
+- **3–5 users per doc co-edit** (broadcast fan-out hits the single-
+  core ceiling at ~500 active docs regardless of RAM — different
+  ceiling, different fix; see Tier table above).
+- **High availability.** One box = reboot is downtime. Uptime SLAs
+  need ≥ 2 boxes + Redis on its own.
+
+### Bottom line
+
+One $48 droplet realistically serves a 1-user-per-doc workload up to
+~5 000 concurrent users without tuning, ~12 000 with cluster mode +
+raised ulimit + Redis on the same box. That's a small-SaaS-doing-
+first-year-revenue footprint on a single monthly invoice. Storage
+cost (180 GB SSD) is the limiting factor on the spec sheet, not
+compute — you'll use 5–10× less than you're paying for.
+
 ## Re-validating the model
 
 These numbers are estimates anchored to a single measured run. The

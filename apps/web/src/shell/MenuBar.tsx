@@ -311,6 +311,17 @@ function collectCommandSearchItems(
   return out;
 }
 
+// Display labels for the Paste Special toast confirmation.
+// Kept in sync with PasteSpecialDialog's OPTIONS list.
+const PASTE_SPECIAL_LABEL: Record<PasteSpecialMode, string> = {
+  all: 'All',
+  formulas: 'Formulas',
+  values: 'Values',
+  formats: 'Formats',
+  'col-widths': 'Column widths',
+  'no-borders': 'All except borders',
+};
+
 export function MenuBar() {
   const api = useUniverAPI();
   const workbook = useWorkbook();
@@ -1041,8 +1052,25 @@ export function MenuBar() {
           onClick: () => {
             if (!api) return;
             const sel = getActiveSelectionRange(api);
-            if (!sel) return;
-            savePrintOptions({ ...loadPrintOptions(), printArea: rangeToA1(sel) });
+            if (!sel) {
+              toast.error('Select a range first');
+              return;
+            }
+            const a1 = rangeToA1(sel);
+            const prev = loadPrintOptions();
+            savePrintOptions({ ...prev, printArea: a1 });
+            // Print Area is invisible until you next open Print, so
+            // surface it as a confirmation. Offer Undo back to the
+            // previous value (null OR the prior range) since it's
+            // easy to mis-click on a selection that isn't what you
+            // wanted.
+            toast.success(`Print Area set to ${a1}`, {
+              action: {
+                label: 'Undo',
+                onClick: () =>
+                  savePrintOptions({ ...loadPrintOptions(), printArea: prev.printArea }),
+              },
+            });
           },
         },
         {
@@ -1050,7 +1078,21 @@ export function MenuBar() {
           id: 'clear-print-area',
           label: 'Clear Print Area',
           icon: 'border_clear',
-          onClick: () => savePrintOptions({ ...loadPrintOptions(), printArea: null }),
+          onClick: () => {
+            const prev = loadPrintOptions();
+            if (!prev.printArea) {
+              toast.info('No Print Area to clear');
+              return;
+            }
+            savePrintOptions({ ...prev, printArea: null });
+            toast.success('Print Area cleared', {
+              action: {
+                label: 'Undo',
+                onClick: () =>
+                  savePrintOptions({ ...loadPrintOptions(), printArea: prev.printArea }),
+              },
+            });
+          },
         },
         { kind: 'separator', id: 'sep-coedit' },
         ...(collab.roomId
@@ -1527,7 +1569,14 @@ export function MenuBar() {
           onCancel={() => setShowPasteSpecial(false)}
           onConfirm={(mode: PasteSpecialMode) => {
             setShowPasteSpecial(false);
-            if (api) pasteSpecial(api, mode);
+            if (!api) return;
+            pasteSpecial(api, mode);
+            // "Formats" / "Column widths" / "All except borders"
+            // produce changes that are easy to miss at a glance
+            // (no new cell text, only style or geometry tweaks).
+            // A short confirmation pins the action so the user
+            // knows the variant they picked actually ran.
+            toast.success(`Pasted: ${PASTE_SPECIAL_LABEL[mode]}`);
           }}
         />
       )}

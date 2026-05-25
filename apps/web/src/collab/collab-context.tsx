@@ -29,6 +29,17 @@ export type CollabCtxValue = {
   /** Aggregate Yjs sync health across visible peers. Only meaningful
    *  when `status === 'live'`; falls back to `in-sync` otherwise. */
   syncHealth: SyncHealth;
+  /** Number of OTHER peers currently visible via awareness (i.e. the
+   *  presence count NOT including the local user). Lets the indicator
+   *  show "Live · 2 peers" instead of just "Live". Zero outside a
+   *  room and during connect. */
+  peerCount: number;
+  /** Number of locally-emitted mutation records added to the op log
+   *  since the WebSocket dropped to `offline`. Resets to 0 the moment
+   *  the connection returns to `live`. Lets the offline banner /
+   *  indicator show "3 changes queued" so users can see their edits
+   *  aren't being silently lost. */
+  queuedLocal: number;
   /** Active room's Yjs document — null when not in a room. Exposed
    *  via context so the HistoryPanel can subscribe to the op-log
    *  array without piping it through three layers of props. */
@@ -41,6 +52,8 @@ export const CollabContext = createContext<CollabCtxValue>({
   status: 'off',
   role: 'write',
   syncHealth: 'in-sync',
+  peerCount: 0,
+  queuedLocal: 0,
   doc: null,
 });
 

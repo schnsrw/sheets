@@ -497,9 +497,62 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
     return () => clearInterval(id);
   }, [status, peers]);
 
+  // Queued-mutation counter: how many of OUR mutation records have
+  // landed in the op log since we last knew the server was alive.
+  // Yjs writes to the local Y.Array immediately even when the WS is
+  // offline; the count is what's piled up locally waiting for the
+  // next flush. Reset to 0 every time we re-enter `live`. Lets the
+  // offline banner / indicator show "3 changes queued" so users
+  // don't think their edits vanished. See feedback from the v0.1
+  // collab UX audit.
+  const [queuedLocal, setQueuedLocal] = useState(0);
+  const queuedOffsetRef = useRef<number>(0);
+  useEffect(() => {
+    if (!doc) {
+      setQueuedLocal(0);
+      queuedOffsetRef.current = 0;
+      return;
+    }
+    if (status === 'live') {
+      setQueuedLocal(0);
+      queuedOffsetRef.current = 0;
+      return;
+    }
+    if (status !== 'offline' && status !== 'connecting') return;
+    // Use a loose-typed Y.Array since the bridge's MutationRecord
+    // shape isn't exported and only the `c` (clientId) field matters
+    // here. Mirror the LOG_KEY constant from bridge.ts (`'ops'`).
+    type LogRecord = { c?: string };
+    const log = doc.getArray<LogRecord>('ops');
+    const myId = String(doc.clientID);
+    queuedOffsetRef.current = log.length;
+    const recount = () => {
+      let count = 0;
+      for (let i = queuedOffsetRef.current; i < log.length; i += 1) {
+        const rec = log.get(i);
+        if (rec && String(rec.c) === myId) count += 1;
+      }
+      setQueuedLocal(count);
+    };
+    log.observe(recount);
+    recount();
+    return () => {
+      log.unobserve(recount);
+    };
+  }, [doc, status]);
+
   const collabCtx = useMemo(
-    () => ({ enabled: isCollabEnabled(), roomId, status, role, syncHealth, doc }),
-    [roomId, status, role, syncHealth, doc],
+    () => ({
+      enabled: isCollabEnabled(),
+      roomId,
+      status,
+      role,
+      syncHealth,
+      peerCount: peers.length,
+      queuedLocal,
+      doc,
+    }),
+    [roomId, status, role, syncHealth, peers.length, queuedLocal, doc],
   );
 
   const presenceCtx = useMemo(
@@ -527,7 +580,7 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       <PresenceContext.Provider value={presenceCtx}>
         {needsSelfHost && <SelfHostBanner />}
         {role === 'view' && roomId && status === 'live' && <ViewOnlyBanner />}
-        {roomId && status === 'offline' && <OfflineBanner />}
+        {roomId && status === 'offline' && <OfflineBanner queuedLocal={queuedLocal} />}
         {passwordPrompt && (
           <PasswordPrompt
             state={passwordPrompt}
@@ -612,13 +665,26 @@ function ViewOnlyBanner() {
 /** Banner shown when the WS provider reports an offline status (after
  *  Hocuspocus's internal reconnect heuristics have kicked in). The
  *  provider keeps retrying with exponential backoff in the background;
- *  this banner just makes it visible that a reconnect is pending. */
-function OfflineBanner() {
+ *  this banner just makes it visible that a reconnect is pending.
+ *
+ *  When local mutations have piled up while offline, surface the
+ *  count so users see their work isn't being lost — the most common
+ *  worry when the indicator turns amber. */
+function OfflineBanner({ queuedLocal }: { queuedLocal: number }) {
+  const tail =
+    queuedLocal > 0
+      ? `${queuedLocal} ${queuedLocal === 1 ? 'change is' : 'changes are'} queued locally and will sync when the connection is back.`
+      : 'Your edits are queued locally and will sync when the connection is back.';
   return (
-    <div className="collab-banner collab-banner--warn" data-testid="offline-banner" role="status" aria-live="polite">
+    <div
+      className="collab-banner collab-banner--warn"
+      data-testid="offline-banner"
+      data-queued-local={queuedLocal}
+      role="status"
+      aria-live="polite"
+    >
       <div className="collab-banner__body">
-        <strong>Waiting to reconnect to server…</strong>{' '}
-        Your edits are queued locally and will sync when the connection is back.
+        <strong>Waiting to reconnect to server…</strong> {tail}
       </div>
     </div>
   );

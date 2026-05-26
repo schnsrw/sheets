@@ -2,24 +2,31 @@
 
 # Casual Sheets
 
-**Excel-flavored web spreadsheet with real-time collaborative editing**
+**Open-source self-hosted web spreadsheet with `.xlsx` round-trip and real-time co-editing — an alternative to Google Sheets, Excel Online, and OnlyOffice you run on your own server.**
 
 [![CI](https://github.com/schnsrw/sheets/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/ci.yml)
 [![Deploy](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/schnsrw/sheets/actions/workflows/deploy-pages.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/schnsrw/casual-sheets?logo=docker)](https://hub.docker.com/r/schnsrw/casual-sheets)
 [![Image Size](https://img.shields.io/docker/image-size/schnsrw/casual-sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/schnsrw/casual-sheets)
 [![E2E Tests](https://img.shields.io/badge/e2e-357%20passing-brightgreen?logo=playwright)](./tests/e2e)
+[![Unit Tests](https://img.shields.io/badge/unit-145%20passing-brightgreen)](./apps)
+[![Version](https://img.shields.io/badge/version-v0.2.1-blue)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
-[**Live Demo →**](https://sheet.schnsrw.live/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/schnsrw/casual-sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md)
+[**Live Demo →**](https://sheet.schnsrw.live/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/schnsrw/casual-sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Comparisons →](https://schnsrw.live/vs/)
 
 </div>
 
 ---
 
-Casual Sheets is a self-hostable, browser-based spreadsheet that looks and behaves like Microsoft Excel — ribbon UI, formula bar, file-centric workflow — with real-time multi-user co-editing built in. Upload an `.xlsx` file, share a link, and edit together instantly. No accounts, no database, no lock-in.
+Casual Sheets is a **self-hostable, browser-based spreadsheet** that looks and behaves like Microsoft Excel — ribbon UI, formula bar, file-centric workflow — with **real-time multi-user co-editing** built in. Upload an `.xlsx` file, share a link, and edit together instantly. **No accounts, no Microsoft / Google login, no lock-in.** One Docker container, runs on a $5/mo VPS, scales to ~5 000 concurrent users on a $48/mo box (numbers [measured](./docs/LOAD_TEST.md), not hand-waved).
 
-Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) with a custom Office-style shell layered on top.
+**Compares to:**
+[Google Sheets](https://schnsrw.live/vs/sheets-vs-google-sheets/) ·
+[Excel Online](https://schnsrw.live/vs/sheets-vs-excel-online/) ·
+[OnlyOffice](https://schnsrw.live/vs/sheets-vs-onlyoffice/)
+
+Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) — the OSS variant, **never the Pro package** — with a custom Office-style shell layered on top. Sister projects: [Casual Editor](https://github.com/schnsrw/docx) (`.docx`) and [Casual Slides](https://github.com/schnsrw/slides) (`.pptx`).
 
 ---
 
@@ -255,7 +262,7 @@ git clone git@github.com:schnsrw/univer-revamp.git vendor/univer
 
 | Concern | Choice |
 | --- | --- |
-| Grid + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.22.1) |
+| Grid + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.24.x) |
 | Frontend | React 18 + Vite + TypeScript (strict mode) |
 | Styling | Tailwind CSS + Material Symbols Outlined + Inter (Google Fonts) |
 | Lint / format | ESLint 9 flat config + Prettier |
@@ -271,10 +278,10 @@ git clone git@github.com:schnsrw/univer-revamp.git vendor/univer
 
 ## 🚫 Explicit Non-Goals
 
-- **No persistence / accounts / WOPI** — anonymous sessions by room URL; in-memory + Redis only.
-- **No AI / LLM features** — the Univer command bus is extensible; wire your own model in later.
-- **No mobile** — desktop browsers only. The shell is responsive to 480 px, but the grid UX assumes a pointer device.
+- **No AI / LLM features** — the Univer command bus is extensible; wire your own model in later. We're an editor, not an AI product.
 - **No Univer Pro** — everything is built on OSS. Missing features are built here or deferred; the commercial Pro package is never used.
+- **No native mobile apps** — desktop browsers are first-class; mobile back-port (viewer + light editor) ships at `≤ 480 px` but isn't a native iOS / Android app.
+- **No 1:1 Google-Sheets feature parity** — we don't chase every Power Query / LAMBDA / niche function. The bar is "the surface a typical business spreadsheet uses, round-tripped honestly."
 
 ---
 

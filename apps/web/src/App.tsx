@@ -43,6 +43,7 @@ import { SparklinesProvider } from './sparklines/sparklines-context';
 import { SparklineLayer } from './sparklines/SparklineLayer';
 import { useAutosave } from './autosave/useAutosave';
 import { AutosaveRestoreBanner } from './autosave/AutosaveRestoreBanner';
+import { FileSourceProvider } from './file-source';
 import { useVersionHistoryCapture } from './version-history/useVersionHistoryCapture';
 import { useTouchPan } from './touch/useTouchPan';
 import { MobileActionBar } from './shell/MobileActionBar';
@@ -320,62 +321,64 @@ export function App() {
       <UIContext.Provider value={uiValue}>
         <WorkbookContext.Provider value={wbValue}>
           <LoadingContext.Provider value={loadingValue}>
-            <ToastProvider>
-            <BusyProvider>
-              <ChartsProvider>
-                <PivotsProvider>
-                  <SparklinesProvider>
-                    <OutlineProvider>
-                      <GrowthDriver />
-                      <FileDropDriver />
-                      <AutosaveDriver />
-                      <TouchPanDriver />
-                      <VersionHistoryDriver />
-                      <PreviewDriver />
-                      <ThemeBridge />
-                      <CollabDriver>
-                        <div
-                          className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
-                          data-testid="app-shell"
-                        >
-                          <TitleBar />
-                          <Toolbar />
-                          <AutosaveRestoreBanner />
-                          <PreviewBanner />
-                          {formulaBarVisible && <FormulaBar />}
-                          <div className="grid-row">
-                            <main className="grid-host" data-testid="grid-host">
-                              <UniverSheet revision={meta.revision} initialSnapshot={initial} />
-                            </main>
-                            {tablesPanelVisible && <TablesPanel />}
-                            {outlinePanelVisible && <OutlinePanel />}
-                            {chartsPanelVisible && <ChartsPanel />}
-                            {historyPanelVisible && <VersionHistoryPanel />}
-                            <PanelRail />
-                          </div>
-                          <MobileActionBar />
-                          <SheetTabs />
-                          <PanelMutex />
-                          {shareRoomOpen && (
-                            <CreateRoomDialog onClose={() => setShareRoomOpen(false)} />
-                          )}
-                        </div>
-                      </CollabDriver>
-                      <HomeScreen
-                        dismissed={homeDismissed}
-                        onDismiss={() => setHomeDismissed(true)}
-                      />
-                      <LoadingOverlay />
-                      <ChartLayer />
-                      <SparklineLayer />
-                      <ShowFormulasLayer />
-                    </OutlineProvider>
-                  </SparklinesProvider>
-                </PivotsProvider>
-              </ChartsProvider>
-            </BusyProvider>
-            <ToastContainer />
-            </ToastProvider>
+            <FileSourceProvider>
+              <ToastProvider>
+                <BusyProvider>
+                  <ChartsProvider>
+                    <PivotsProvider>
+                      <SparklinesProvider>
+                        <OutlineProvider>
+                          <GrowthDriver />
+                          <FileDropDriver />
+                          <AutosaveDriver />
+                          <TouchPanDriver />
+                          <VersionHistoryDriver />
+                          <PreviewDriver />
+                          <ThemeBridge />
+                          <CollabDriver>
+                            <div
+                              className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
+                              data-testid="app-shell"
+                            >
+                              <TitleBar />
+                              <Toolbar />
+                              <AutosaveRestoreBanner />
+                              <PreviewBanner />
+                              {formulaBarVisible && <FormulaBar />}
+                              <div className="grid-row">
+                                <main className="grid-host" data-testid="grid-host">
+                                  <UniverSheet revision={meta.revision} initialSnapshot={initial} />
+                                </main>
+                                {tablesPanelVisible && <TablesPanel />}
+                                {outlinePanelVisible && <OutlinePanel />}
+                                {chartsPanelVisible && <ChartsPanel />}
+                                {historyPanelVisible && <VersionHistoryPanel />}
+                                <PanelRail />
+                              </div>
+                              <MobileActionBar />
+                              <SheetTabs />
+                              <PanelMutex />
+                              {shareRoomOpen && (
+                                <CreateRoomDialog onClose={() => setShareRoomOpen(false)} />
+                              )}
+                            </div>
+                          </CollabDriver>
+                          <HomeScreen
+                            dismissed={homeDismissed}
+                            onDismiss={() => setHomeDismissed(true)}
+                          />
+                          <LoadingOverlay />
+                          <ChartLayer />
+                          <SparklineLayer />
+                          <ShowFormulasLayer />
+                        </OutlineProvider>
+                      </SparklinesProvider>
+                    </PivotsProvider>
+                  </ChartsProvider>
+                </BusyProvider>
+                <ToastContainer />
+              </ToastProvider>
+            </FileSourceProvider>
           </LoadingContext.Provider>
         </WorkbookContext.Provider>
       </UIContext.Provider>

@@ -18,7 +18,8 @@ import {
   workbookDataToDelimited,
   workbookDataToOds,
 } from '../ods';
-import { getFolderState, writeFileToFolder } from '../file-system-access/pinned-folder';
+import { selectFileSource } from '../file-source';
+import type { SaveResult } from '../file-source';
 
 /**
  * File-level imperative actions. Pure functions — the caller owns React state
@@ -180,7 +181,7 @@ export async function saveAsXlsx(
   // Windows treats it as macro-enabled and Excel offers to enable them.
   const isXlsm = blob.type === 'application/vnd.ms-excel.sheet.macroEnabled.12';
   const finalName = ensureExt(filename, isXlsm ? 'xlsm' : 'xlsx');
-  const result = await deliverBlob(blob, finalName);
+  const result = await deliverBlob(blob, finalName, 'xlsx');
   toast(api, formatSaveMessage(result, finalName));
   // The on-disk file now supersedes the autosave slot — drop it so a
   // crash after a successful save doesn't re-prompt with stale state.
@@ -329,7 +330,7 @@ export async function saveAsOds(api: FUniver, filename = 'workbook.ods') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToOds(snapshot);
   const finalName = ensureExt(filename, 'ods');
-  const result = await deliverBlob(blob, finalName);
+  const result = await deliverBlob(blob, finalName, 'ods');
   toast(api, formatSaveMessage(result, finalName));
 }
 
@@ -339,7 +340,7 @@ export async function saveAsCsv(api: FUniver, filename = 'workbook.csv') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToDelimited(snapshot, 'csv');
   const finalName = ensureExt(filename, 'csv');
-  const result = await deliverBlob(blob, finalName);
+  const result = await deliverBlob(blob, finalName, 'csv');
   toast(api, formatSaveMessage(result, finalName));
 }
 
@@ -349,12 +350,13 @@ export async function saveAsTsv(api: FUniver, filename = 'workbook.tsv') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToDelimited(snapshot, 'tsv');
   const finalName = ensureExt(filename, 'tsv');
-  const result = await deliverBlob(blob, finalName);
+  const result = await deliverBlob(blob, finalName, 'tsv');
   toast(api, formatSaveMessage(result, finalName));
 }
 
-function formatSaveMessage(result: DeliverResult, filename: string): string {
+function formatSaveMessage(result: SaveResult, filename: string): string {
   if (result.kind === 'folder') return `Saved as ${filename} in ${result.folderName}`;
+  if (result.kind === 'server') return `Saved to ${result.path}`;
   return `Saved as ${filename}`;
 }
 
@@ -363,41 +365,24 @@ function ensureExt(name: string, ext: string): string {
   return re.test(name) ? name : `${name.replace(/\.(xlsx|xlsm|ods)$/i, '')}.${ext}`;
 }
 
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  // Slight delay so the click handler completes before revoking.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
 /**
- * Deliver a workbook blob to the user. When the user has pinned a
- * folder via the File System Access API and the permission is still
- * granted, we write directly into that folder (no browser download
- * dialog). Otherwise we fall back to the existing download flow.
+ * Hand the workbook bytes off to whichever `FileSource` is live.
  *
- * Returns a discriminated result so the caller can adapt the toast
- * copy — "Saved to <folder>" vs "Saved as <filename>".
+ * Mode 1 (browser) picks download vs FSA folder write internally.
+ * Mode 3 and Mode 2 will hand off to a server-side PUT once those
+ * sources land. The toast copy in `formatSaveMessage` adapts to the
+ * returned `SaveResult.kind`.
  *
- * Failures during the FSA write (disk full, permission revoked mid-
- * flight, etc.) propagate to the caller — file-actions already wraps
- * Save in a toast.error handler.
+ * Failures (disk full, permission revoked mid-flight, server error)
+ * propagate to the caller — file-actions already wraps Save in a
+ * toast.error handler.
  */
-type DeliverResult = { kind: 'folder'; folderName: string } | { kind: 'download' };
-
-async function deliverBlob(blob: Blob, filename: string): Promise<DeliverResult> {
-  const state = await getFolderState();
-  if (state.kind === 'granted') {
-    await writeFileToFolder(state.record.handle, filename, blob);
-    return { kind: 'folder', folderName: state.record.name };
-  }
-  triggerDownload(blob, filename);
-  return { kind: 'download' };
+async function deliverBlob(
+  blob: Blob,
+  filename: string,
+  sourceFormat: 'xlsx' | 'ods' | 'csv' | 'tsv',
+): Promise<SaveResult> {
+  return selectFileSource().save(blob, { filename, sourceFormat });
 }
 
 export function pickXlsxFile(): Promise<File | null> {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '../shell/Icon';
-import type { RecentFile } from '../recent-files/store';
+import type { RecentEntry } from '../file-source';
 
 /**
  * One-tap "reopen the file you were in last" prompt, rendered above the
@@ -26,8 +26,8 @@ export function ReopenBanner({
   recents,
   onOpen,
 }: {
-  recents: RecentFile[];
-  onOpen: (rec: RecentFile) => void;
+  recents: RecentEntry[];
+  onOpen: (rec: RecentEntry) => void | Promise<void>;
 }) {
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try {
@@ -57,7 +57,7 @@ export function ReopenBanner({
 
   const top = recents[0];
   if (!top || dismissed) return null;
-  if (Date.now() - top.openedAt > REOPEN_WITHIN_MS) return null;
+  if (Date.now() - top.modifiedAt > REOPEN_WITHIN_MS) return null;
 
   const dismiss = () => {
     try {
@@ -75,7 +75,7 @@ export function ReopenBanner({
       </span>
       <span className="home__reopen-text">
         Pick up where you left off — <strong>{top.name}</strong>
-        <span className="home__reopen-meta">{formatAgo(Date.now() - top.openedAt)}</span>
+        <span className="home__reopen-meta">{formatAgo(Date.now() - top.modifiedAt)}</span>
       </span>
       <button
         type="button"

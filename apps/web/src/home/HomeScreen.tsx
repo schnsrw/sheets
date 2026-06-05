@@ -3,8 +3,7 @@ import type { IWorkbookData } from '@univerjs/core';
 import { Icon } from '../shell/Icon';
 import { useWorkbook } from '../use-workbook';
 import { useLoading } from '../loading-context';
-import { useLiveRecentFiles } from '../recent-files/useLiveRecentFiles';
-import { deleteRecentFile, type RecentFile } from '../recent-files/store';
+import { useFileSource, useRecentFiles, type RecentEntry } from '../file-source';
 import { xlsxToWorkbookData } from '../xlsx';
 import { emptyWorkbook } from '../snapshot';
 import { loadSpreadsheetFile, pickXlsxFile } from '../shell/file-actions';
@@ -36,7 +35,8 @@ export function HomeScreen({
 }) {
   const wb = useWorkbook();
   const loading = useLoading();
-  const recents = useLiveRecentFiles();
+  const fileSource = useFileSource();
+  const recents = useRecentFiles();
   const pinned = usePinnedFolder();
 
   const isBlank = wb.meta.name === 'Untitled' && wb.meta.revision <= 1;
@@ -134,9 +134,19 @@ export function HomeScreen({
     }
   };
 
-  const onOpenRecent = (rec: RecentFile) => {
-    wb.replaceWorkbook(rec.data as IWorkbookData, rec.sourceFormat);
-    onDismiss();
+  const onOpenRecent = async (rec: RecentEntry) => {
+    try {
+      const opened = await fileSource.openRecent(rec.id);
+      wb.replaceWorkbook(opened.data, opened.sourceFormat);
+      onDismiss();
+    } catch (err) {
+      console.warn('[home] reopen failed', rec.id, err);
+      loading.set({
+        fileName: rec.name,
+        phase: 'reading',
+        error: err instanceof Error ? err.message : 'Could not reopen this file.',
+      });
+    }
   };
 
   const openFileFromDisk = async () => {
@@ -156,9 +166,8 @@ export function HomeScreen({
       });
     }
   };
-  const onDeleteRecent = (rec: RecentFile) => {
-    if (rec.id == null) return;
-    void deleteRecentFile(rec.id);
+  const onDeleteRecent = (rec: RecentEntry) => {
+    void fileSource.forgetRecent(rec.id);
   };
 
   return (
@@ -338,7 +347,7 @@ export function HomeScreen({
                     <span className="home__recent-text">
                       <span className="home__recent-name">{rec.name}</span>
                       <span className="home__recent-meta">
-                        {formatSize(rec.size)} · {formatTime(rec.openedAt)}
+                        {formatSize(rec.size)} · {formatTime(rec.modifiedAt)}
                       </span>
                     </span>
                   </button>

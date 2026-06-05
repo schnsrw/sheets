@@ -18,6 +18,7 @@ import {
   workbookDataToDelimited,
   workbookDataToOds,
 } from '../ods';
+import { getFolderState, writeFileToFolder } from '../file-system-access/pinned-folder';
 
 /**
  * File-level imperative actions. Pure functions — the caller owns React state
@@ -169,7 +170,9 @@ export async function saveAsXlsx(
     ...(options.charts && options.charts.length > 0 ? { charts: options.charts } : {}),
     ...(chartImages.length > 0 ? { chartImages } : {}),
     ...(options.pivots && options.pivots.length > 0 ? { pivots: options.pivots } : {}),
-    ...(options.sparklines && options.sparklines.length > 0 ? { sparklines: options.sparklines } : {}),
+    ...(options.sparklines && options.sparklines.length > 0
+      ? { sparklines: options.sparklines }
+      : {}),
   };
   const blob = await workbookDataToXlsx(snapshot, extras);
   // If the workbook carried macros (VBA stub passthrough sidecar), the
@@ -177,8 +180,8 @@ export async function saveAsXlsx(
   // Windows treats it as macro-enabled and Excel offers to enable them.
   const isXlsm = blob.type === 'application/vnd.ms-excel.sheet.macroEnabled.12';
   const finalName = ensureExt(filename, isXlsm ? 'xlsm' : 'xlsx');
-  triggerDownload(blob, finalName);
-  toast(api, `Saved as ${finalName}`);
+  const result = await deliverBlob(blob, finalName);
+  toast(api, formatSaveMessage(result, finalName));
   // The on-disk file now supersedes the autosave slot — drop it so a
   // crash after a successful save doesn't re-prompt with stale state.
   void discardAutosaveAfterExplicitSave();
@@ -204,7 +207,9 @@ export async function exportCurrentWorkbookAsXlsxBlob(
     ...(options.charts && options.charts.length > 0 ? { charts: options.charts } : {}),
     ...(chartImages.length > 0 ? { chartImages } : {}),
     ...(options.pivots && options.pivots.length > 0 ? { pivots: options.pivots } : {}),
-    ...(options.sparklines && options.sparklines.length > 0 ? { sparklines: options.sparklines } : {}),
+    ...(options.sparklines && options.sparklines.length > 0
+      ? { sparklines: options.sparklines }
+      : {}),
   };
   return workbookDataToXlsx(snapshot, extras);
 }
@@ -254,9 +259,7 @@ function toast(api: FUniver, content: string): void {
       (globalThis as any).__toastLog__ = [{ content }];
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const injector = (api as any)._injector as
-    | { get: (token: unknown) => unknown }
-    | undefined;
+  const injector = (api as any)._injector as { get: (token: unknown) => unknown } | undefined;
   if (!injector) return;
   try {
     const svc = injector.get(IMessageService) as
@@ -282,9 +285,7 @@ function collectExportExtras(snapshot: IWorkbookData): ExportExtras {
 
 type HyperlinkExtra = { row: number; column: number; payload: string; display?: string };
 
-function extractHyperlinks(
-  snapshot: IWorkbookData,
-): Record<string, HyperlinkExtra[]> {
+function extractHyperlinks(snapshot: IWorkbookData): Record<string, HyperlinkExtra[]> {
   const out: Record<string, HyperlinkExtra[]> = {};
   for (const sheetId of snapshot.sheetOrder ?? []) {
     const wsd = snapshot.sheets?.[sheetId];
@@ -322,15 +323,14 @@ function extractHyperlinks(
   return out;
 }
 
-
 export async function saveAsOds(api: FUniver, filename = 'workbook.ods') {
   const wb = api.getActiveWorkbook();
   if (!wb) return;
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToOds(snapshot);
   const finalName = ensureExt(filename, 'ods');
-  triggerDownload(blob, finalName);
-  toast(api, `Saved as ${finalName}`);
+  const result = await deliverBlob(blob, finalName);
+  toast(api, formatSaveMessage(result, finalName));
 }
 
 export async function saveAsCsv(api: FUniver, filename = 'workbook.csv') {
@@ -339,8 +339,8 @@ export async function saveAsCsv(api: FUniver, filename = 'workbook.csv') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToDelimited(snapshot, 'csv');
   const finalName = ensureExt(filename, 'csv');
-  triggerDownload(blob, finalName);
-  toast(api, `Saved as ${finalName}`);
+  const result = await deliverBlob(blob, finalName);
+  toast(api, formatSaveMessage(result, finalName));
 }
 
 export async function saveAsTsv(api: FUniver, filename = 'workbook.tsv') {
@@ -349,8 +349,13 @@ export async function saveAsTsv(api: FUniver, filename = 'workbook.tsv') {
   const snapshot = timeIt('snapshot-save', () => wb.save() as IWorkbookData);
   const blob = await workbookDataToDelimited(snapshot, 'tsv');
   const finalName = ensureExt(filename, 'tsv');
-  triggerDownload(blob, finalName);
-  toast(api, `Saved as ${finalName}`);
+  const result = await deliverBlob(blob, finalName);
+  toast(api, formatSaveMessage(result, finalName));
+}
+
+function formatSaveMessage(result: DeliverResult, filename: string): string {
+  if (result.kind === 'folder') return `Saved as ${filename} in ${result.folderName}`;
+  return `Saved as ${filename}`;
 }
 
 function ensureExt(name: string, ext: string): string {
@@ -368,6 +373,31 @@ function triggerDownload(blob: Blob, filename: string) {
   document.body.removeChild(a);
   // Slight delay so the click handler completes before revoking.
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * Deliver a workbook blob to the user. When the user has pinned a
+ * folder via the File System Access API and the permission is still
+ * granted, we write directly into that folder (no browser download
+ * dialog). Otherwise we fall back to the existing download flow.
+ *
+ * Returns a discriminated result so the caller can adapt the toast
+ * copy — "Saved to <folder>" vs "Saved as <filename>".
+ *
+ * Failures during the FSA write (disk full, permission revoked mid-
+ * flight, etc.) propagate to the caller — file-actions already wraps
+ * Save in a toast.error handler.
+ */
+type DeliverResult = { kind: 'folder'; folderName: string } | { kind: 'download' };
+
+async function deliverBlob(blob: Blob, filename: string): Promise<DeliverResult> {
+  const state = await getFolderState();
+  if (state.kind === 'granted') {
+    await writeFileToFolder(state.record.handle, filename, blob);
+    return { kind: 'folder', folderName: state.record.name };
+  }
+  triggerDownload(blob, filename);
+  return { kind: 'download' };
 }
 
 export function pickXlsxFile(): Promise<File | null> {

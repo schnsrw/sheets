@@ -10,6 +10,9 @@ import { emptyWorkbook } from '../snapshot';
 import { loadSpreadsheetFile, pickXlsxFile } from '../shell/file-actions';
 import { CATEGORIES, TEMPLATES, type Template, type TemplateCategory } from './registry';
 import { TemplateCard } from './TemplateCard';
+import { ReopenBanner } from './ReopenBanner';
+import { PinnedFolderSection } from './PinnedFolderSection';
+import { usePinnedFolder } from '../file-system-access/usePinnedFolder';
 import './home.css';
 
 /**
@@ -34,6 +37,7 @@ export function HomeScreen({
   const wb = useWorkbook();
   const loading = useLoading();
   const recents = useLiveRecentFiles();
+  const pinned = usePinnedFolder();
 
   const isBlank = wb.meta.name === 'Untitled' && wb.meta.revision <= 1;
   // Suppress the home in collab rooms — the URL is the authoritative
@@ -54,7 +58,8 @@ export function HomeScreen({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return TEMPLATES.filter((t) => {
-      if (activeCategory !== 'All' && t.category !== activeCategory && t.id !== 'blank') return false;
+      if (activeCategory !== 'All' && t.category !== activeCategory && t.id !== 'blank')
+        return false;
       if (!q) return true;
       return (
         t.name.toLowerCase().includes(q) ||
@@ -139,9 +144,7 @@ export function HomeScreen({
     if (!file) return;
     loading.set({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
     try {
-      await loadSpreadsheetFile(file, null, wb.replaceWorkbook, (phase) =>
-        loading.set({ phase }),
-      );
+      await loadSpreadsheetFile(file, null, wb.replaceWorkbook, (phase) => loading.set({ phase }));
       onDismiss();
       loading.set(null);
     } catch (err) {
@@ -171,6 +174,7 @@ export function HomeScreen({
         <Icon name="close" />
       </button>
       <div className="home__scroll">
+        <ReopenBanner recents={recents} onOpen={onOpenRecent} />
         <header className="home__hero">
           <div className="home__hero-glow" aria-hidden />
           <div className="home__hero-inner">
@@ -180,8 +184,8 @@ export function HomeScreen({
             </div>
             <h1 className="home__title">Start something today.</h1>
             <p className="home__lede">
-              Pick a template designed for the way you actually work — or open a
-              file from your computer.
+              Pick a template designed for the way you actually work — or open a file from your
+              computer.
             </p>
             <div className="home__hero-actions">
               <div className="home__search">
@@ -203,6 +207,13 @@ export function HomeScreen({
                 <Icon name="folder_open" />
                 <span>Open file</span>
               </button>
+              <PinFolderControl
+                state={pinned.state}
+                onPin={() => void pinned.pin()}
+                onReconnect={() => void pinned.reconnect()}
+                onUnpin={() => void pinned.unpin()}
+              />
+
               <div className="home__cats">
                 <button
                   type="button"
@@ -244,7 +255,9 @@ export function HomeScreen({
           <section className="home__section">
             <div className="home__section-head">
               <h2>{query.trim() ? `Results for "${query.trim()}"` : activeCategory}</h2>
-              <span className="home__section-hint">{filtered.length} template{filtered.length === 1 ? '' : 's'}</span>
+              <span className="home__section-hint">
+                {filtered.length} template{filtered.length === 1 ? '' : 's'}
+              </span>
             </div>
             {filtered.length === 0 ? (
               <div className="home__empty">No templates match. Try a different keyword.</div>
@@ -276,6 +289,30 @@ export function HomeScreen({
               );
             })}
           </>
+        )}
+
+        {(pinned.state.kind === 'granted' || pinned.state.kind === 'prompt') && (
+          <PinnedFolderSection
+            state={pinned.state}
+            onReconnect={() => void pinned.reconnect()}
+            onOpenFile={async (file) => {
+              loading.set({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
+              try {
+                await loadSpreadsheetFile(file, null, wb.replaceWorkbook, (phase) =>
+                  loading.set({ phase }),
+                );
+                onDismiss();
+                loading.set(null);
+              } catch (err) {
+                console.error('[home] pinned-folder open failed', err);
+                loading.set({
+                  fileName: file.name,
+                  phase: 'reading',
+                  error: err instanceof Error ? err.message : 'Could not open this file.',
+                });
+              }
+            }}
+          />
         )}
 
         {recents.length > 0 && (
@@ -320,9 +357,74 @@ export function HomeScreen({
         )}
 
         <footer className="home__foot">
-          <span>Drop an Excel / ODS / CSV file anywhere, or use <strong>File → Open</strong>.</span>
+          <span>
+            Drop an Excel / ODS / CSV file anywhere, or use <strong>File → Open</strong>.
+          </span>
         </footer>
       </div>
+    </div>
+  );
+}
+
+function PinFolderControl({
+  state,
+  onPin,
+  onReconnect,
+  onUnpin,
+}: {
+  state: ReturnType<typeof usePinnedFolder>['state'];
+  onPin: () => void;
+  onReconnect: () => void;
+  onUnpin: () => void;
+}) {
+  if (state.kind === 'unsupported') return null;
+  if (state.kind === 'none' || state.kind === 'denied') {
+    return (
+      <button
+        type="button"
+        className="home__pin"
+        onClick={onPin}
+        data-testid="home-pin-folder"
+        title={
+          state.kind === 'denied'
+            ? `Pick a folder again (last pick "${state.record.name}" was denied)`
+            : 'Pick a folder — saves write directly to it, no download'
+        }
+      >
+        <Icon name="folder_special" />
+        <span>{state.kind === 'denied' ? `Re-pin ${state.record.name}` : 'Pin a folder'}</span>
+      </button>
+    );
+  }
+  if (state.kind === 'prompt') {
+    return (
+      <button
+        type="button"
+        className="home__pin home__pin--reconnect"
+        onClick={onReconnect}
+        data-testid="home-reconnect-folder"
+        title="Permission lapsed — click to re-grant access"
+      >
+        <Icon name="link_off" />
+        <span>Reconnect {state.record.name}</span>
+      </button>
+    );
+  }
+  // granted
+  return (
+    <div className="home__pin home__pin--granted" data-testid="home-pinned-folder">
+      <Icon name="folder_special" />
+      <span className="home__pin-name">Saving to {state.record.name}</span>
+      <button
+        type="button"
+        className="home__pin-unpin"
+        onClick={onUnpin}
+        aria-label="Unpin folder"
+        title="Unpin folder"
+        data-testid="home-unpin-folder"
+      >
+        <Icon name="close" size="sm" />
+      </button>
     </div>
   );
 }

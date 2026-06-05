@@ -30,11 +30,12 @@ import type { LiveVersionFeed } from './live-feed';
 
 const DB_NAME = 'casual-sheets';
 const STORE = 'versions';
-// Shared DB version — must equal autosave/store.ts and recent-files/store.ts.
-// IndexedDB rejects an `open(name, n)` whose n is less than the live
-// db version with a VersionError; mixing versions across modules
-// silently kills whichever module asked for the older number.
-const VERSION = 3;
+// Shared DB version — must equal autosave/store.ts, recent-files/store.ts,
+// and file-system-access/store.ts. IndexedDB rejects an `open(name, n)`
+// whose n is less than the live db version with a VersionError; mixing
+// versions across modules silently kills whichever module asked for the
+// older number.
+const VERSION = 4;
 const AUTO_RETENTION = 30;
 
 export type VersionKind = 'auto' | 'manual';
@@ -82,6 +83,9 @@ function openDb(): Promise<IDBDatabase> {
         const os = db.createObjectStore('recent-files', { keyPath: 'id', autoIncrement: true });
         os.createIndex('openedAt', 'openedAt', { unique: false });
         os.createIndex('name', 'name', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('pinned-folder')) {
+        db.createObjectStore('pinned-folder');
       }
     };
     req.onsuccess = () => resolve(req.result);

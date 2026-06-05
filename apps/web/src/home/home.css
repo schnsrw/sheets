@@ -27,14 +27,14 @@
   /* Subtle ambient gradient — gives the page its own atmosphere
      without competing with the template cards. */
   background-image:
-    radial-gradient(900px circle at 8% -10%, rgba(14, 116, 144, 0.10), transparent 55%),
+    radial-gradient(900px circle at 8% -10%, rgba(14, 116, 144, 0.1), transparent 55%),
     radial-gradient(700px circle at 95% 30%, rgba(29, 78, 216, 0.08), transparent 60%);
 }
 
 [data-theme='dark'] .home {
   background-image:
     radial-gradient(900px circle at 8% -10%, rgba(34, 211, 238, 0.18), transparent 55%),
-    radial-gradient(700px circle at 95% 30%, rgba(96, 165, 250, 0.10), transparent 60%);
+    radial-gradient(700px circle at 95% 30%, rgba(96, 165, 250, 0.1), transparent 60%);
 }
 
 .home__scroll {
@@ -64,8 +64,8 @@
 }
 [data-theme='dark'] .home__hero-glow {
   background:
-    radial-gradient(closest-side, rgba(34, 211, 238, 0.30), transparent 70%),
-    radial-gradient(closest-side at 70% 50%, rgba(168, 85, 247, 0.20), transparent 75%);
+    radial-gradient(closest-side, rgba(34, 211, 238, 0.3), transparent 70%),
+    radial-gradient(closest-side at 70% 50%, rgba(168, 85, 247, 0.2), transparent 75%);
   opacity: 0.9;
 }
 
@@ -86,7 +86,10 @@
   color: var(--color-text-secondary);
   margin-bottom: 18px;
 }
-.home__brand .icon { font-size: 18px; color: var(--color-accent); }
+.home__brand .icon {
+  font-size: 18px;
+  color: var(--color-accent);
+}
 
 .home__title {
   margin: 0 0 10px;
@@ -144,7 +147,9 @@
   color: var(--color-text);
   border-color: var(--color-border-strong);
 }
-.home__close .icon { font-size: 22px; }
+.home__close .icon {
+  font-size: 22px;
+}
 
 .home__open-file {
   display: inline-flex;
@@ -167,7 +172,10 @@
   background: var(--color-hover);
   border-color: var(--color-border-strong);
 }
-.home__open-file .icon { font-size: 18px; color: var(--color-text-secondary); }
+.home__open-file .icon {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+}
 
 .home__search {
   display: inline-flex;
@@ -177,7 +185,9 @@
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.02),
+    0 2px 12px rgba(0, 0, 0, 0.04);
   min-width: 280px;
   transition:
     border-color var(--motion-fast) var(--ease-out),
@@ -187,7 +197,10 @@
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
-.home__search .icon { color: var(--color-text-secondary); font-size: 18px; }
+.home__search .icon {
+  color: var(--color-text-secondary);
+  font-size: 18px;
+}
 .home__search input {
   flex: 1;
   border: 0;
@@ -198,7 +211,9 @@
   color: var(--color-text);
   min-width: 0;
 }
-.home__search input::placeholder { color: var(--color-text-secondary); }
+.home__search input::placeholder {
+  color: var(--color-text-secondary);
+}
 
 .home__cats {
   display: inline-flex;
@@ -221,13 +236,19 @@
     color var(--motion-fast) var(--ease-out),
     border-color var(--motion-fast) var(--ease-out);
 }
-.home__cat:hover { background: var(--color-hover); color: var(--color-text); }
+.home__cat:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
 .home__cat--on {
   background: var(--color-text);
   border-color: var(--color-text);
   color: var(--color-bg);
 }
-.home__cat--on:hover { background: var(--color-text); color: var(--color-bg); }
+.home__cat--on:hover {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
 
 /* ── Sections ─────────────────────────────────────────────────────────── */
 
@@ -237,7 +258,9 @@
   margin: 0 auto;
   padding: 16px 64px 8px;
 }
-.home__section--featured { padding-top: 24px; }
+.home__section--featured {
+  padding-top: 24px;
+}
 
 .home__section-head {
   display: flex;
@@ -256,7 +279,10 @@
   align-items: center;
   gap: 8px;
 }
-.home__section-head h2 .icon { font-size: 20px; color: var(--color-text-secondary); }
+.home__section-head h2 .icon {
+  font-size: 20px;
+  color: var(--color-text-secondary);
+}
 .home__section-hint {
   font-size: 13px;
   color: var(--color-text-secondary);
@@ -306,7 +332,9 @@
   /* Accent strip across the top — picks up the template's accent. */
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 3px;
   background: var(--tpl-accent);
   opacity: 0;
@@ -317,17 +345,26 @@
   border-color: var(--tpl-accent);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
-.tpl-card:hover::before { opacity: 1; }
+.tpl-card:hover::before {
+  opacity: 1;
+}
 .tpl-card:focus-visible {
   outline: 0;
   border-color: var(--tpl-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tpl-accent) 25%, transparent);
 }
 
-.tpl-card--lg .tpl-card__preview { padding: 16px; min-height: 168px; }
+.tpl-card--lg .tpl-card__preview {
+  padding: 16px;
+  min-height: 168px;
+}
 .tpl-card__preview {
   padding: 14px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tpl-accent) 6%, transparent) 0%, transparent 80%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tpl-accent) 6%, transparent) 0%,
+    transparent 80%
+  );
 }
 
 .tpl-card__body {
@@ -349,8 +386,12 @@
   border-radius: 8px;
   flex-shrink: 0;
 }
-.tpl-card__icon .icon { font-size: 18px; }
-.tpl-card__text { min-width: 0; }
+.tpl-card__icon .icon {
+  font-size: 18px;
+}
+.tpl-card__text {
+  min-width: 0;
+}
 .tpl-card__name {
   font-size: 14px;
   font-weight: 600;
@@ -414,15 +455,25 @@
   align-items: stretch;
   border-bottom: 1px solid var(--color-divider);
 }
-.tpl-thumb__row:last-child { border-bottom: 0; }
+.tpl-thumb__row:last-child {
+  border-bottom: 0;
+}
 
 .tpl-thumb__row {
   --cols: 5;
 }
-.tpl-thumb__grid[data-cols='4'] .tpl-thumb__row { --cols: 4; }
-.tpl-thumb__grid[data-cols='5'] .tpl-thumb__row { --cols: 5; }
-.tpl-thumb__grid[data-cols='6'] .tpl-thumb__row { --cols: 6; }
-.tpl-thumb__grid[data-cols='7'] .tpl-thumb__row { --cols: 7; }
+.tpl-thumb__grid[data-cols='4'] .tpl-thumb__row {
+  --cols: 4;
+}
+.tpl-thumb__grid[data-cols='5'] .tpl-thumb__row {
+  --cols: 5;
+}
+.tpl-thumb__grid[data-cols='6'] .tpl-thumb__row {
+  --cols: 6;
+}
+.tpl-thumb__grid[data-cols='7'] .tpl-thumb__row {
+  --cols: 7;
+}
 
 .tpl-thumb__row[data-zebra='1'] {
   background: color-mix(in srgb, var(--tpl-accent) 5%, var(--color-bg));
@@ -442,13 +493,27 @@
   text-overflow: ellipsis;
   border-right: 1px solid color-mix(in srgb, var(--color-divider) 60%, transparent);
 }
-.tpl-thumb__cell:last-child { border-right: 0; }
+.tpl-thumb__cell:last-child {
+  border-right: 0;
+}
 
-.tpl-thumb__cell--head { color: #fff; }
-.tpl-thumb__cell--num { font-variant-numeric: tabular-nums; text-align: right; }
-.tpl-thumb__cell--date { font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
-.tpl-thumb__cell--muted { color: var(--color-text-secondary); }
-.tpl-thumb__cell--bold { font-weight: 700; }
+.tpl-thumb__cell--head {
+  color: #fff;
+}
+.tpl-thumb__cell--num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.tpl-thumb__cell--date {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+.tpl-thumb__cell--muted {
+  color: var(--color-text-secondary);
+}
+.tpl-thumb__cell--bold {
+  font-weight: 700;
+}
 
 .tpl-thumb__badge {
   display: inline-block;
@@ -463,7 +528,9 @@
 
 /* ── Recent files section ─────────────────────────────────────────────── */
 
-.home__section--recents { margin-top: 8px; }
+.home__section--recents {
+  margin-top: 8px;
+}
 
 .home__recents {
   margin: 0;
@@ -484,7 +551,9 @@
   gap: 4px;
   border-radius: var(--radius-sm);
 }
-.home__recent:hover { background: var(--color-hover); }
+.home__recent:hover {
+  background: var(--color-hover);
+}
 
 .home__recent-open {
   flex: 1;
@@ -511,7 +580,12 @@
   color: var(--color-accent);
   flex-shrink: 0;
 }
-.home__recent-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home__recent-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .home__recent-name {
   font-size: 13px;
   font-weight: 500;
@@ -520,7 +594,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.home__recent-meta { font-size: 11px; color: var(--color-text-secondary); }
+.home__recent-meta {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
 
 .home__recent-delete {
   width: 26px;
@@ -537,8 +614,166 @@
   align-items: center;
   justify-content: center;
 }
-.home__recent:hover .home__recent-delete { opacity: 1; }
-.home__recent-delete:hover { background: var(--color-pressed); color: var(--color-text); }
+.home__recent:hover .home__recent-delete {
+  opacity: 1;
+}
+.home__recent-delete:hover {
+  background: var(--color-pressed);
+  color: var(--color-text);
+}
+
+/* ── Pin folder pill (hero actions) ───────────────────────────────────
+ *  Three visual states matching FolderState:
+ *    • none / denied → ghost button "Pin a folder"
+ *    • prompt        → warning-tinted "Reconnect"
+ *    • granted       → accent-tinted "Saving to <name>" + close X
+ * ───────────────────────────────────────────────────────────────────── */
+.home__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.home__pin:hover {
+  background: var(--color-hover);
+}
+.home__pin--reconnect {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #7c2d12;
+}
+[data-theme='dark'] .home__pin--reconnect {
+  border-color: #b45309;
+  background: rgba(180, 83, 9, 0.16);
+  color: #fed7aa;
+}
+.home__pin--granted {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  cursor: default;
+}
+.home__pin--granted:hover {
+  background: var(--color-accent-soft);
+}
+.home__pin-name {
+  font-weight: 500;
+}
+.home__pin-unpin {
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.home__pin-unpin:hover {
+  background: var(--color-pressed);
+  color: var(--color-text);
+}
+
+/* ── Pinned-folder listing ───────────────────────────────────────────── */
+.home__section--pinned {
+  margin-top: 4px;
+}
+.home__pinned-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-divider);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+/* ── Reopen banner ────────────────────────────────────────────────────
+ *  Gentle prompt to skip the home and resume the last file. Sits just
+ *  above the hero. Visual language: accent-tinted card so it feels
+ *  inviting (not warning, unlike the orange autosave banner) and sits
+ *  inside the home's design system rather than the app-shell strip.
+ * ───────────────────────────────────────────────────────────────────── */
+
+.home__reopen {
+  max-width: 1180px;
+  margin: 16px auto 0;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  font-size: 13px;
+  width: calc(100% - 128px);
+  box-sizing: border-box;
+}
+.home__reopen-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  flex-shrink: 0;
+}
+.home__reopen-text {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home__reopen-text strong {
+  font-weight: 600;
+}
+.home__reopen-meta {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.home__reopen-btn {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.home__reopen-btn:hover {
+  background: var(--color-hover);
+}
+.home__reopen-btn--primary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-color: var(--color-accent);
+}
+.home__reopen-btn--primary:hover {
+  filter: brightness(0.95);
+}
 
 /* ── Footer ───────────────────────────────────────────────────────────── */
 
@@ -553,32 +788,80 @@
 /* ── Narrow layout — viewer + light editor on mobile ───────────────── */
 
 @media (max-width: 720px) {
-  .home__hero { padding: 32px 24px 16px; }
-  .home__title { font-size: 32px; }
-  .home__section { padding: 12px 24px 6px; }
-  .home__foot { padding: 12px 24px 0; }
+  .home__hero {
+    padding: 32px 24px 16px;
+  }
+  .home__title {
+    font-size: 32px;
+  }
+  .home__section {
+    padding: 12px 24px 6px;
+  }
+  .home__foot {
+    padding: 12px 24px 0;
+  }
+  .home__reopen {
+    width: calc(100% - 48px);
+    margin: 12px auto 0;
+    padding: 10px 12px;
+  }
+  .home__reopen-text {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
 
   /* Hero actions stack on phone — search becomes full-width and the
      open-file button sits below at 100% so it's a comfortable tap. */
-  .home__hero-actions { flex-direction: column; align-items: stretch; gap: 12px; }
-  .home__search { min-width: 0; width: 100%; }
-  .home__open-file { justify-content: center; }
-  .home__cats { gap: 8px; }
-  .home__cat { padding: 10px 14px; min-height: 40px; }
+  .home__hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .home__search {
+    min-width: 0;
+    width: 100%;
+  }
+  .home__open-file {
+    justify-content: center;
+  }
+  .home__cats {
+    gap: 8px;
+  }
+  .home__cat {
+    padding: 10px 14px;
+    min-height: 40px;
+  }
 
   /* Featured strip switches from auto-fit minmax(260px,1fr) to a single
      column — three large cards stacked is the better mobile rhythm than
      a single one with a horizontal scroll. */
-  .home__featured-row { grid-template-columns: 1fr; }
+  .home__featured-row {
+    grid-template-columns: 1fr;
+  }
 
   /* Close (X) button: keep but bring slightly tighter to the corner. */
-  .home__close { top: 12px; right: 16px; width: 44px; height: 44px; }
+  .home__close {
+    top: 12px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+  }
 }
 
 @media (max-width: 480px) {
-  .home__title { font-size: 28px; }
-  .home__lede { font-size: 15px; }
-  .home__hero { padding: 24px 20px 12px; }
-  .home__section { padding: 10px 20px 6px; }
-  .home__grid { grid-template-columns: 1fr; }
+  .home__title {
+    font-size: 28px;
+  }
+  .home__lede {
+    font-size: 15px;
+  }
+  .home__hero {
+    padding: 24px 20px 12px;
+  }
+  .home__section {
+    padding: 10px 20px 6px;
+  }
+  .home__grid {
+    grid-template-columns: 1fr;
+  }
 }

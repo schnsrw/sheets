@@ -20,12 +20,13 @@ import type { IWorkbookData } from '@univerjs/core';
 
 const DB_NAME = 'casual-sheets';
 const STORE = 'autosave';
-// Three modules share this IDB: autosave, version-history, recent-files.
-// They MUST agree on a single version number — IndexedDB rejects an
-// `open(name, n)` whose n is less than the database's current version
-// with a VersionError, which kills the read. Bump in lockstep with the
-// other two stores when a new one is added.
-const VERSION = 3;
+// Four modules share this IDB: autosave, version-history, recent-files,
+// file-system-access (pinned-folder). They MUST agree on a single
+// version number — IndexedDB rejects an `open(name, n)` whose n is
+// less than the database's current version with a VersionError, which
+// kills the read. Bump in lockstep with the other stores when a new
+// one is added.
+const VERSION = 4;
 const KEY = 'current';
 
 export type AutosaveRecord = {
@@ -58,6 +59,9 @@ function openDb(): Promise<IDBDatabase> {
         const os = db.createObjectStore('recent-files', { keyPath: 'id', autoIncrement: true });
         os.createIndex('openedAt', 'openedAt', { unique: false });
         os.createIndex('name', 'name', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('pinned-folder')) {
+        db.createObjectStore('pinned-folder');
       }
     };
     req.onsuccess = () => resolve(req.result);

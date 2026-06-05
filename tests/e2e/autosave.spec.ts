@@ -23,7 +23,7 @@ async function seedAutosave(page: Page, name: string) {
       // would fail with VersionError on the next app boot and silently
       // kill autosave reads.
       const db: IDBDatabase = await new Promise((resolve, reject) => {
-        const req = indexedDB.open('casual-sheets', 3);
+        const req = indexedDB.open('casual-sheets', 4);
         req.onupgradeneeded = () => {
           const d = req.result;
           if (!d.objectStoreNames.contains('autosave')) d.createObjectStore('autosave');
@@ -36,6 +36,9 @@ async function seedAutosave(page: Page, name: string) {
             const os = d.createObjectStore('recent-files', { keyPath: 'id', autoIncrement: true });
             os.createIndex('openedAt', 'openedAt', { unique: false });
             os.createIndex('name', 'name', { unique: false });
+          }
+          if (!d.objectStoreNames.contains('pinned-folder')) {
+            d.createObjectStore('pinned-folder');
           }
         };
         req.onsuccess = () => resolve(req.result);
@@ -77,22 +80,16 @@ async function seedAutosave(page: Page, name: string) {
   );
 }
 
-async function clearAutosaveDb(page: Page) {
-  await page.evaluate(async () => {
-    await new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('casual-sheets');
-      req.onsuccess = req.onerror = req.onblocked = () => resolve();
-    });
-  });
-}
-
 test.describe('Autosave restore', () => {
   test.beforeEach(async ({ page }) => {
-    // Land on the page once so we have an origin to talk to IDB on,
-    // then wipe + reseed.
+    // Land on the page once so we have an origin to talk to IDB on.
+    // Each Playwright test runs in its own BrowserContext with a fresh
+    // IDB, so no explicit wipe is needed. The pre-Phase-A version of
+    // this beforeEach did a `deleteDatabase` here; that races with the
+    // page's autosave / recent-files / pinned-folder hooks holding
+    // the v4 schema open and hangs when its delete blocks.
     await page.goto('/');
     await waitForUniver(page);
-    await clearAutosaveDb(page);
   });
 
   test('restore banner appears on next load and applies the saved snapshot', async ({ page }) => {

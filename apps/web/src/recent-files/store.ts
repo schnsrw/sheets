@@ -15,7 +15,9 @@ import type { WorkbookFormat } from '../workbook-context';
 
 const DB_NAME = 'casual-sheets';
 const STORE = 'recent-files';
-const VERSION = 3; // bumped from 2 (versions store) to add this object store
+// Shared DB version — must equal autosave, version-history,
+// file-system-access stores. Bumped from 3 to add `pinned-folder`.
+const VERSION = 4;
 const MAX_ENTRIES = 10;
 const STALE_AFTER_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
 
@@ -50,6 +52,9 @@ function openDb(): Promise<IDBDatabase> {
         const os = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
         os.createIndex('openedAt', 'openedAt', { unique: false });
         os.createIndex('name', 'name', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('pinned-folder')) {
+        db.createObjectStore('pinned-folder');
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -103,9 +108,7 @@ export async function listRecentFiles(): Promise<RecentFile[]> {
       req.onerror = () => reject(req.error ?? new Error('list failed'));
     });
     const cutoff = Date.now() - STALE_AFTER_MS;
-    return all
-      .filter((r) => r.openedAt >= cutoff)
-      .sort((a, b) => b.openedAt - a.openedAt);
+    return all.filter((r) => r.openedAt >= cutoff).sort((a, b) => b.openedAt - a.openedAt);
   } catch (err) {
     console.warn('[recent-files] list failed', err);
     return [];
@@ -136,7 +139,10 @@ async function prune(): Promise<void> {
       if (!cursor) return;
       kept += 1;
       // Drop everything past MAX_ENTRIES, plus anything stale.
-      if (kept > MAX_ENTRIES || (cursor.value as RecentFile).openedAt < Date.now() - STALE_AFTER_MS) {
+      if (
+        kept > MAX_ENTRIES ||
+        (cursor.value as RecentFile).openedAt < Date.now() - STALE_AFTER_MS
+      ) {
         os.delete(cursor.primaryKey);
       }
       cursor.continue();

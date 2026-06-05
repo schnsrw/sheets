@@ -11,15 +11,11 @@ const base = process.env.PAGES_BASE ?? '/';
 // Read app version from package.json so the About dialog stays in sync
 // without manual bumps every release.
 const pkg = JSON.parse(
-  readFileSync(
-    resolve(dirname(fileURLToPath(import.meta.url)), 'package.json'),
-    'utf-8',
-  ),
+  readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'package.json'), 'utf-8'),
 ) as { version: string };
 
 const collabEnabled =
-  process.env.VITE_COLLAB_ENABLED === '1' ||
-  process.env.VITE_COLLAB_ENABLED === 'true';
+  process.env.VITE_COLLAB_ENABLED === '1' || process.env.VITE_COLLAB_ENABLED === 'true';
 
 export default defineConfig({
   base,
@@ -52,6 +48,14 @@ export default defineConfig({
     // mounts) triggers a re-optimize pass mid-run that duplicates
     // Univer modules in the dep cache. Symptom: "Identifier ...
     // already exists" DI errors and a blank grid until hard reload.
-    include: ['@e965/xlsx', 'echarts', 'echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers'],
+    include: [
+      'exceljs',
+      '@e965/xlsx',
+      'echarts',
+      'echarts/core',
+      'echarts/charts',
+      'echarts/components',
+      'echarts/renderers',
+    ],
   },
 });

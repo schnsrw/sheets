@@ -56,6 +56,14 @@ export default defineConfig({
       'echarts/charts',
       'echarts/components',
       'echarts/renderers',
+      // jszip is pulled by exceljs + the xlsx round-trip path. Without
+      // pre-bundling, Insert > Chart's first import triggers Vite's
+      // optimize-and-reload at runtime — observed on CI as
+      // "Execution context was destroyed, most likely because of a
+      // navigation" inside charts-p1's page.evaluate() block right
+      // after the chart insert. Pre-bundling at server boot keeps the
+      // module graph stable across the test run.
+      'jszip',
     ],
   },
 });

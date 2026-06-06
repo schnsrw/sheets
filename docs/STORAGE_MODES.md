@@ -347,39 +347,85 @@ user system. (We already have JWT issuance in
 
 Each phase is independently shippable.
 
-### Phase A — Mode 1 polish _(2 days, no server change)_
+### Phase A — Mode 1 polish _(landed: af48b32, 2026-06-06)_
 
-- [ ] Recent-files strip on the landing screen.
-- [ ] Auto-reopen banner.
-- [ ] File System Access folder pinning (Chromium only; FF/Safari
-      fall back to today's behaviour).
-- [ ] Save-to-folder bypass for the download-blob flow.
-- [ ] e2e: recent files visible + clickable; FSA happy path in
-      Chromium project, fallback path in the rest.
+- [x] Recent-files strip on the landing screen (already wired pre-A)
+- [x] Auto-reopen banner
+- [x] File System Access folder pinning (Chromium); FF/Safari keep
+      today's download-blob path
+- [x] Save-to-folder bypass for the download flow
+- [x] e2e: reopen banner + FSA support-gating
+- [ ] 50 MB IDB soft warning — follow-up, lands alongside Phase C
 
-### Phase B — `FileSource` extraction _(1 day, no behaviour change)_
+### Phase B — `FileSource` extraction _(landed: d885c3d, 2026-06-06)_
 
-- [ ] Extract today's File menu / Save / Open logic into
-      `BrowserFileSource`.
-- [ ] Create the `FileSource` interface + `useFileSource()` hook.
-- [ ] Replace direct calls in `MenuBar.tsx`, `HomeScreen.tsx`,
-      `file-actions.ts` with the hook.
-- [ ] Unit tests for the interface contract.
+- [x] `FileSource` interface + `BrowserFileSource` impl
+- [x] `useFileSource()` + `useRecentFiles()` hooks; provider mounted in App
+- [x] `file-actions` Save routes through the source; HomeScreen recent
+      open + delete routes through the source
+- [x] Unit contract tests (`MockFileSource`, `SaveResult` discriminator
+      pin)
 
-### Phase C — Mode 3 standalone _(4–5 days)_
+### Phase C — Mode 3 standalone _(in progress)_
 
-- [ ] SQLite users + sessions tables; `bcrypt` deps.
-- [ ] `/auth/signup`, `/auth/login`, `/auth/logout`, `/auth/me`.
-- [ ] `PersonalAuthGate` web component (signup / login UI).
-- [ ] Per-user namespacing in the host integration backends.
-- [ ] `GET /files` user-scoped listing route.
-- [ ] `PersonalFileSource` implementation.
-- [ ] Account modal (password change, danger zone).
-- [ ] `CASUAL_PERSONAL_MODE` env + admin-panel toggle.
-- [ ] Migration: existing single-user docker installs auto-create one
-      account at first login (read from a one-shot env var) so
-      upgraders don't lose their files.
-- [ ] e2e: signup → upload → reload → file still there → sign out → login.
+Decisions taken on 2026-06-06:
+
+- **Password recovery: CLI only.** Documented `docker exec ...
+  casual-sheets reset-password <user>`. No SMTP plumbing in v1.
+- **Multi-user admin visibility: none.** Per-user isolation total. An
+  admin's role is config + room limits, not reading other users' files.
+- **Upload size cap: reuse `MAX_UPLOAD_MB`** (default 25 MB). One knob
+  across WS-seed and personal upload.
+
+Implementation checklist:
+
+- [ ] `better-sqlite3` + `bcrypt` deps; `users` + `sessions` tables
+      at `/data/users.db`
+- [ ] `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`,
+      `GET /auth/me`. `HttpOnly; Secure; SameSite=Lax` cookies, 30-day
+      rolling expiry.
+- [ ] `CASUAL_PERSONAL_MODE` env (`none|single|multi`); admin-panel
+      toggle.
+- [ ] Per-user namespacing in `local` / `s3` / `postgres` host
+      backends via path prefix.
+- [ ] `GET /files` user-scoped listing route; `POST /files` upload;
+      `DELETE /files/:id`. Tied into existing WOPI routes.
+- [ ] `PersonalAuthGate` component (signup / login UI)
+- [ ] `PersonalFileSource` (HTTP impl of the FileSource contract)
+- [ ] Account modal (password change, sign out, delete account —
+      blocked for the last admin)
+- [ ] `casual-sheets reset-password <user>` CLI subcommand
+- [ ] Migration: `CASUAL_BOOTSTRAP_USER` env on first launch creates
+      the owner account and adopts any orphan files in
+      `/data/workbooks/`
+- [ ] Docs: `docs/self-hosting/personal-mode.md` + `ENV.md` updates
+
+**e2e coverage (full flow tests).** Phase C ships with the user
+journey verified end-to-end, not just unit-level. Specs:
+
+- **personal-mode-happy-path.spec.ts** — first launch → signup as
+  admin → land on "My files" (empty) → upload a real .xlsx → file
+  shows in the list → click to open → edit → Save (toast: "Saved to
+  …") → reload, file is still there with the edit → sign out →
+  login → file still there
+- **personal-mode-multi-user.spec.ts** — user A creates, user B
+  signs up (multi mode), user B's My files list does not see user
+  A's files; admin's My files list is identical to a regular user's
+  (no cross-user visibility)
+- **personal-mode-conflict.spec.ts** — two sessions on same file →
+  one saves first → other gets 412 → conflict modal offers
+  "Discard and reload" vs "Save as copy"
+- **personal-mode-session.spec.ts** — expired cookie → app returns
+  to login screen on next action; wrong password shows error
+  toast; duplicate username rejected; `single` mode rejects second
+  signup
+- **personal-mode-cli-reset.spec.ts** — start the docker server
+  with a seeded user; run `docker exec … reset-password`; login
+  with the new password; old password rejected
+- **personal-mode-migration.spec.ts** — pre-Phase-C `/data` volume
+  with `workbooks/` and no `users.db` → set
+  `CASUAL_BOOTSTRAP_USER=joel:p4ssword` → first launch creates the
+  account and adopts the orphan files into Joel's listing
 
 ### Phase D — Mode 2 WOPI UI _(2–3 days)_
 
@@ -391,20 +437,24 @@ Each phase is independently shippable.
 
 ---
 
-## Open questions
+## Decisions log
 
-These need a call before we start the relevant phase.
+All four originally-open questions were resolved on 2026-06-06, all
+to the doc's recommended option. Captured here so the rationale doesn't
+get lost between the issue thread and the code:
 
-1. **Mode 3 password recovery.** Skip in v1 (CLI reset via `docker exec`)
-   or wire SMTP from the start? Recommend **skip** — homelab users
-   don't have SMTP; CLI is easier to document.
-2. **Mode 3 multi-user.** Should `multi` mode show _all_ users' files
-   to admins? Recommend **no** — admin is for ops (config, room
-   limits), not for reading user files. Per-user isolation is total.
-3. **Mode 1 quota.** IDB has no hard quota across browsers (~50–60% of
-   free disk, evicted under pressure). Add a soft warning at 50 MB total?
-4. **Mode 3 file size.** Today's upload limit is `MAX_UPLOAD_MB` (default
-   25 MB) for the WS-seed flow. Reuse for personal upload, or raise it?
+1. **Mode 3 password recovery: CLI only.** No SMTP plumbing in v1.
+   `docker exec ... casual-sheets reset-password <user>` is documented
+   in `docs/self-hosting/personal-mode.md`. Rationale: homelab/NAS
+   users typically don't have an MTA; smaller env surface.
+2. **Mode 3 multi-user admin visibility: none.** Per-user isolation
+   total. Admin role is config + room limits, not file access.
+3. **Mode 1 quota: soft warning at 50 MB.** `navigator.storage.estimate()`
+   probe on home mount; banner above the reopen banner. Lands as a
+   Phase A follow-up alongside Phase C.
+4. **Mode 3 upload cap: reuse `MAX_UPLOAD_MB`** (default 25 MB). One
+   knob across the existing WS-seed flow and personal upload. Operators
+   can bump per deploy.
 
 ---
 

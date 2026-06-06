@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
 import rateLimit from '@fastify/rate-limit';
+import cookie from '@fastify/cookie';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
@@ -14,6 +15,8 @@ import { registerWopiRoutes } from './wopi.js';
 import { AdminConfigStore } from './admin/config.js';
 import { registerAdminRoutes } from './admin/routes.js';
 import { WebhookDispatcher } from './admin/webhooks.js';
+import { PersonalAuthStore, readModeFromEnv } from './auth/personal.js';
+import { registerPersonalAuthRoutes } from './auth/personal-routes.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -35,17 +38,15 @@ const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 // `false` for RATE_LIMIT_ENABLED skips the plugin entirely (useful for
 // load tests + dev where the bucket would mask real failures). On by
 // default for production safety.
-const RATE_LIMIT_ENABLED =
-  (process.env.RATE_LIMIT_ENABLED ?? 'true').toLowerCase() !== 'false';
+const RATE_LIMIT_ENABLED = (process.env.RATE_LIMIT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN ?? 60);
-const UPLOAD_RATE_LIMIT_PER_MIN = Number(
-  process.env.UPLOAD_RATE_LIMIT_PER_MIN ?? 12,
-);
+const UPLOAD_RATE_LIMIT_PER_MIN = Number(process.env.UPLOAD_RATE_LIMIT_PER_MIN ?? 12);
 
 const app = Fastify({ logger: true, bodyLimit: MAX_UPLOAD_BYTES });
 
 await app.register(cors, { origin: true });
 await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES } });
+await app.register(cookie);
 
 // Rate limit — applied per-route via `config.rateLimit` below so the
 // hot-path GETs (snapshot, seed, info, /health) stay unbounded for
@@ -138,8 +139,7 @@ registerWopiRoutes(app, host);
 // hooks, base path, webhook subscriptions. Admin auth = env-only
 // (CASUAL_ADMIN_USERNAME + CASUAL_ADMIN_PASSWORD); login mints a
 // short-lived admin-role JWT for the session.
-const adminConfigPath =
-  process.env.CASUAL_ADMIN_CONFIG_PATH ?? '/data/casual-admin.json';
+const adminConfigPath = process.env.CASUAL_ADMIN_CONFIG_PATH ?? '/data/casual-admin.json';
 const adminStore = new AdminConfigStore(adminConfigPath);
 const webhooks = new WebhookDispatcher(adminStore, {
   info: (...a) => app.log.info(a.join(' ')),
@@ -151,6 +151,50 @@ app.log.info(`admin config: ${adminConfigPath}`);
 // events on demand. The dispatcher reloads the config on every emit
 // so admin-panel edits to subscriptions take effect immediately.
 void webhooks;
+
+// Personal-mode auth store + routes. Off by default (`mode='none'`),
+// in which case the store is not even instantiated (no DB file
+// touched, no `/data` mount required) and `/auth/*` returns 503 via
+// the route guards. Operators flip it on with
+// `CASUAL_PERSONAL_MODE=single` (one account) or `=multi` (open
+// signup); DB path is configurable for tests / dev, production uses
+// the volume.
+const personalMode = readModeFromEnv();
+let personalAuth: PersonalAuthStore | null = null;
+if (personalMode !== 'none') {
+  const personalDbPath = process.env.CASUAL_USERS_DB_PATH ?? '/data/users.db';
+  personalAuth = new PersonalAuthStore({
+    dbPath: personalDbPath,
+    mode: personalMode,
+    bootstrap: process.env.CASUAL_BOOTSTRAP_USER ?? null,
+  });
+  registerPersonalAuthRoutes(app, personalAuth);
+  app.log.info(
+    `personal auth: mode=${personalMode} db=${personalDbPath} users=${personalAuth.stats().userCount}`,
+  );
+  // Periodic prune so the sessions table doesn't grow unboundedly on
+  // a long-running container. Cheap full-table scan via the
+  // expires_at index; running once per hour is plenty for
+  // human-scale traffic.
+  const liveStore = personalAuth;
+  const prunePersonal = setInterval(
+    () => {
+      try {
+        const n = liveStore.pruneExpiredSessions();
+        if (n > 0) app.log.info(`personal auth: pruned ${n} expired session(s)`);
+      } catch (err) {
+        app.log.warn({ err }, 'personal auth: prune failed');
+      }
+    },
+    60 * 60 * 1000,
+  );
+  app.addHook('onClose', async () => {
+    clearInterval(prunePersonal);
+    liveStore.close();
+  });
+} else {
+  app.log.info('personal auth: disabled (CASUAL_PERSONAL_MODE=none)');
+}
 
 const rooms = new RoomRegistry();
 rooms.start((evictedId) => {
@@ -194,9 +238,7 @@ app.post(
   async (req, reply) => {
     const body = (req.body ?? {}) as { password?: unknown };
     const password =
-      typeof body.password === 'string' && body.password.length > 0
-        ? body.password
-        : undefined;
+      typeof body.password === 'string' && body.password.length > 0 ? body.password : undefined;
     try {
       const id = rooms.create({ password });
       return { roomId: id, needsPassword: Boolean(password) };
@@ -286,10 +328,7 @@ app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) =>
   if (!checkRoomPassword(req, room.id)) {
     return reply.code(401).send({ error: 'unauthorized' });
   }
-  reply.header(
-    'content-type',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  );
+  reply.header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   reply.header('cache-control', 'no-store');
   return reply.send(Buffer.from(room.xlsxSeed));
 });
@@ -303,14 +342,18 @@ app.get<{ Params: { id: string } }>('/api/rooms/:id/seed', async (req, reply) =>
  *
  * Returns true for open (no-password) rooms.
  */
-function checkRoomPassword(req: { headers: Record<string, unknown>; query?: unknown }, roomId: string): boolean {
+function checkRoomPassword(
+  req: { headers: Record<string, unknown>; query?: unknown },
+  roomId: string,
+): boolean {
   const headerVal = req.headers['x-room-password'];
   const headerPw = typeof headerVal === 'string' ? headerVal : undefined;
   const queryPw =
     typeof req.query === 'object' && req.query !== null
       ? (req.query as { p?: unknown }).p
       : undefined;
-  const password = typeof headerPw === 'string' ? headerPw : typeof queryPw === 'string' ? queryPw : undefined;
+  const password =
+    typeof headerPw === 'string' ? headerPw : typeof queryPw === 'string' ? queryPw : undefined;
   return rooms.passwordOk(roomId, password ?? null);
 }
 
@@ -363,7 +406,10 @@ app.get<{ Params: { id: string } }>('/api/rooms/:id/snapshot', async (req, reply
   // Private — the password gates access, so each protected response
   // must NOT be served from a shared / proxy cache. Browser disk cache
   // still kicks in (immutable) so warm re-joins stay fast.
-  reply.header('cache-control', room.passwordHash ? 'private, max-age=3600, immutable' : 'public, max-age=3600, immutable');
+  reply.header(
+    'cache-control',
+    room.passwordHash ? 'private, max-age=3600, immutable' : 'public, max-age=3600, immutable',
+  );
   return reply.send(Buffer.from(room.snapshotGz));
 });
 

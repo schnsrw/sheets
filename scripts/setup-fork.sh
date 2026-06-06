@@ -33,6 +33,14 @@ fi
 echo "==> installing fork dependencies ($FORK_DIR)"
 ( cd "$FORK_DIR" && pnpm install --frozen-lockfile )
 
+# Always restore the dev shape before building. The build relies on
+# cross-package source resolution (`main: ./src/index.ts`); leaving a
+# previous run's swap in place breaks turbo's parallel build because
+# the lib/ outputs for upstream packages don't exist yet at the moment
+# downstream packages try to typecheck against them.
+echo "==> restoring fork package.jsons to src/ shape (in case a prior swap is in place)"
+node "$REPO_ROOT/scripts/swap-fork-pkgs.mjs" --restore
+
 echo "==> building fork"
 ( cd "$FORK_DIR" && pnpm build )
 

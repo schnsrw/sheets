@@ -20,11 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
 
@@ -32,11 +36,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
 
@@ -48,11 +56,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:unit
 
@@ -60,11 +72,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       # Cache the Playwright browser binaries to skip the ~200 MB download
       # on most runs. The lock file is the cache key since the version is
@@ -102,11 +118,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       - name: Cache Playwright browsers
         id: pw-cache
@@ -194,11 +214,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       - name: Cache Playwright browsers
         id: pw-cache
@@ -231,11 +255,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
       - name: Cache Playwright browsers
         id: pw-cache

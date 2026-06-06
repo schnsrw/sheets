@@ -15,7 +15,10 @@
     "typecheck": "pnpm -r typecheck",
     "test:unit": "node scripts/test-unit.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "fork:setup": "./scripts/setup-fork.sh",
+    "fork:swap": "node scripts/swap-fork-pkgs.mjs",
+    "fork:restore": "node scripts/swap-fork-pkgs.mjs --restore"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",
@@ -38,6 +41,55 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3"
-    ]
+    ],
+    "//overrides_note": "All 39 @univerjs/* packages are resolved against the in-tree fork at vendor/univer-revamp/ (a submodule pinned to upstream v0.24.0 + our perf commits). Bumping the fork is a single `git -C vendor/univer-revamp checkout <sha>` + commit on the sheet repo. See docs/UNIVER_FORK_PERF.md and project_univer_fork memory.",
+    "overrides": {
+      "@univerjs/action-recorder": "link:vendor/univer-revamp/packages/action-recorder",
+      "@univerjs/core": "link:vendor/univer-revamp/packages/core",
+      "@univerjs/data-validation": "link:vendor/univer-revamp/packages/data-validation",
+      "@univerjs/design": "link:vendor/univer-revamp/packages/design",
+      "@univerjs/docs": "link:vendor/univer-revamp/packages/docs",
+      "@univerjs/docs-drawing": "link:vendor/univer-revamp/packages/docs-drawing",
+      "@univerjs/docs-drawing-ui": "link:vendor/univer-revamp/packages/docs-drawing-ui",
+      "@univerjs/docs-hyper-link": "link:vendor/univer-revamp/packages/docs-hyper-link",
+      "@univerjs/docs-hyper-link-ui": "link:vendor/univer-revamp/packages/docs-hyper-link-ui",
+      "@univerjs/docs-mention-ui": "link:vendor/univer-revamp/packages/docs-mention-ui",
+      "@univerjs/docs-thread-comment-ui": "link:vendor/univer-revamp/packages/docs-thread-comment-ui",
+      "@univerjs/docs-ui": "link:vendor/univer-revamp/packages/docs-ui",
+      "@univerjs/drawing": "link:vendor/univer-revamp/packages/drawing",
+      "@univerjs/drawing-ui": "link:vendor/univer-revamp/packages/drawing-ui",
+      "@univerjs/engine-formula": "link:vendor/univer-revamp/packages/engine-formula",
+      "@univerjs/engine-render": "link:vendor/univer-revamp/packages/engine-render",
+      "@univerjs/find-replace": "link:vendor/univer-revamp/packages/find-replace",
+      "@univerjs/network": "link:vendor/univer-revamp/packages/network",
+      "@univerjs/rpc": "link:vendor/univer-revamp/packages/rpc",
+      "@univerjs/sheets": "link:vendor/univer-revamp/packages/sheets",
+      "@univerjs/sheets-conditional-formatting": "link:vendor/univer-revamp/packages/sheets-conditional-formatting",
+      "@univerjs/sheets-conditional-formatting-ui": "link:vendor/univer-revamp/packages/sheets-conditional-formatting-ui",
+      "@univerjs/sheets-data-validation": "link:vendor/univer-revamp/packages/sheets-data-validation",
+      "@univerjs/sheets-data-validation-ui": "link:vendor/univer-revamp/packages/sheets-data-validation-ui",
+      "@univerjs/sheets-drawing": "link:vendor/univer-revamp/packages/sheets-drawing",
+      "@univerjs/sheets-drawing-ui": "link:vendor/univer-revamp/packages/sheets-drawing-ui",
+      "@univerjs/sheets-filter": "link:vendor/univer-revamp/packages/sheets-filter",
+      "@univerjs/sheets-filter-ui": "link:vendor/univer-revamp/packages/sheets-filter-ui",
+      "@univerjs/sheets-find-replace": "link:vendor/univer-revamp/packages/sheets-find-replace",
+      "@univerjs/sheets-formula": "link:vendor/univer-revamp/packages/sheets-formula",
+      "@univerjs/sheets-formula-ui": "link:vendor/univer-revamp/packages/sheets-formula-ui",
+      "@univerjs/sheets-hyper-link": "link:vendor/univer-revamp/packages/sheets-hyper-link",
+      "@univerjs/sheets-hyper-link-ui": "link:vendor/univer-revamp/packages/sheets-hyper-link-ui",
+      "@univerjs/sheets-numfmt": "link:vendor/univer-revamp/packages/sheets-numfmt",
+      "@univerjs/sheets-numfmt-ui": "link:vendor/univer-revamp/packages/sheets-numfmt-ui",
+      "@univerjs/sheets-sort": "link:vendor/univer-revamp/packages/sheets-sort",
+      "@univerjs/sheets-sort-ui": "link:vendor/univer-revamp/packages/sheets-sort-ui",
+      "@univerjs/sheets-table": "link:vendor/univer-revamp/packages/sheets-table",
+      "@univerjs/sheets-table-ui": "link:vendor/univer-revamp/packages/sheets-table-ui",
+      "@univerjs/sheets-thread-comment": "link:vendor/univer-revamp/packages/sheets-thread-comment",
+      "@univerjs/sheets-thread-comment-ui": "link:vendor/univer-revamp/packages/sheets-thread-comment-ui",
+      "@univerjs/sheets-ui": "link:vendor/univer-revamp/packages/sheets-ui",
+      "@univerjs/themes": "link:vendor/univer-revamp/packages/themes",
+      "@univerjs/thread-comment": "link:vendor/univer-revamp/packages/thread-comment",
+      "@univerjs/thread-comment-ui": "link:vendor/univer-revamp/packages/thread-comment-ui",
+      "@univerjs/ui": "link:vendor/univer-revamp/packages/ui"
+    }
   }
 }

@@ -1,21 +1,67 @@
 # Univer fork — performance improvement plan
 
 Prioritized punch list for the `univer-revamp` fork. Each item is a hotspot
-identified in OSS source under `vendor/univer/` with a strategic-level
+identified in OSS source under `vendor/univer-revamp/` with a strategic-level
 proposed fix, estimated payoff, and risk. Payoff/risk are subjective; treat
 them as a sort order, not a contract.
 
-**Version note**: the initial survey ran against upstream v0.22.1; the fork
-is currently at v0.24.0. File paths are stable but a few line numbers have
-drifted (notably `object-matrix.ts` insertRows/insertColumns moved ~89 →
-~420, `getCurrentRowColumnSegmentMergeData` ~424 → ~654). Re-verify line
-citations against `git grep` on the fork before editing — strategic content
-below is version-independent.
+---
 
-These are app-independent — Casual Sheets consumes `@univerjs/*` from npm
-(pinned 0.22.1 across all packages), so until the fork is wired into the
-build via pnpm overrides / a republished scope, changes here are upstream
-work, not local runtime changes.
+## Integration model (decided 2026-06-06, #51)
+
+Casual Sheets consumes `@univerjs/*` directly from the fork via a
+**submodule + `pnpm.overrides`** wiring. The submodule lives at
+`vendor/univer-revamp/`, pinned to a long-lived per-version branch
+on the fork (`casual-sheets/0.24`, `casual-sheets/0.25`, …) that
+carries upstream + our local patches + the perf commits.
+
+**Bootstrap on a fresh clone**:
+
+```sh
+git clone --recurse-submodules git@github.com:schnsrw/sheets.git
+cd sheets
+./scripts/setup-fork.sh    # installs fork deps, builds it, swaps
+                           # package.jsons to use built lib/
+pnpm install
+```
+
+**Upgrading the Univer version** (e.g., 0.24 → 0.25):
+
+```sh
+cd vendor/univer-revamp
+git fetch origin
+git checkout -b casual-sheets/0.25 casual-sheets/0.24
+git rebase v0.25.0            # resolve conflicts in OUR commits if any
+git push origin casual-sheets/0.25
+cd ../..
+git -C vendor/univer-revamp checkout casual-sheets/0.25
+# bump apps/web/package.json @univerjs/* versions to 0.25.0
+./scripts/setup-fork.sh
+pnpm install
+# smoke test, commit submodule SHA + version bumps, push
+```
+
+**Landing a new perf commit**:
+
+1. Make the change in `vendor/univer-revamp/packages/...` on the
+   `casual-sheets/<ver>` branch.
+2. `git -C vendor/univer-revamp commit -m "perf(...): ..."`
+3. `git -C vendor/univer-revamp push origin casual-sheets/<ver>`
+4. In the sheet repo: `./scripts/setup-fork.sh` (rebuilds the
+   affected packages) + `pnpm install` + smoke test + commit the
+   submodule SHA bump.
+
+**Ported patches** (was `/patches/`, now source commits on
+`casual-sheets/0.24`):
+
+- `feat(sheets-ui): preserve formulas + row properties through HTML clipboard paste`
+- `feat(sheets-table-ui): show filtered-out values in the filter dropdown`
+
+The old `/patches/` directory + `pnpm-workspace.yaml`
+`patchedDependencies` are removed; the same behaviour now lives in
+the fork as real source commits and survives upstream rebases.
+
+---
 
 Order below is the recommended sequencing — quickest LOW-risk wins first,
 HIGH-risk formula-engine work last so we can validate the rendering /

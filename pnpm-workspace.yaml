@@ -1,9 +1,31 @@
 packages:
   - "apps/*"
   - "packages/*"
-patchedDependencies:
-  '@univerjs/sheets-table-ui@0.24.0': patches/@univerjs__sheets-table-ui@0.24.0.patch
-  '@univerjs/sheets-ui@0.24.0': patches/@univerjs__sheets-ui@0.24.0.patch
 
-# vendor/univer is a read-only clone of dream-num/univer for source-level study.
-# Do NOT include it in the workspace.
+# Univer fork integration
+#
+# As of 2026-06-06 (#51 Univer fork perf umbrella) every @univerjs/*
+# package the sheet web client depends on resolves to the in-tree fork
+# at vendor/univer-revamp/ (a submodule pinned to the casual-sheets/0.24
+# branch of git@github.com:schnsrw/univer-revamp). The override block
+# lives in the root package.json under `pnpm.overrides`.
+#
+# `casual-sheets/0.24` carries upstream v0.24.0 + two ported patches as
+# source commits:
+#   - feat(sheets-ui): preserve formulas + row properties through HTML
+#     clipboard paste       (was patches/sheets-ui@0.24.0)
+#   - feat(sheets-table-ui): show filtered-out values in the filter
+#     dropdown              (was patches/sheets-table-ui@0.24.0)
+#
+# Future Univer upgrade workflow (e.g., 0.24 → 0.25):
+#   cd vendor/univer-revamp
+#   git fetch origin
+#   git checkout -b casual-sheets/0.25 casual-sheets/0.24
+#   git rebase v0.25.0     # resolve conflicts in our commits if any
+#   git push origin casual-sheets/0.25
+#   cd ../..
+#   git -C vendor/univer-revamp checkout casual-sheets/0.25
+#   # bump apps/web/package.json @univerjs/* versions to 0.25.0
+#   pnpm install + smoke test + commit + push
+#
+# See docs/UNIVER_FORK_PERF.md for the full integration model.

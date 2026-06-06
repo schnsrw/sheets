@@ -1,7 +1,16 @@
-# Vendor — our univer-revamp fork, kept locally for source-level edits.
-# Bootstrap on a fresh checkout (full clone, not depth-1, so fork commits work):
-#   git clone git@github.com:schnsrw/univer-revamp.git vendor/univer
-vendor/
+# Vendor tree.
+#
+# As of 2026-06-06 (#51 Univer fork perf umbrella) the live fork lives
+# at vendor/univer-revamp/ as a git submodule pointing at
+# git@github.com:schnsrw/univer-revamp.git, pinned to a 0.24.0-compat
+# SHA. The submodule itself is tracked via .gitmodules; the working-
+# tree content is still treated as vendor-ignored locally (we don't
+# want stray edits to leak into the sheet repo's git status).
+#
+# Anything else under vendor/ — historical local clones, manually
+# checked-out source for one-off study — stays ignored.
+vendor/*
+!vendor/univer-revamp
 
 # Dependencies
 node_modules/

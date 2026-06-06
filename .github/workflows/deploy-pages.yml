@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup pnpm
         # No `version:` — it's picked from `packageManager` in package.json
@@ -33,6 +35,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Setup Univer fork (build + swap package.jsons)
+        run: ./scripts/setup-fork.sh
 
       - name: Install
         run: pnpm install --frozen-lockfile

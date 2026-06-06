@@ -69,8 +69,23 @@ test.describe('Cross-sheet references', () => {
       s2.getRange('B3').setValue({ v: 7 });
       wb.setActiveSheet(s1);
       s1.getRange('A1').setValue({ f: '=Sheet2!B3' });
-      await new Promise((r) => setTimeout(r, 300));
     });
+    // Poll for the formula worker to cache A1's computed value before
+    // snapshotting. A fixed 300 ms `setTimeout` was racy after the
+    // Univer fork wire-up shifted formula timing — the xlsx round-trip
+    // would then capture A1 with no cached `v`, and the assertion at
+    // line 96 failed with `Received: undefined`.
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        const wb = api.getActiveWorkbook()!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const s1: any = wb.getSheets()[0];
+        return s1.getRange('A1').getCellData()?.v === 7;
+      },
+      null,
+      { timeout: 5_000 },
+    );
 
     // Pull in the xlsx converter the same way xlsx-hyperlinks.spec does.
     await page.evaluate(async () => {
@@ -109,12 +124,20 @@ test.describe('Cross-sheet references', () => {
     // Suggestion list opens. Sheet1 + Sheet2 should both be there
     // tagged as kind=sheet (function suggestions also show; we just
     // assert the sheet entries are present).
-    const sheet1 = page.getByTestId('formula-suggestion-Sheet1').filter({ has: page.locator('[data-kind="sheet"]') });
-    const sheet2 = page.getByTestId('formula-suggestion-Sheet2').filter({ has: page.locator('[data-kind="sheet"]') });
+    const sheet1 = page
+      .getByTestId('formula-suggestion-Sheet1')
+      .filter({ has: page.locator('[data-kind="sheet"]') });
+    const sheet2 = page
+      .getByTestId('formula-suggestion-Sheet2')
+      .filter({ has: page.locator('[data-kind="sheet"]') });
     // The list items themselves carry data-kind="sheet"; the filter
     // above checks self, so use a direct selector instead.
-    await expect(page.locator('[data-testid="formula-suggestion-Sheet1"][data-kind="sheet"]')).toBeVisible();
-    await expect(page.locator('[data-testid="formula-suggestion-Sheet2"][data-kind="sheet"]')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="formula-suggestion-Sheet1"][data-kind="sheet"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="formula-suggestion-Sheet2"][data-kind="sheet"]'),
+    ).toBeVisible();
     void sheet1;
     void sheet2;
   });

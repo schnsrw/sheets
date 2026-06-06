@@ -125,7 +125,9 @@ test.describe('Formula range picker (pointer mode)', () => {
     await expect(input).toHaveValue('=SUM(Numbers!A1:A3');
   });
 
-  test('Enter commits formula on the ORIGIN cell after picking cross-sheet ref', async ({ page }) => {
+  test('Enter commits formula on the ORIGIN cell after picking cross-sheet ref', async ({
+    page,
+  }) => {
     const input = page.getByTestId('formula-input');
     await input.click();
     await input.fill('=SUM(');
@@ -142,8 +144,9 @@ test.describe('Formula range picker (pointer mode)', () => {
     // Numbers (where the picker happened to be).
     const cd = await readSheetCell(page, 'Sheet1', 'B1');
     expect(cd?.f).toBe('=SUM(Numbers!A1:A3)');
-    // Origin sheet is restored.
-    expect(await activeSheetName(page)).toBe('Sheet1');
+    // Origin sheet is restored. The restore path goes through the
+    // command bus too — poll instead of asserting one-shot.
+    await expect.poll(() => activeSheetName(page), { timeout: 3_000 }).toBe('Sheet1');
   });
 
   test('Escape cancels and restores origin sheet', async ({ page }) => {
@@ -151,11 +154,15 @@ test.describe('Formula range picker (pointer mode)', () => {
     await input.click();
     await input.fill('=');
     await page.locator('.sheet-tab', { hasText: 'Numbers' }).click();
-    expect(await activeSheetName(page)).toBe('Numbers');
+    // The tab click dispatches `sheet.command.set-worksheet-activate`
+    // through Univer's async command bus — poll for the active-sheet
+    // update instead of asserting one-shot, which was racy after the
+    // fork wire-up made command dispatch slightly more async.
+    await expect.poll(() => activeSheetName(page), { timeout: 3_000 }).toBe('Numbers');
     // From any element, Escape should reach the formula bar's revert.
     await input.focus();
     await input.press('Escape');
-    expect(await activeSheetName(page)).toBe('Sheet1');
+    await expect.poll(() => activeSheetName(page), { timeout: 3_000 }).toBe('Sheet1');
     // Draft cleared.
     await expect(input).not.toHaveValue('=');
     // B1 untouched.
@@ -170,7 +177,9 @@ test.describe('Formula range picker (pointer mode)', () => {
     await input.click();
     await input.fill('plain text');
     // Click another cell on the same sheet (not a tab).
-    await mainCanvas(page).first().click({ position: { x: 200, y: 200 } });
+    await mainCanvas(page)
+      .first()
+      .click({ position: { x: 200, y: 200 } });
     await page.waitForTimeout(150);
     const cd = await readSheetCell(page, 'Sheet1', 'B1');
     expect(cd?.v).toBe('plain text');

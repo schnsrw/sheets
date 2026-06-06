@@ -19,8 +19,20 @@ test.describe('Goal Seek', () => {
       ws.getRange('A1').setValue({ v: 1 });
       ws.getRange('B1').setValue({ f: '=A1*A1' });
     });
-    // Wait for formula engine to compute B1.
-    await page.waitForTimeout(300);
+    // Wait for the formula worker to populate B1's cached value before
+    // running goal-seek. A fixed 300 ms was racy after the Univer fork
+    // wire-up shifted formula evaluation timing — poll the cell so the
+    // test isn't tied to that wall clock.
+    await page.waitForFunction(
+      () => {
+        const api = window.__univerAPI!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ws: any = api.getActiveWorkbook()!.getActiveSheet();
+        return ws.getRange('B1').getCellData()?.v === 1;
+      },
+      null,
+      { timeout: 5_000 },
+    );
 
     await page.getByTestId('menubar-data').click();
     await page.getByTestId('menu-item-goal-seek').click();

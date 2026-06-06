@@ -1,6 +1,11 @@
 import type { Univer } from '@univerjs/core';
 import { CommandType, ICommandService } from '@univerjs/core';
-import { IMenuManagerService, MenuItemType, ContextMenuGroup, ContextMenuPosition } from '@univerjs/ui';
+import {
+  IMenuManagerService,
+  MenuItemType,
+  ContextMenuGroup,
+  ContextMenuPosition,
+} from '@univerjs/ui';
 
 /**
  * Augments Univer's built-in cell context menu with operations we want there
@@ -15,6 +20,7 @@ import { IMenuManagerService, MenuItemType, ContextMenuGroup, ContextMenuPositio
  */
 
 const CASUAL_PASTE_SPECIAL_COMMAND_ID = 'casual.command.open-paste-special';
+const CASUAL_FORMAT_CELLS_COMMAND_ID = 'casual.command.open-format-cells';
 
 export function extendContextMenu(univer: Univer): void {
   const injector = univer.__getInjector();
@@ -32,6 +38,23 @@ export function extendContextMenu(univer: Univer): void {
       type: CommandType.OPERATION,
       handler: () => {
         document.dispatchEvent(new CustomEvent('casual-open-paste-special'));
+        return true;
+      },
+    });
+  }
+
+  // Same DOM-event proxy pattern as Paste Special. MenuBar.tsx already
+  // listens for `casual-open-format-cells` (registered alongside the
+  // Ctrl+1 keyboard shortcut) and shows <FormatCellsDialog>. Excel's
+  // right-click menu has "Format Cells…" as a top-level entry next to
+  // Insert/Delete — we sit it in the FORMAT group so it groups with
+  // the other formatting actions.
+  if (!commandService.hasCommand(CASUAL_FORMAT_CELLS_COMMAND_ID)) {
+    commandService.registerCommand({
+      id: CASUAL_FORMAT_CELLS_COMMAND_ID,
+      type: CommandType.OPERATION,
+      handler: () => {
+        document.dispatchEvent(new CustomEvent('casual-open-format-cells'));
         return true;
       },
     });
@@ -58,6 +81,15 @@ export function extendContextMenu(univer: Univer): void {
             title: 'Unmerge',
           }),
         },
+        [CASUAL_FORMAT_CELLS_COMMAND_ID]: {
+          order: 110,
+          menuItemFactory: () => ({
+            id: CASUAL_FORMAT_CELLS_COMMAND_ID,
+            type: MenuItemType.BUTTON,
+            icon: 'BrushSingle',
+            title: 'Format Cells…',
+          }),
+        },
       },
       // Add Paste Special to the QUICK group so it sits beside Cut /
       // Copy / Paste at the top of the menu — matches Excel's placement.
@@ -69,6 +101,36 @@ export function extendContextMenu(univer: Univer): void {
             type: MenuItemType.BUTTON,
             icon: 'PasteSpecial',
             title: 'Paste Special…',
+          }),
+        },
+      },
+    },
+    // Mirror the cell-area Format Cells… entry into the row + column
+    // header context menus. Excel right-clicks on a row or column
+    // header also surface Format Cells…; without this the entry only
+    // appears when right-clicking inside the grid.
+    [ContextMenuPosition.ROW_HEADER]: {
+      [ContextMenuGroup.FORMAT]: {
+        [CASUAL_FORMAT_CELLS_COMMAND_ID]: {
+          order: 110,
+          menuItemFactory: () => ({
+            id: CASUAL_FORMAT_CELLS_COMMAND_ID,
+            type: MenuItemType.BUTTON,
+            icon: 'BrushSingle',
+            title: 'Format Cells…',
+          }),
+        },
+      },
+    },
+    [ContextMenuPosition.COL_HEADER]: {
+      [ContextMenuGroup.FORMAT]: {
+        [CASUAL_FORMAT_CELLS_COMMAND_ID]: {
+          order: 110,
+          menuItemFactory: () => ({
+            id: CASUAL_FORMAT_CELLS_COMMAND_ID,
+            type: MenuItemType.BUTTON,
+            icon: 'BrushSingle',
+            title: 'Format Cells…',
           }),
         },
       },

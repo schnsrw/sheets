@@ -107,9 +107,10 @@ export function createPersonalFileSource(label = 'My files'): FileSource {
     async openRecent(id): Promise<OpenedWorkbook> {
       const res = await fetch(`/files/${encodeURIComponent(id)}`, { ...COMMON });
       await guardOk(res, 'open file');
+      const etag = res.headers.get('etag') ?? null;
       const buf = await res.arrayBuffer();
       const data = await xlsxToWorkbookData(buf);
-      return { data, sourceFormat: 'xlsx' };
+      return { data, sourceFormat: 'xlsx', serverFileId: id, serverEtag: etag };
     },
 
     async forgetRecent(id): Promise<void> {
@@ -122,6 +123,38 @@ export function createPersonalFileSource(label = 'My files'): FileSource {
     },
 
     async save(bytes: Blob, opts: SaveOptions): Promise<SaveResult> {
+      // In-place save when the caller tracked the file id from
+      // openRecent: POST /files/:id with raw bytes + If-Match header.
+      // Server returns 412 on stale etag — surface as a conflict so
+      // file-actions can pop the shared modal.
+      if (opts.existingId) {
+        const headers: Record<string, string> = {
+          'content-type': 'application/octet-stream',
+        };
+        if (opts.existingEtag) headers['if-match'] = opts.existingEtag;
+        const buf = await bytes.arrayBuffer();
+        const res = await fetch(`/files/${encodeURIComponent(opts.existingId)}`, {
+          ...COMMON,
+          method: 'POST',
+          headers,
+          body: buf,
+        });
+        if (res.status === 412) {
+          const body = (await res.json()) as { expected?: string };
+          return { kind: 'conflict', expectedEtag: body.expected ?? '' };
+        }
+        await guardOk(res, 'save file (in place)');
+        const body = (await res.json()) as { file: ServerFileMeta };
+        ticker.tick();
+        return {
+          kind: 'server',
+          path: body.file.name,
+          serverFileId: body.file.id,
+          serverEtag: body.file.etag,
+        };
+      }
+      // Fall-through: brand-new save (no existingId tracked).
+      // Multipart POST as before — creates a new entry in My Files.
       const form = new FormData();
       form.append('file', bytes, opts.filename);
       form.append('name', opts.filename);
@@ -129,7 +162,12 @@ export function createPersonalFileSource(label = 'My files'): FileSource {
       await guardOk(res, 'save file');
       const body = (await res.json()) as { file: ServerFileMeta };
       ticker.tick();
-      return { kind: 'server', path: body.file.name };
+      return {
+        kind: 'server',
+        path: body.file.name,
+        serverFileId: body.file.id,
+        serverEtag: body.file.etag,
+      };
     },
   };
 }

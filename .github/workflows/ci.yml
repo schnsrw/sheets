@@ -221,3 +221,40 @@ jobs:
           name: playwright-report-personal
           path: playwright-report/
           retention-days: 7
+
+  e2e-wopi:
+    # Mode 2 (WOPI embedded host) end-to-end: admin login → mint
+    # token → seed file → /?access_token=… → editor mounts → Save
+    # in-place via X-WOPI-ItemVersion → 409 on stale etag. Runs
+    # against its own Fastify on port 3066 with CASUAL_JWT_SECRET +
+    # admin creds.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - name: Run WOPI specs
+        run: pnpm exec playwright test -c playwright.wopi.config.ts
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-wopi
+          path: playwright-report/
+          retention-days: 7

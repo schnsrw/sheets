@@ -371,7 +371,7 @@ Each phase is independently shippable.
 Decisions taken on 2026-06-06:
 
 - **Password recovery: CLI only.** Documented `docker exec ...
-  casual-sheets reset-password <user>`. No SMTP plumbing in v1.
+casual-sheets reset-password <user>`. No SMTP plumbing in v1.
 - **Multi-user admin visibility: none.** Per-user isolation total. An
   admin's role is config + room limits, not reading other users' files.
 - **Upload size cap: reuse `MAX_UPLOAD_MB`** (default 25 MB). One knob
@@ -427,13 +427,25 @@ journey verified end-to-end, not just unit-level. Specs:
   `CASUAL_BOOTSTRAP_USER=joel:p4ssword` → first launch creates the
   account and adopts the orphan files into Joel's listing
 
-### Phase D — Mode 2 WOPI UI _(2–3 days)_
+### Phase D — Mode 2 WOPI UI _(landed: 2026-06-06)_
 
-- [ ] `WopiFileSource` implementation.
-- [ ] Boot-time URL token detection + direct-to-editor flow.
-- [ ] Conflict modal (shared with Mode 3).
-- [ ] Admin → Files → "Get share link" — mints a JWT, copies a URL.
-- [ ] Docs: embedding guide, token issuance examples.
+- [x] `WopiFileSource` implementation
+- [x] Boot-time URL token detection + direct-to-editor flow
+- [x] Conflict toast on 409 / version_mismatch — shared shape with
+      Mode 3's 412
+- [x] In-place save with `X-WOPI-ItemVersion` / If-Match — also
+      fixed the Mode 3 duplicate-files issue the close-out comment
+      flagged
+- [x] Docs: `docs/self-hosting/embedding.md` with the operator
+      curl recipe + token issuance examples
+- [ ] Admin → Files → "Get share link" UI — deferred. Operators
+      mint via `POST /api/admin/login` → `POST /api/tokens` per
+      the embedding doc; UI is a follow-up polish item with no
+      user blocked on it.
+
+**e2e coverage**: `tests/e2e/wopi/wopi-embed-flow.spec.ts` — admin
+login + mint + seed + WopiFileSource open + Ctrl+S in-place PUT +
+stale-etag 409 conflict. Runs via `playwright.wopi.config.ts`.
 
 ---
 

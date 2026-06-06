@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { useAuth } from './auth-context';
+import { detectWopiContext } from '../file-source/wopi-file-source';
 import { LoginView } from './LoginView';
 import { SignupView } from './SignupView';
 import './auth.css';
@@ -25,6 +26,12 @@ import './auth.css';
 
 export function PersonalAuthGate({ children }: { children: ReactNode }) {
   const { state, refresh } = useAuth();
+
+  // Embedded-host (WOPI) deploys carry a URL access token and are
+  // authenticated against the embedding host's identity, not the
+  // self-host personal-mode users table. Skip the gate so the
+  // editor mounts immediately and the WopiFileSource takes over.
+  if (detectWopiContext()) return <>{children}</>;
 
   if (state.kind === 'disabled') return <>{children}</>;
   if (state.kind === 'authenticated') return <>{children}</>;

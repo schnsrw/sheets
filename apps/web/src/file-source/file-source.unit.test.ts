@@ -143,9 +143,10 @@ test('SaveResult discriminator covers exactly three variants', () => {
   const variants: SaveResult[] = [
     { kind: 'folder', folderName: 'My Sheets' },
     { kind: 'download' },
-    { kind: 'server', path: '/files/abc.xlsx' },
+    { kind: 'server', path: '/files/abc.xlsx', serverFileId: 'abc', serverEtag: 'v1' },
+    { kind: 'conflict', expectedEtag: 'v1' },
   ];
-  assert.equal(variants.length, 3);
+  assert.equal(variants.length, 4);
   // Exhaustiveness check — if a new variant is added, the switch loses
   // exhaustiveness and tsc will fail. Runtime: assert no `kind` slips
   // through unhandled.
@@ -154,6 +155,7 @@ test('SaveResult discriminator covers exactly three variants', () => {
       case 'folder':
       case 'download':
       case 'server':
+      case 'conflict':
         break;
       default: {
         const _exhaustive: never = v;

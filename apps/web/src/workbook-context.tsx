@@ -24,6 +24,16 @@ export type WorkbookMeta = {
   name: string;
   sourceFormat: WorkbookFormat | null;
   revision: number;
+  /** Server-backed file id when the workbook was opened via
+   *  PersonalFileSource.openRecent / WopiFileSource.openRecent. Null
+   *  for browser-source workbooks (download / FSA / templates). The
+   *  Save flow passes this back as `existingId` so the server can
+   *  PUT in place instead of creating a duplicate entry. */
+  serverFileId?: string | null;
+  /** Last-known server etag for `serverFileId`. Sent as If-Match
+   *  (or `X-WOPI-ItemVersion`) on the next save so a stale browser
+   *  doesn't overwrite a teammate's edit. */
+  serverEtag?: string | null;
 };
 
 /**
@@ -51,8 +61,18 @@ export type WorkbookCtxValue = {
    * Swap the active workbook. Stores `next` on `snapshotRef.current`,
    * bumps `meta.revision`, and schedules the ref to be cleared so the
    * snapshot frees once React has finished its render pass.
+   * `server` carries the file id + etag when the source is server-
+   * backed (PersonalFileSource / WopiFileSource); omit for browser-
+   * source flows.
    */
-  replaceWorkbook: (next: IWorkbookData, sourceFormat?: WorkbookFormat | null) => void;
+  replaceWorkbook: (
+    next: IWorkbookData,
+    sourceFormat?: WorkbookFormat | null,
+    server?: { fileId: string | null; etag: string | null } | null,
+  ) => void;
+  /** Update the tracked server etag after a successful in-place
+   *  save — the file id stays the same; only the version moves. */
+  updateServerEtag: (etag: string | null) => void;
   /**
    * Rename the active workbook in place — updates `meta.name` and calls
    * Univer's `setName` on the active workbook. No re-mount.

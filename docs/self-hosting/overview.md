@@ -34,6 +34,10 @@ that needs hardening.
   docker with personal accounts. Sign-up, files persist to a
   volume, CLI password reset, profile + preferences. Landed in
   Phase C of #49.
+- **[Embedding (Mode 2 / WOPI)](./embedding.md)** — another
+  product owns the workbook lifecycle, mints a per-file JWT, and
+  drops Casual Sheets into its iframe / popup. Landed in Phase D
+  of #49.
 - **[Reverse proxy recipes](./reverse-proxy.md)** — nginx, Caddy,
   Traefik. The WebSocket upgrade header is the most-common
   gotcha; recipes include the minimum config + commentary.

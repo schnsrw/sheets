@@ -33,6 +33,10 @@ export default defineConfig({
     // CASUAL_PERSONAL_MODE=single; they run via
     // playwright.personal.config.ts which manages its own server.
     'tests/e2e/personal/**',
+    // WOPI (Mode 2 / Phase D) specs need a Fastify with
+    // CASUAL_JWT_SECRET + an admin to mint tokens; run via
+    // playwright.wopi.config.ts.
+    'tests/e2e/wopi/**',
   ],
   use: {
     baseURL: 'http://127.0.0.1:5273',

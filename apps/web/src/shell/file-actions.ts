@@ -151,6 +151,22 @@ export type SaveOptions = {
   sparklines?: import('../sparklines/types').SparklineModel[];
   /** Pivot models to fold into the xlsx — see ExportExtras.pivots. */
   pivots?: PivotModel[];
+  /** Server-backed file id when the workbook was opened from a
+   *  PersonalFileSource / WopiFileSource. Save then does an in-place
+   *  PUT (with If-Match etag) instead of creating a duplicate. */
+  serverFileId?: string | null;
+  /** Last-known server etag for `serverFileId`. */
+  serverEtag?: string | null;
+  /** Callback invoked after a successful in-place save with the new
+   *  etag returned by the server. The caller wires this through
+   *  `useWorkbook().updateServerEtag` so the next save sees the
+   *  current version. Optional — when omitted, etag tracking is
+   *  caller's responsibility. */
+  onServerEtag?: (etag: string | null) => void;
+  /** Surface a conflict (stale etag) to the caller. Default surface
+   *  is `toast(api, ...)` from inside file-actions; pass a UI-aware
+   *  hook here to drive a richer modal. */
+  onConflict?: (expectedEtag: string) => void;
 };
 
 export async function saveAsXlsx(
@@ -181,8 +197,14 @@ export async function saveAsXlsx(
   // Windows treats it as macro-enabled and Excel offers to enable them.
   const isXlsm = blob.type === 'application/vnd.ms-excel.sheet.macroEnabled.12';
   const finalName = ensureExt(filename, isXlsm ? 'xlsm' : 'xlsx');
-  const result = await deliverBlob(blob, finalName, 'xlsx');
-  toast(api, formatSaveMessage(result, finalName));
+  const result = await deliverBlob(
+    blob,
+    finalName,
+    'xlsx',
+    options.serverFileId ?? null,
+    options.serverEtag ?? null,
+  );
+  handleSaveResult(api, finalName, result, options);
   // The on-disk file now supersedes the autosave slot — drop it so a
   // crash after a successful save doesn't re-prompt with stale state.
   void discardAutosaveAfterExplicitSave();
@@ -354,9 +376,34 @@ export async function saveAsTsv(api: FUniver, filename = 'workbook.tsv') {
   toast(api, formatSaveMessage(result, finalName));
 }
 
+/** Branch on the `SaveResult` discriminator: success surfaces a
+ *  toast and bumps the tracked etag (server modes only); conflict
+ *  surfaces via the caller's `onConflict` hook (default: a warning
+ *  toast). */
+function handleSaveResult(
+  api: FUniver,
+  filename: string,
+  result: SaveResult,
+  options: SaveOptions,
+): void {
+  if (result.kind === 'conflict') {
+    if (options.onConflict) {
+      options.onConflict(result.expectedEtag);
+    } else {
+      toast(api, `Couldn't save — this file was changed elsewhere. Reload and try again.`);
+    }
+    return;
+  }
+  if (result.kind === 'server') {
+    options.onServerEtag?.(result.serverEtag);
+  }
+  toast(api, formatSaveMessage(result, filename));
+}
+
 function formatSaveMessage(result: SaveResult, filename: string): string {
   if (result.kind === 'folder') return `Saved as ${filename} in ${result.folderName}`;
   if (result.kind === 'server') return `Saved to ${result.path}`;
+  if (result.kind === 'conflict') return `Couldn’t save ${filename} — file changed elsewhere`;
   return `Saved as ${filename}`;
 }
 
@@ -381,8 +428,15 @@ async function deliverBlob(
   blob: Blob,
   filename: string,
   sourceFormat: 'xlsx' | 'ods' | 'csv' | 'tsv',
+  serverFileId: string | null = null,
+  serverEtag: string | null = null,
 ): Promise<SaveResult> {
-  return selectFileSource().save(blob, { filename, sourceFormat });
+  return selectFileSource().save(blob, {
+    filename,
+    sourceFormat,
+    existingId: serverFileId,
+    existingEtag: serverEtag,
+  });
 }
 
 export function pickXlsxFile(): Promise<File | null> {

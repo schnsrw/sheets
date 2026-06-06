@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { useAuth } from '../auth';
 import { createBrowserFileSource } from './browser-file-source';
 import { selectFileSource, setFileSourceKind } from './select';
+import { detectWopiContext } from './wopi-file-source';
 import type { FileSource } from './types';
 
 /**
@@ -31,6 +32,14 @@ export function FileSourceProvider({ children }: { children: ReactNode }) {
   const [source, setSource] = useState<FileSource>(() => selectFileSource());
 
   useEffect(() => {
+    // URL-token boot path wins over the AuthState. An embedded host
+    // is authenticated against its own identity (the JWT), not the
+    // personal-mode users table, so the AuthProvider's 'disabled' /
+    // 'unauthenticated' / 'authenticated' verdicts don't apply here.
+    if (detectWopiContext()) {
+      setSource(setFileSourceKind('wopi'));
+      return;
+    }
     if (state.kind === 'authenticated') {
       setSource(setFileSourceKind('personal'));
     } else {

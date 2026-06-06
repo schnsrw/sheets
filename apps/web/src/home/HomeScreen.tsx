@@ -138,7 +138,17 @@ export function HomeScreen({
   const onOpenRecent = async (rec: RecentEntry) => {
     try {
       const opened = await fileSource.openRecent(rec.id);
-      wb.replaceWorkbook(opened.data, opened.sourceFormat);
+      // Pass the server identity through so the next Save can do an
+      // in-place PUT with If-Match instead of creating a duplicate.
+      // Browser source leaves these null → save falls back to its
+      // download / FSA flow.
+      wb.replaceWorkbook(
+        opened.data,
+        opened.sourceFormat,
+        opened.serverFileId
+          ? { fileId: opened.serverFileId, etag: opened.serverEtag ?? null }
+          : null,
+      );
       onDismiss();
     } catch (err) {
       console.warn('[home] reopen failed', rec.id, err);

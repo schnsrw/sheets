@@ -63,6 +63,8 @@ export function App() {
     name: initial.name ?? 'Untitled',
     sourceFormat: null,
     revision: 0,
+    serverFileId: null,
+    serverEtag: null,
   }));
 
   const [homeDismissed, setHomeDismissed] = useState(false);
@@ -177,24 +179,41 @@ export function App() {
     setPreview(null);
   }, []);
 
-  const replaceWorkbook = useCallback((next: IWorkbookData, format?: WorkbookFormat | null) => {
-    snapshotRef.current = next;
-    setMeta((prev) => ({
-      id: next.id ?? prev.id,
-      name: next.name ?? prev.name,
-      sourceFormat: format !== undefined ? format : prev.sourceFormat,
-      revision: prev.revision + 1,
-    }));
-    // Free the ref after consumers have processed the revision bump.
-    // We wait two macrotasks: the first lets React flush its render +
-    // useEffect pass (UniverSheet's swap, OutlineProvider's rehydrate);
-    // the second is paranoia for any deferred work scheduled inside
-    // those effects.
-    setTimeout(() => {
+  const replaceWorkbook = useCallback(
+    (
+      next: IWorkbookData,
+      format?: WorkbookFormat | null,
+      server?: { fileId: string | null; etag: string | null } | null,
+    ) => {
+      snapshotRef.current = next;
+      setMeta((prev) => ({
+        id: next.id ?? prev.id,
+        name: next.name ?? prev.name,
+        sourceFormat: format !== undefined ? format : prev.sourceFormat,
+        revision: prev.revision + 1,
+        // Default to null when the caller didn't supply server info
+        // — the new workbook is a fresh load (template / drop / FSA
+        // open) without a tracked server identity. Subsequent Save
+        // falls into the "new" path.
+        serverFileId: server?.fileId ?? null,
+        serverEtag: server?.etag ?? null,
+      }));
+      // Free the ref after consumers have processed the revision
+      // bump. We wait two macrotasks: the first lets React flush its
+      // render + useEffect pass (UniverSheet's swap, OutlineProvider's
+      // rehydrate); the second is paranoia for any deferred work
+      // scheduled inside those effects.
       setTimeout(() => {
-        if (snapshotRef.current === next) snapshotRef.current = null;
+        setTimeout(() => {
+          if (snapshotRef.current === next) snapshotRef.current = null;
+        }, 0);
       }, 0);
-    }, 0);
+    },
+    [],
+  );
+
+  const updateServerEtag = useCallback((etag: string | null) => {
+    setMeta((prev) => (prev.serverEtag === etag ? prev : { ...prev, serverEtag: etag }));
   }, []);
 
   // App owns only the meta update — TitleBar mirrors into Univer via
@@ -211,12 +230,22 @@ export function App() {
       snapshotRef,
       replaceWorkbook,
       renameWorkbook,
+      updateServerEtag,
       preview,
       enterPreview,
       exitPreview,
       commitPreview,
     }),
-    [meta, replaceWorkbook, renameWorkbook, preview, enterPreview, exitPreview, commitPreview],
+    [
+      meta,
+      replaceWorkbook,
+      renameWorkbook,
+      updateServerEtag,
+      preview,
+      enterPreview,
+      exitPreview,
+      commitPreview,
+    ],
   );
 
   const loadingValue: LoadingCtxValue = useMemo(

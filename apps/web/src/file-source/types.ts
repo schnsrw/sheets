@@ -46,6 +46,12 @@ export type RecentEntry = {
 export type OpenedWorkbook = {
   data: IWorkbookData;
   sourceFormat: WorkbookFormat | null;
+  /** Server-backed sources surface the id + etag so the caller can
+   *  track them for in-place saves. Browser source leaves these null
+   *  — every Save in Mode 1 is a fresh artefact (download or FSA
+   *  file write), never an in-place server PUT. */
+  serverFileId?: string | null;
+  serverEtag?: string | null;
 };
 
 export type SaveResult =
@@ -57,12 +63,27 @@ export type SaveResult =
   | { kind: 'download' }
   /** Wrote to a server host (Mode 3 / Mode 2). `path` is whatever
    *  identifier the source wants the toast to mention. Toast: "Saved
-   *  to <path>". */
-  | { kind: 'server'; path: string };
+   *  to <path>". `serverEtag` carries the new version so the caller
+   *  can update its tracked etag for the next If-Match. */
+  | { kind: 'server'; path: string; serverFileId: string; serverEtag: string }
+  /** Server returned a stale-version conflict on PUT (HTTP 409 from
+   *  WOPI, 412 from /files). The caller (file-actions) opens the
+   *  conflict modal — Discard & reload vs Save as copy — and decides
+   *  the next move. */
+  | { kind: 'conflict'; expectedEtag: string };
 
 export type SaveOptions = {
   filename: string;
   sourceFormat: WorkbookFormat | null;
+  /** Set when the workbook on screen was opened from a server-backed
+   *  source AND we know its id+etag. When omitted the source falls
+   *  back to "save as new" — PersonalFileSource POSTs to /files,
+   *  WopiFileSource refuses (its URL token is bound to a single id). */
+  existingId?: string | null;
+  /** Last-known server etag for `existingId`. Passed as If-Match (or
+   *  the WOPI equivalent header) so a stale browser doesn't
+   *  overwrite a teammate's save. */
+  existingEtag?: string | null;
 };
 
 export interface FileSource {

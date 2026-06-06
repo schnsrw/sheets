@@ -1,0 +1,158 @@
+/* ───────────────────────────────────────────────────────────────────────
+ *  Personal-mode auth gate — full-viewport surface that wraps the app
+ *  while the visitor isn't signed in. Visual language matches the home
+ *  screen (ambient gradient + centred card) so the transition into the
+ *  app feels continuous.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 90; /* above app shell, below LoadingOverlay (1100) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-bg);
+  background-image:
+    radial-gradient(900px circle at 8% -10%, rgba(14, 116, 144, 0.1), transparent 55%),
+    radial-gradient(700px circle at 95% 30%, rgba(29, 78, 216, 0.08), transparent 60%);
+  isolation: isolate;
+}
+
+[data-theme='dark'] .auth-gate {
+  background-image:
+    radial-gradient(900px circle at 8% -10%, rgba(34, 211, 238, 0.18), transparent 55%),
+    radial-gradient(700px circle at 95% 30%, rgba(96, 165, 250, 0.1), transparent 60%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px 28px;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.02),
+    0 8px 32px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-card--thin {
+  align-items: center;
+  text-align: center;
+  padding: 28px;
+}
+
+.auth-card__title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.015em;
+}
+
+.auth-card__hint {
+  margin: -4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.auth-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+.auth-card__field input {
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  outline: 0;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.auth-card__field input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.auth-card__error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #7f1d1d;
+}
+[data-theme='dark'] .auth-card__error {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
+.auth-btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+.auth-btn:hover {
+  background: var(--color-hover);
+}
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.auth-btn--primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg);
+}
+.auth-btn--primary:hover {
+  filter: brightness(0.95);
+}
+
+.auth-card__spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--color-divider);
+  border-top-color: var(--color-accent);
+  animation: auth-spin 0.9s linear infinite;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 24px 20px;
+  }
+  .auth-card__title {
+    font-size: 20px;
+  }
+}

@@ -1,0 +1,68 @@
+import { type ReactNode } from 'react';
+import { useAuth } from './auth-context';
+import { LoginView } from './LoginView';
+import { SignupView } from './SignupView';
+import './auth.css';
+
+/**
+ * Wraps the app shell. On the GitHub Pages build (or any deploy
+ * where `CASUAL_PERSONAL_MODE=none`) `/auth/status` 404s or returns
+ * `mode: 'none'`; the gate renders nothing and the app boots
+ * normally — Mode 1 / Mode 2 paths are unchanged.
+ *
+ * For `single|multi`:
+ *
+ *   - `loading`         — thin "Checking your account…" card so the
+ *                         editor doesn't flash visible behind the gate.
+ *   - `unreachable`     — small "Couldn't reach the server" card with
+ *                         a Retry button. Doesn't boot the app into an
+ *                         unknown state.
+ *   - `unauthenticated` — `signupAllowed` → SignupView, else LoginView.
+ *                         SignupView toggles to LoginView when an
+ *                         account already exists ("multi" mode flow).
+ *   - `authenticated`   — renders `children` (the rest of the app).
+ */
+
+export function PersonalAuthGate({ children }: { children: ReactNode }) {
+  const { state, refresh } = useAuth();
+
+  if (state.kind === 'disabled') return <>{children}</>;
+  if (state.kind === 'authenticated') return <>{children}</>;
+
+  if (state.kind === 'loading') {
+    return (
+      <div className="auth-gate" data-testid="auth-gate-loading">
+        <div className="auth-card auth-card--thin">
+          <div className="auth-card__spinner" aria-hidden />
+          <p className="auth-card__hint">Checking your account…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.kind === 'unreachable') {
+    return (
+      <div className="auth-gate" data-testid="auth-gate-unreachable">
+        <div className="auth-card">
+          <h1 className="auth-card__title">Couldn’t reach the server</h1>
+          <p className="auth-card__hint">{state.message}</p>
+          <button
+            type="button"
+            className="auth-btn auth-btn--primary"
+            onClick={() => void refresh()}
+            data-testid="auth-retry"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // unauthenticated — pick signup vs login from `signupAllowed`.
+  return (
+    <div className="auth-gate" data-testid="auth-gate-unauthenticated">
+      {state.signupAllowed ? <SignupView /> : <LoginView />}
+    </div>
+  );
+}

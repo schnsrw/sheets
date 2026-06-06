@@ -69,6 +69,23 @@ export function registerPersonalAuthRoutes(app: FastifyInstance, store: Personal
     return reply.send({ user });
   });
 
+  // ── GET /auth/status ────────────────────────────────────────────────
+  // Public probe — the web client hits this on boot to decide which
+  // surface to render: signup (first user), login (existing user, not
+  // signed in), or the app itself (signed in). Always 200; the body's
+  // discriminator carries the state. Distinct from /auth/me so we can
+  // tell the client "signup is open" without needing the client to be
+  // authenticated first.
+  app.get('/auth/status', async (req, reply) => {
+    const user = currentUser(req, store);
+    return reply.send({
+      mode: store.mode,
+      signupAllowed: store.signupAllowed(),
+      hasAnyUser: store.hasAnyUser(),
+      user,
+    });
+  });
+
   // ── POST /auth/change-password ──────────────────────────────────────
   app.post('/auth/change-password', async (req, reply) => {
     const user = currentUser(req, store);

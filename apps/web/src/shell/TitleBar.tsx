@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { BusyPill } from './BusyPill';
 import { MenuBar } from './MenuBar';
 import { NamePill } from './NamePill';
+import { AccountMenu } from '../auth/AccountMenu';
 
 /**
  * Title bar — Google-Docs-style two-row chrome.
@@ -90,7 +91,12 @@ export function TitleBar() {
 
   return (
     <header className="titlebar" data-testid="titlebar" role="banner">
-      <a className="titlebar__brand" href="/" aria-label="Casual Sheets — home" title="Casual Sheets">
+      <a
+        className="titlebar__brand"
+        href="/"
+        aria-label="Casual Sheets — home"
+        title="Casual Sheets"
+      >
         <img
           // Prefix with Vite's BASE_URL so the path resolves under
           // /sheets/ on GitHub Pages and stays at / in local dev.
@@ -166,6 +172,7 @@ export function TitleBar() {
         >
           <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="sm" />
         </button>
+        <AccountMenu />
       </div>
     </header>
   );

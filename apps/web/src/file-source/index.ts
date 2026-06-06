@@ -9,5 +9,6 @@ export type {
 } from './types';
 export { FileSourceProvider, useFileSource } from './context';
 export { createBrowserFileSource } from './browser-file-source';
-export { selectFileSource, __resetFileSourceForTests } from './select';
+export { createPersonalFileSource, PersonalAuthExpired } from './personal-file-source';
+export { selectFileSource, setFileSourceKind, __resetFileSourceForTests } from './select';
 export { useRecentFiles } from './useRecent';

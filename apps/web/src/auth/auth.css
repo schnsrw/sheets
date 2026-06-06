@@ -156,3 +156,81 @@
     font-size: 20px;
   }
 }
+
+/* ── Account menu (title-bar avatar) ──────────────────────────────────── */
+
+.account-menu {
+  position: relative;
+  margin-left: 4px;
+}
+
+.account-menu__trigger {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+.account-menu__trigger:hover {
+  border-color: var(--color-accent);
+}
+
+.account-menu__popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+}
+
+.account-menu__header {
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--color-divider);
+  margin-bottom: 4px;
+}
+.account-menu__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.account-menu__role {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.account-menu__item {
+  font: inherit;
+  font-size: 13px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.account-menu__item:hover {
+  background: var(--color-hover);
+}

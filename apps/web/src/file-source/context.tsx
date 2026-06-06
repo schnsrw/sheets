@@ -1,25 +1,48 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useAuth } from '../auth';
 import { createBrowserFileSource } from './browser-file-source';
-import { selectFileSource } from './select';
+import { selectFileSource, setFileSourceKind } from './select';
 import type { FileSource } from './types';
 
 /**
- * React surface for the active `FileSource`. Today the boot probe
- * always returns the browser source; Phase C lights up the personal
- * source when `__COLLAB_BUILD__` + `/auth/me` say so, Phase D adds the
- * WOPI URL-token path.
+ * React surface for the active `FileSource`. The provider listens
+ * to the auth state and swaps the source between the cached
+ * browser/personal instances as the user signs in / out.
  *
- * Provider is mounted high in `App.tsx` so the File menu, the home
- * screen, and `file-actions` share the same instance — keeping the
- * IDB connection in `BrowserFileSource` to a single live-feed.
+ * Phase B: the provider always rendered the browser source.
+ * Phase C: when AuthState.kind === 'authenticated', the provider
+ *          flips to the personal source so /files/* HTTP calls
+ *          replace IDB reads. Sign-out flips back to browser
+ *          (recent files in IDB are preserved across modes since
+ *          the cache holds one instance per kind).
+ *
+ * Provider is mounted INSIDE `AuthProvider` and OUTSIDE every UI
+ * consumer so the File menu, the home screen, and `file-actions`
+ * share the same source instance.
  */
 
 const FileSourceContext = createContext<FileSource | null>(null);
 
 export function FileSourceProvider({ children }: { children: ReactNode }) {
-  // Memoised so the source is stable across renders — important for
-  // `subscribeRecent` callers that compare identity.
-  const source = useMemo<FileSource>(() => selectFileSource(), []);
+  const { state } = useAuth();
+  // `state.kind` drives which cached source the consumers see.
+  // Keep `source` in React state so a swap triggers a re-render of
+  // every `useFileSource()` consumer.
+  const [source, setSource] = useState<FileSource>(() => selectFileSource());
+
+  useEffect(() => {
+    if (state.kind === 'authenticated') {
+      setSource(setFileSourceKind('personal'));
+    } else {
+      // 'disabled' (mode=none / Pages), 'unauthenticated' (login
+      // screen showing), 'loading', 'unreachable' all keep the
+      // browser source. For 'unauthenticated' the gate still hides
+      // the editor so file ops can't fire; for the others the
+      // browser source is the right anonymous default.
+      setSource(setFileSourceKind('browser'));
+    }
+  }, [state.kind]);
+
   return <FileSourceContext.Provider value={source}>{children}</FileSourceContext.Provider>;
 }
 

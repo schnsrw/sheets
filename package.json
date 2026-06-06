@@ -42,7 +42,7 @@
     "onlyBuiltDependencies": [
       "better-sqlite3"
     ],
-    "//overrides_note": "All 39 @univerjs/* packages are resolved against the in-tree fork at vendor/univer-revamp/ (a submodule pinned to upstream v0.24.0 + our perf commits). Bumping the fork is a single `git -C vendor/univer-revamp checkout <sha>` + commit on the sheet repo. See docs/UNIVER_FORK_PERF.md and project_univer_fork memory.",
+    "//overrides_note": "All @univerjs/* packages our workspace imports (direct + transitive) MUST be listed here. If even one is missing, that package resolves to the npm-published v0.24.0 instead of the fork — its compiled bundle then ships duplicate redi Identifier classes alongside the fork's overridden version, and DI lookups fail with Service2-style suffix errors at runtime. The fork has 61 packages total; the overrides here cover the subset apps/web actually pulls in (direct deps + their transitive @univerjs/* tree). Bumping the fork is a single `git -C vendor/univer-revamp checkout <sha>` + commit on the sheet repo. See docs/UNIVER_FORK_PERF.md and project_univer_fork memory.",
     "overrides": {
       "@univerjs/action-recorder": "link:vendor/univer-revamp/packages/action-recorder",
       "@univerjs/core": "link:vendor/univer-revamp/packages/core",
@@ -77,6 +77,8 @@
       "@univerjs/sheets-formula-ui": "link:vendor/univer-revamp/packages/sheets-formula-ui",
       "@univerjs/sheets-hyper-link": "link:vendor/univer-revamp/packages/sheets-hyper-link",
       "@univerjs/sheets-hyper-link-ui": "link:vendor/univer-revamp/packages/sheets-hyper-link-ui",
+      "@univerjs/sheets-note": "link:vendor/univer-revamp/packages/sheets-note",
+      "@univerjs/sheets-note-ui": "link:vendor/univer-revamp/packages/sheets-note-ui",
       "@univerjs/sheets-numfmt": "link:vendor/univer-revamp/packages/sheets-numfmt",
       "@univerjs/sheets-numfmt-ui": "link:vendor/univer-revamp/packages/sheets-numfmt-ui",
       "@univerjs/sheets-sort": "link:vendor/univer-revamp/packages/sheets-sort",

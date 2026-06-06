@@ -25,10 +25,10 @@ export function AccountMenu() {
   // Bumps when the modal saves a new avatar so the AccountMenu's
   // <img> tag re-fetches without sleeping on the HTTP cache.
   const [avatarBust, setAvatarBust] = useState(0);
+  // The <img> renders eagerly; onError swaps to the initial. This
+  // avoids the upfront HEAD probe on every chrome render.
+  const [avatarOk, setAvatarOk] = useState(true);
   const ref = useRef<HTMLDivElement | null>(null);
-  // Detect whether the user has uploaded an avatar by hitting the
-  // image and falling back to the initial on error — saves an
-  // upfront /auth/profile probe on every chrome render.
   void state;
 
   useEffect(() => {
@@ -47,6 +47,14 @@ export function AccountMenu() {
     };
   }, [open]);
 
+  // Reset the avatar-ok flag when the user changes or when the modal
+  // bumps the cache-buster, so a freshly-uploaded image is re-tried
+  // even if the previous URL hit the onError fallback. Must run as a
+  // hook (not gated by `!user`) to satisfy the Rules of Hooks.
+  useEffect(() => {
+    setAvatarOk(true);
+  }, [user?.id, avatarBust]);
+
   if (!user) return null;
 
   const initial = user.username.charAt(0).toUpperCase();
@@ -55,13 +63,6 @@ export function AccountMenu() {
     await logout();
     setUnauthenticated();
   };
-
-  // The <img> renders eagerly; onError swaps to the initial. This
-  // avoids the upfront HEAD probe on every chrome render.
-  const [avatarOk, setAvatarOk] = useState(true);
-  useEffect(() => {
-    setAvatarOk(true);
-  }, [user.id, avatarBust]);
 
   return (
     <>

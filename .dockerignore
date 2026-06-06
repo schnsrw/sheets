@@ -26,8 +26,30 @@ playwright-report
 .env*
 !.env.example
 
-# Vendored read-only Univer clone (huge, not in repo anyway)
+# Vendored Univer fork (submodule). The fork is wired into the
+# workspace via `pnpm.overrides` link: paths, so the docker image
+# needs the package.jsons + built lib/ outputs at the same paths.
+# The host's pre-build step (`./scripts/setup-fork.sh`) populates
+# vendor/univer-revamp/packages/*/lib/ + flips each package.json's
+# main/exports to the lib shape before docker build kicks in.
 vendor
+!vendor/univer-revamp
+
+# Trim what the runtime doesn't need from the fork: source trees
+# (only lib/ is referenced by the link: overrides), node_modules
+# (the consumer workspace resolves prod deps from its own tree),
+# git metadata, examples, and test fixtures. Keep package.json,
+# lib/, and the workspace lockfile.
+vendor/univer-revamp/.git
+vendor/univer-revamp/node_modules
+vendor/univer-revamp/**/node_modules
+vendor/univer-revamp/**/.turbo
+vendor/univer-revamp/**/src
+vendor/univer-revamp/**/test
+vendor/univer-revamp/**/__tests__
+vendor/univer-revamp/examples
+vendor/univer-revamp/e2e
+vendor/univer-revamp/mock
 
 # Docs and standalone sites
 docs

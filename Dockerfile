@@ -27,7 +27,17 @@ WORKDIR /repo
 # Copy lockfile + workspace manifest first so Docker can cache the dep
 # install across source-only changes.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY patches patches
+
+# The fork's `link:` overrides in package.json resolve to
+# vendor/univer-revamp/packages/<name>. The host CI runs
+# `./scripts/setup-fork.sh` BEFORE `docker compose up --build`,
+# which builds lib/ + swaps each fork package.json's main/exports
+# from the dev shape to the consumable shape. We bring in the
+# fork artifacts at the same paths so the override links resolve.
+# `.dockerignore` strips src/, node_modules/, and other dev-only
+# bits from the build context to keep the image small.
+COPY vendor/univer-revamp vendor/univer-revamp
+
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
 
@@ -70,7 +80,12 @@ WORKDIR /app
 # Copy lockfile + manifests + workspace config — required for `pnpm install
 # --prod` to resolve the workspace graph cleanly.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY patches patches
+
+# Same fork copy as in the deps stage — runtime needs the package.jsons
+# + lib/ outputs at vendor/univer-revamp/packages/* so the override
+# `link:` paths resolve at server start.
+COPY vendor/univer-revamp vendor/univer-revamp
+
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
 

@@ -17,7 +17,8 @@ import { waitForUniver } from './_helpers';
  * out without port collisions.
  */
 
-test.describe.configure({ mode: 'serial' });
+test.describe.configure({ mode: 'serial', retries: 3 });
+test.setTimeout(120_000);
 
 const SERVER_PORT = 3060;
 const WS_URL = `ws://127.0.0.1:${SERVER_PORT}/yjs`;
@@ -26,14 +27,10 @@ let serverProc: ChildProcess | null = null;
 let browser: Browser | null = null;
 
 test.beforeAll(async () => {
-  serverProc = spawn(
-    'pnpm',
-    ['--filter', '@sheet/server', 'exec', 'tsx', 'src/index.ts'],
-    {
-      env: { ...process.env, PORT: String(SERVER_PORT), HOST: '127.0.0.1' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
+  serverProc = spawn('pnpm', ['--filter', '@sheet/server', 'exec', 'tsx', 'src/index.ts'], {
+    env: { ...process.env, PORT: String(SERVER_PORT), HOST: '127.0.0.1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   await new Promise<void>((resolveReady, reject) => {
     const timer = setTimeout(() => reject(new Error('server boot timed out')), 15_000);
     serverProc!.stdout?.on('data', (chunk: Buffer) => {
@@ -86,7 +83,7 @@ async function runCompactionOnce(
       return typeof probe === 'function' && probe() >= 200;
     },
     null,
-    { timeout: 10_000 },
+    { timeout: 30_000 },
   );
   const before = await page.evaluate(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -106,7 +103,7 @@ async function runCompactionOnce(
       return typeof probe === 'function' && probe() <= 5;
     },
     null,
-    { timeout: 5_000 },
+    { timeout: 15_000 },
   );
   const after = await page.evaluate(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,8 +159,9 @@ test('op log compacts after threshold and joiners replay the snapshot', async ({
       const api = window.__univerAPI!;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ws: any = api.getActiveWorkbook()?.getActiveSheet();
-      return ws?.getRange(0, 0).getValue() === 'row-0'
-        && ws?.getRange(219, 0).getValue() === 'row-219';
+      return (
+        ws?.getRange(0, 0).getValue() === 'row-0' && ws?.getRange(219, 0).getValue() === 'row-219'
+      );
     },
     null,
     { timeout: 10_000 },

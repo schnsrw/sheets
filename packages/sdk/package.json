@@ -28,6 +28,15 @@
       "types": "./dist/embed.d.ts",
       "import": "./dist/embed.js",
       "require": "./dist/embed.cjs"
+    },
+    "./sheets": {
+      "types": "./dist/sheets.d.ts",
+      "import": "./dist/sheets.js",
+      "require": "./dist/sheets.cjs"
+    },
+    "./styles": {
+      "import": "./dist/styles.js",
+      "require": "./dist/styles.cjs"
     }
   },
   "files": [
@@ -42,15 +51,39 @@
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "@univerjs/core": "^0.24.0",
+    "@univerjs/design": "^0.24.0",
+    "@univerjs/docs": "^0.24.0",
+    "@univerjs/docs-ui": "^0.24.0",
+    "@univerjs/engine-formula": "^0.24.0",
+    "@univerjs/engine-render": "^0.24.0",
+    "@univerjs/sheets": "^0.24.0",
+    "@univerjs/sheets-formula": "^0.24.0",
+    "@univerjs/sheets-formula-ui": "^0.24.0",
+    "@univerjs/sheets-numfmt": "^0.24.0",
+    "@univerjs/sheets-numfmt-ui": "^0.24.0",
+    "@univerjs/sheets-ui": "^0.24.0",
+    "@univerjs/themes": "^0.24.0",
+    "@univerjs/ui": "^0.24.0"
   },
   "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    },
-    "react-dom": {
-      "optional": true
-    }
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "@univerjs/core": { "optional": true },
+    "@univerjs/design": { "optional": true },
+    "@univerjs/docs": { "optional": true },
+    "@univerjs/docs-ui": { "optional": true },
+    "@univerjs/engine-formula": { "optional": true },
+    "@univerjs/engine-render": { "optional": true },
+    "@univerjs/sheets": { "optional": true },
+    "@univerjs/sheets-formula": { "optional": true },
+    "@univerjs/sheets-formula-ui": { "optional": true },
+    "@univerjs/sheets-numfmt": { "optional": true },
+    "@univerjs/sheets-numfmt-ui": { "optional": true },
+    "@univerjs/sheets-ui": { "optional": true },
+    "@univerjs/themes": { "optional": true },
+    "@univerjs/ui": { "optional": true }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -60,7 +93,21 @@
     "react-dom": "^19.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "@univerjs/core": "0.24.0",
+    "@univerjs/design": "0.24.0",
+    "@univerjs/docs": "0.24.0",
+    "@univerjs/docs-ui": "0.24.0",
+    "@univerjs/engine-formula": "0.24.0",
+    "@univerjs/engine-render": "0.24.0",
+    "@univerjs/sheets": "0.24.0",
+    "@univerjs/sheets-formula": "0.24.0",
+    "@univerjs/sheets-formula-ui": "0.24.0",
+    "@univerjs/sheets-numfmt": "0.24.0",
+    "@univerjs/sheets-numfmt-ui": "0.24.0",
+    "@univerjs/sheets-ui": "0.24.0",
+    "@univerjs/themes": "0.24.0",
+    "@univerjs/ui": "0.24.0"
   },
   "publishConfig": {
     "access": "public"

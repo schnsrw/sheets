@@ -1,13 +1,16 @@
 /**
  * @schnsrw/casual-sheets — Casual Sheets SDK
  *
- * Two surfaces shipped in v0.1.0:
- *   - `./signing` — anchored cell signatures (drawn / typed / uploaded)
- *   - `./embed`   — iframe postMessage protocol for host integrations
+ * Three surfaces:
+ *   - `./signing` — anchored cell signatures (drawn / typed / uploaded).
+ *   - `./embed`   — iframe postMessage protocol for host integrations.
+ *   - `./sheets`  — `CasualSheets` React wrapper around Univer Sheets.
  *
- * A `CasualSheets` React component that wraps the Univer-Sheets bootstrap
- * is planned for a follow-up release.
+ * The `./styles` side-effect entry brings in the eager plugin CSS:
+ *
+ *   import '@schnsrw/casual-sheets/styles';
  */
 
 export * from './signing';
 export * from './embed';
+export * from './sheets';

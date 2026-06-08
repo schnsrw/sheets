@@ -335,6 +335,49 @@ importers:
         version: 5.4.21(@types/node@22.19.19)
 
   packages/sdk:
+    dependencies:
+      '@univerjs/core':
+        specifier: link:../../vendor/univer-revamp/packages/core
+        version: link:../../vendor/univer-revamp/packages/core
+      '@univerjs/design':
+        specifier: link:../../vendor/univer-revamp/packages/design
+        version: link:../../vendor/univer-revamp/packages/design
+      '@univerjs/docs':
+        specifier: link:../../vendor/univer-revamp/packages/docs
+        version: link:../../vendor/univer-revamp/packages/docs
+      '@univerjs/docs-ui':
+        specifier: link:../../vendor/univer-revamp/packages/docs-ui
+        version: link:../../vendor/univer-revamp/packages/docs-ui
+      '@univerjs/engine-formula':
+        specifier: link:../../vendor/univer-revamp/packages/engine-formula
+        version: link:../../vendor/univer-revamp/packages/engine-formula
+      '@univerjs/engine-render':
+        specifier: link:../../vendor/univer-revamp/packages/engine-render
+        version: link:../../vendor/univer-revamp/packages/engine-render
+      '@univerjs/sheets':
+        specifier: link:../../vendor/univer-revamp/packages/sheets
+        version: link:../../vendor/univer-revamp/packages/sheets
+      '@univerjs/sheets-formula':
+        specifier: link:../../vendor/univer-revamp/packages/sheets-formula
+        version: link:../../vendor/univer-revamp/packages/sheets-formula
+      '@univerjs/sheets-formula-ui':
+        specifier: link:../../vendor/univer-revamp/packages/sheets-formula-ui
+        version: link:../../vendor/univer-revamp/packages/sheets-formula-ui
+      '@univerjs/sheets-numfmt':
+        specifier: link:../../vendor/univer-revamp/packages/sheets-numfmt
+        version: link:../../vendor/univer-revamp/packages/sheets-numfmt
+      '@univerjs/sheets-numfmt-ui':
+        specifier: link:../../vendor/univer-revamp/packages/sheets-numfmt-ui
+        version: link:../../vendor/univer-revamp/packages/sheets-numfmt-ui
+      '@univerjs/sheets-ui':
+        specifier: link:../../vendor/univer-revamp/packages/sheets-ui
+        version: link:../../vendor/univer-revamp/packages/sheets-ui
+      '@univerjs/themes':
+        specifier: link:../../vendor/univer-revamp/packages/themes
+        version: link:../../vendor/univer-revamp/packages/themes
+      '@univerjs/ui':
+        specifier: link:../../vendor/univer-revamp/packages/ui
+        version: link:../../vendor/univer-revamp/packages/ui
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

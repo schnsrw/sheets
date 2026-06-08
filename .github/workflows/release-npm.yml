@@ -28,6 +28,10 @@ jobs:
   release:
     name: Version + Publish
     runs-on: ubuntu-latest
+    # NODE_PASS / NODE_USERNAME live as environment secrets on
+    # `github-pages`. Attaching the job to that environment is what
+    # makes `${{ secrets.NODE_PASS }}` resolve to the real token.
+    environment: github-pages
     steps:
       - uses: actions/checkout@v6
         with:

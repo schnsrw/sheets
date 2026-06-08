@@ -1,7 +1,7 @@
 {
   "name": "@schnsrw/casual-sheets",
-  "version": "0.2.0",
-  "description": "Casual Sheets SDK — signing pipeline + iframe postMessage protocol. Univer wrapper (CasualSheets component) to follow.",
+  "version": "0.3.0",
+  "description": "Casual Sheets SDK — signing pipeline, iframe postMessage protocol, and CasualSheets React wrapper around Univer.",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -68,22 +68,54 @@
     "@univerjs/ui": "^0.24.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true },
-    "@univerjs/core": { "optional": true },
-    "@univerjs/design": { "optional": true },
-    "@univerjs/docs": { "optional": true },
-    "@univerjs/docs-ui": { "optional": true },
-    "@univerjs/engine-formula": { "optional": true },
-    "@univerjs/engine-render": { "optional": true },
-    "@univerjs/sheets": { "optional": true },
-    "@univerjs/sheets-formula": { "optional": true },
-    "@univerjs/sheets-formula-ui": { "optional": true },
-    "@univerjs/sheets-numfmt": { "optional": true },
-    "@univerjs/sheets-numfmt-ui": { "optional": true },
-    "@univerjs/sheets-ui": { "optional": true },
-    "@univerjs/themes": { "optional": true },
-    "@univerjs/ui": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@univerjs/core": {
+      "optional": true
+    },
+    "@univerjs/design": {
+      "optional": true
+    },
+    "@univerjs/docs": {
+      "optional": true
+    },
+    "@univerjs/docs-ui": {
+      "optional": true
+    },
+    "@univerjs/engine-formula": {
+      "optional": true
+    },
+    "@univerjs/engine-render": {
+      "optional": true
+    },
+    "@univerjs/sheets": {
+      "optional": true
+    },
+    "@univerjs/sheets-formula": {
+      "optional": true
+    },
+    "@univerjs/sheets-formula-ui": {
+      "optional": true
+    },
+    "@univerjs/sheets-numfmt": {
+      "optional": true
+    },
+    "@univerjs/sheets-numfmt-ui": {
+      "optional": true
+    },
+    "@univerjs/sheets-ui": {
+      "optional": true
+    },
+    "@univerjs/themes": {
+      "optional": true
+    },
+    "@univerjs/ui": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

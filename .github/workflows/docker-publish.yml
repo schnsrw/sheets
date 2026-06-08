@@ -37,6 +37,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.tag.outputs.raw }}
+          # Univer fork lives at vendor/univer-revamp/ as a submodule;
+          # without this the Dockerfile's `COPY vendor/univer-revamp`
+          # picks up an empty dir and @univerjs/core fails to resolve.
+          submodules: recursive
 
       - name: Resolve build metadata
         id: meta

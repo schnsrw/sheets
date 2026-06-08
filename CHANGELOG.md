@@ -8,6 +8,66 @@ Pre-v0.2.0 releases were tagged without a CHANGELOG file. The site
 (`https://schnsrw.live/changelog/`) carries longer-form release notes
 for v0.1.0+; the GitHub Releases page links to the same content.
 
+## [0.3.0] — 2026-06-08
+
+Minor release rolling up two major feature batches plus the
+Univer-fork perf revamp.
+
+### Added — Phase C: personal mode (#49)
+
+- **Per-user file storage** — server stores files under
+  `<root>/users/<userID>/`, scoped through `local.PerUserStores`.
+  Files stay open across sessions: the same user logs in on a
+  different machine and finds their workbooks where they left them.
+- **Auth foundation** — bcrypt + SQLite at `<root>/.casual/users.db`,
+  HMAC-signed session cookies (30-day TTL), `__Host-`-prefixed under
+  `SECURE_COOKIES=true`.
+- **Auth routes** — `POST /auth/signup` / `/auth/login` / `/auth/logout`,
+  `GET /auth/me`.
+- **File CRUD over HTTP** — `POST /files`, `GET /files`, `GET /files/{id}`,
+  `PUT /files/{id}/contents`, `PATCH /files/{id}`, `DELETE /files/{id}`.
+- **Profile** — `displayName`, `timezone`, `locale`, `avatarUrl`, free-form
+  `prefs`. Identity stays in SQLite; extended fields land in a
+  `.profile.json` sidecar.
+- **CLI** — `casual-docs reset-password / list-users / promote / demote`.
+- **Admin** — `GET /admin/users`, `DELETE /admin/users/{id}` behind
+  `RequireAdmin`. First signup auto-promotes.
+- **UI** — `PersonalAuthGate` (login / signup modal), `UserMenu` pill +
+  dropdown, `ProfileSettingsDialog`.
+
+### Added — Phase D: WOPI host (#49)
+
+- **WOPI client** in `apps/server/src/host/wopi/` + JWT verifier with
+  JWKS cache. `docID = base64url(wopiSrc)` keeps the gateway stateless.
+- **Embed redirect** at `GET /wopi/host`; access_token threaded through
+  the WS preflight.
+- **`WopiFileSource`** (TS) — front-end probe order is
+  WOPI → Personal → Browser.
+- **Lock / Unlock** + per-room `RefreshLock` ticker (10 min default) so
+  long sessions don't lose the host-side lock idle-out.
+
+### Changed — Univer fork (#51)
+
+- Fork now lives at `vendor/univer-revamp/` as a submodule on
+  `casual-sheets/0.24`. All 49 `@univerjs/*` packages resolve through
+  `pnpm.overrides` to avoid the Service2-suffix DI-collision class.
+- Five perf patches cherry-picked onto the fork (most impactful: stop
+  re-walking the visible span in `setStylesCache`).
+
+### Added — Mobile chrome + misc
+
+- Soft cell-count cap on print export (#50) — was OOMing the tab on
+  big workbooks.
+- Right-click context menu picks up **Format Cells…** (#52).
+- E2E hardening: timeouts + retries on `coedit-share`, `coedit-compaction`,
+  `charts-p1`, and the long personal happy-path spec.
+
+### Added — `@schnsrw/casual-sheets` SDK (separate package)
+
+- New `packages/sdk` shipping `@schnsrw/casual-sheets@0.2.0`
+  (signing + iframe postMessage protocol). Univer-Sheets React wrapper
+  to follow.
+
 ## [0.2.1] — 2026-05-26
 
 Patch release — closes the last two known gaps from the

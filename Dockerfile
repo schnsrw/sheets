@@ -152,6 +152,15 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q --spider http://127.0.0.1:3000/health || exit 1
 
+# Provision the personal-mode storage root with `node` ownership
+# before dropping privileges. /data is the default CASUAL_LOCAL_PATH
+# the docker-compose surface sets; without this, the named volume
+# mounts owned by root and SQLite (users.db) bombs with
+# "unable to open database file" the moment Phase C personal mode
+# tries to bootstrap. Idempotent — re-running with an existing
+# volume keeps prior ownership.
+RUN mkdir -p /data && chown -R node:node /data
+
 # Drop privileges. node:alpine ships a `node` user.
 USER node
 

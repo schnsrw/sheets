@@ -10,7 +10,7 @@
 [![Image Size](https://img.shields.io/docker/image-size/schnsrw/casual-sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/schnsrw/casual-sheets)
 [![E2E Tests](https://img.shields.io/badge/e2e-357%20passing-brightgreen?logo=playwright)](./tests/e2e)
 [![Unit Tests](https://img.shields.io/badge/unit-145%20passing-brightgreen)](./apps)
-[![Version](https://img.shields.io/badge/version-v0.2.1-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.3.0-blue)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
 [**Live Demo →**](https://sheet.schnsrw.live/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/schnsrw/casual-sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Comparisons →](https://schnsrw.live/vs/)
@@ -106,9 +106,9 @@ A single multi-arch image (`linux/amd64` + `linux/arm64`). Web, Hocuspocus, and 
 docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. **Anonymous mode** — no signup, no persistence; close the container and everything's gone. Good for kicking the tyres.
 
-### Recommended: with Redis persistence
+### Recommended: personal mode + Redis persistence
 
 Paste this `docker-compose.yml` and run `docker compose up -d`:
 
@@ -118,9 +118,16 @@ services:
     image: schnsrw/casual-sheets:latest
     restart: unless-stopped
     ports: ['3000:3000']
+    volumes:
+      - casual-data:/data
     environment:
+      # Phase C — sign up, save, reopen across restarts.
+      CASUAL_STORAGE: local
+      CASUAL_LOCAL_PATH: /data
+      CASUAL_PERSONAL_MODE: single
+      # Y.Doc snapshots for co-edit rooms.
       REDIS_URL: redis://redis:6379
-      ROOM_TTL_MIN: '15'
+      ROOM_TTL_MIN: '60'
     depends_on:
       redis:
         condition: service_healthy
@@ -138,8 +145,13 @@ services:
       retries: 5
 
 volumes:
+  casual-data:
   redis-data:
 ```
+
+Open `http://localhost:3000`, sign up — your account + workbooks live in the `casual-data` volume and survive `docker compose down`. `CASUAL_PERSONAL_MODE=multi` keeps signup open if you want more than one account on the same instance; `none` reverts to the anonymous shape.
+
+For an admin without manual signup, set `CASUAL_BOOTSTRAP_USER=admin:hunter2` once in your `.env` — silently no-ops after the users table has a row. Full reference: [`docs/ENV.md`](./docs/ENV.md), [`docs/self-hosting/personal-mode.md`](./docs/self-hosting/personal-mode.md).
 
 ### Try co-editing
 

@@ -2,14 +2,20 @@
 #
 #   docker compose up -d
 #   open http://localhost:3000
+#   → sign up; your workbooks persist in the named `casual-data` volume.
 #
-# Wires the single app image to a Redis container for Y.Doc persistence so
-# rooms survive restarts. Without Redis, the app still runs (in-memory
-# only) — see Dockerfile for the bare `docker run` form.
+# Wires the single app image to:
+#   - a `casual-data` volume mounted at /data — Phase C personal-mode
+#     storage. Holds the users SQLite (auth, sessions, profile) and the
+#     per-user .xlsx workbooks at /data/users/<userID>/. Survives
+#     `docker compose down` and `docker compose pull` upgrades.
+#   - a Redis container for Y.Doc snapshots so co-edit rooms survive
+#     restarts. Without Redis, the app still runs (in-memory only) —
+#     see Dockerfile for the bare `docker run` form.
 
 services:
   app:
-    image: schnsrw/casual-sheets:0.0.4
+    image: schnsrw/casual-sheets:0.3.0
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,6 +30,13 @@ services:
     restart: unless-stopped
     ports:
       - '3000:3000'
+    volumes:
+      # Per-user workbook storage + users SQLite. Phase C requires this
+      # to survive container restarts — without it, every `docker compose
+      # down` loses every signup + every saved workbook. Override the
+      # host-side with a bind mount if you want to back up to your own
+      # path: `- ./workbooks:/data`.
+      - casual-data:/data
     environment:
       NODE_ENV: production
       HOST: ${HOST:-0.0.0.0}
@@ -40,6 +53,23 @@ services:
       # snapshot). Defaults to 100 MB. Raise alongside VITE_MAX_OPEN_MB
       # in the build args below if you need bigger workbooks.
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+      # ─── Phase C personal mode ─────────────────────────────────────
+      # `local` persists workbooks under CASUAL_LOCAL_PATH (mounted
+      # above). `memory` keeps the pre-Phase-C in-process map (loses
+      # data on restart). See docs/STORAGE_MODES.md.
+      CASUAL_STORAGE: ${CASUAL_STORAGE:-local}
+      CASUAL_LOCAL_PATH: ${CASUAL_LOCAL_PATH:-/data}
+      # `single` = first signup mints the lone account, then signup
+      # closes. `multi` = signup stays open; first user is admin,
+      # subsequent users are plain accounts with per-user file
+      # isolation. `none` keeps the anonymous WOPI shape (no signup,
+      # no per-user save).
+      CASUAL_PERSONAL_MODE: ${CASUAL_PERSONAL_MODE:-single}
+      # Optional escape hatch — admin minted on first boot when the
+      # users table is empty. Set in your `.env` (not committed) as
+      # `CASUAL_BOOTSTRAP_USER=admin:hunter2`. Silently no-ops once
+      # any user exists; never rotates a live password.
+      CASUAL_BOOTSTRAP_USER: ${CASUAL_BOOTSTRAP_USER:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -69,3 +99,4 @@ services:
 
 volumes:
   redis-data:
+  casual-data:

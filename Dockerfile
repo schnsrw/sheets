@@ -40,6 +40,11 @@ COPY vendor/univer-revamp vendor/univer-revamp
 
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
+# packages/sdk is in the pnpm workspace too — apps/web now imports
+# @schnsrw/casual-sheets/xlsx (and friends) via the workspace symlink.
+# Without these copies pnpm install fails the lockfile check; without
+# the source the SDK build below has nothing to compile.
+COPY packages/sdk/package.json packages/sdk/
 
 # Full install (dev + prod). The build stage needs Vite & TypeScript; we
 # trim back to prod-only deps in the runtime stage below.
@@ -48,7 +53,14 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # ─────────────── build-web ───────────────
 FROM deps AS build-web
+COPY packages/sdk packages/sdk
 COPY apps/web apps/web
+
+# Build the SDK first so apps/web's tsc + vite resolve
+# @schnsrw/casual-sheets/* through packages/sdk/dist/. Skipping this
+# is what caused the e2e-prod failure on 4dc4dc4 — host CI builds the
+# SDK separately but the Docker image's pnpm sandbox doesn't know to.
+RUN pnpm --filter @schnsrw/casual-sheets build
 
 # Build-time knobs the Vite bundle bakes in. Override via
 # `--build-arg VITE_MAX_OPEN_MB=200` on `docker build` or via the
@@ -88,6 +100,11 @@ COPY vendor/univer-revamp vendor/univer-revamp
 
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
+# Same workspace-manifest copy as in deps — pnpm install --prod resolves
+# the workspace graph and needs every package.json present even if the
+# runtime image never executes the SDK directly (apps/web's dist/ is
+# already baked in by the build-web stage).
+COPY packages/sdk/package.json packages/sdk/
 
 # Prod-only install. tsx lives in dependencies (not devDeps) so the server
 # can run TypeScript directly without a JS compile step.

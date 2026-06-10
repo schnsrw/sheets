@@ -6,6 +6,7 @@ import { PropertiesDialog } from './PropertiesDialog';
 import { FormatCellsDialog } from './FormatCellsDialog';
 import { AboutDialog } from './AboutDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { useSaveStatus } from './save-status-context';
 import { CommandSearchDialog, type CommandSearchItem } from './CommandSearchDialog';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
@@ -343,6 +344,7 @@ export function MenuBar() {
   const api = useUniverAPI();
   const workbook = useWorkbook();
   const toast = useToast();
+  const saveStatus = useSaveStatus();
   const ui = useUI();
   const outlineActions = useOutlineActions();
   const outline = useOutline();
@@ -988,6 +990,7 @@ export function MenuBar() {
       toast.info('Nothing to save yet — type something first.');
       return;
     }
+    saveStatus.markSaving();
     const name = workbook.meta.name || 'workbook';
     // Server-backed save threads the tracked file id + etag in; the
     // FileSource does the in-place PUT and returns the new etag, which
@@ -1040,9 +1043,12 @@ export function MenuBar() {
       // for users who saved and walked away (UX_AUDIT.md §2.14). The
       // EditTracker flips the flag back on the very next mutation.
       workbook.markSaved();
+      // Drive the title-bar SaveStatusPill (UX_AUDIT.md §4.3).
+      saveStatus.markSaved();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Couldn't save: ${msg}`);
+      saveStatus.markError(msg);
     }
   };
 

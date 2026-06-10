@@ -27,6 +27,7 @@ import { LoadingOverlay } from './shell/LoadingOverlay';
 import { LoadingContext, type LoadingCtxValue, type LoadingState } from './loading-context';
 import { BusyProvider } from './busy-context';
 import { ToastProvider } from './shell/toast/toast-context';
+import { SaveStatusProvider, useSaveStatus } from './shell/save-status-context';
 import { ToastContainer } from './shell/toast/ToastContainer';
 import { ChartsProvider } from './charts/charts-context';
 import { ChartLayer } from './charts/ChartLayer';
@@ -408,6 +409,7 @@ export function App() {
             <AuthProvider>
               <FileSourceProvider>
                 <ToastProvider>
+                  <SaveStatusProvider>
                   <BusyProvider>
                     <ChartsProvider>
                       <PivotsProvider>
@@ -479,6 +481,7 @@ export function App() {
                       </PivotsProvider>
                     </ChartsProvider>
                   </BusyProvider>
+                  </SaveStatusProvider>
                   <ToastContainer />
                 </ToastProvider>
               </FileSourceProvider>
@@ -540,6 +543,7 @@ function RouteHost({
  *  don't accidentally promote a clean draft to a server row. */
 function EditTracker({ markUserEdited }: { markUserEdited: () => void }): ReactNode {
   const api = useUniverAPI();
+  const { markDirty } = useSaveStatus();
   useEffect(() => {
     if (!api) return;
     // Reach the command service via the facade's private `_injector` —
@@ -565,9 +569,13 @@ function EditTracker({ markUserEdited }: { markUserEdited: () => void }): ReactN
       if (id.startsWith('sheet.mutation.set-selections')) return;
       if (id === 'sheet.mutation.set-worksheet-active-operation') return;
       markUserEdited();
+      // Drop the SaveStatusPill back to idle so a "Saved 5 min ago"
+      // pill doesn't keep lying while the user is mid-edit. No-op
+      // unless the pill was actually in saved/error state.
+      markDirty();
     });
     return () => sub.dispose();
-  }, [api, markUserEdited]);
+  }, [api, markUserEdited, markDirty]);
   return null;
 }
 

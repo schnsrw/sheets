@@ -7,6 +7,7 @@ import { AvatarStack } from '../collab/AvatarStack';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
 import { BusyPill } from './BusyPill';
+import { SaveStatusPill } from './SaveStatusPill';
 import { MenuBar } from './MenuBar';
 import { NamePill } from './NamePill';
 import { AccountMenu } from '../auth/AccountMenu';
@@ -152,6 +153,7 @@ export function TitleBar() {
       </div>
       <div className="titlebar__actions" data-testid="titlebar-actions">
         <BusyPill />
+        <SaveStatusPill />
         <AvatarStack />
         {collab.roomId && <NamePill />}
         {collab.roomId ? (

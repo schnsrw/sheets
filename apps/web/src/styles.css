@@ -1047,6 +1047,14 @@ button {
   }
 }
 
+/* SaveStatusPill — shares the rotation curve with busy-pill but uses
+   its own keyframe name so future per-pill tuning stays decoupled. */
+@keyframes save-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Ribbon */
 .ribbon {
   display: flex;

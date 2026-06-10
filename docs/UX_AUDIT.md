@@ -326,40 +326,85 @@ has a profile-avatar URL but it doesn't surface in collab presence.
 
 ## §5 — Prioritized fix plan
 
-### Phase 1 — Foundational IA (unblocks everything else)
+### Phase 1 — Foundational IA (unblocks everything else)  ✅ shipped 2026-06-11
 
-1. **Add a router** (sheet + document). Hash or pushState — no
-   react-router dep. Three routes: `/`, `/d/<id>`, `/r/<roomId>`.
-   `/share/<token>` for share landing. **~3 files per repo.**
-2. **My Files list at `/`** (sheet + document). Server file rows,
-   sorted, deduped, kebab menu, thumb. New `<FilesList>` component.
-   **~2 files per repo.**
-3. **Editor at `/d/<id>`** — opens via fileSource.open, binds
-   serverFileId/etag into workbook meta so saves overwrite. Fixes
-   §2.3 + §2.4 + §3.6. **~2 files per repo.**
-4. **Logo → `/`**, single click. Fixes §2.6. **~1 file.**
+1. ✅ **Path router** (sheet `apps/web/src/router/`, doc
+   `docx-editor/examples/vite/src/router/`). pushState, no
+   react-router. Routes: `/home`, `/sheet/<id>` (+ `/document/<id>`),
+   `/sheet/new` (draft), `/r/<roomId>`. Commit `f50cbf6` (sheet) /
+   `f823b0d` (doc).
+2. ✅ **MySpreadsheetsList at `/home`** (sheet). Server file rows
+   via `fs.listRecent` + `fs.subscribeRecent`, dedup by name, latest
+   first. Commits `51352c3` + `11de5b7`.
+3. ✅ **Editor at `/sheet/<id>`** — `RouteWorkbookSync` opens via
+   `fileSource.openRecent`, binds `serverFileId` + `serverEtag` into
+   `WorkbookMeta`. The first save mints an id and `replaceState`
+   rebinds the URL from `/sheet/new` → `/sheet/<id>`. Commits
+   `fe7c18f` + `6897dfb`.
+4. ✅ **Logo → `/home`**, single click. Commit `06bb5a0`.
+5. ✅ **Empty-draft Save skip**. `EditTracker` + `hasUserEdited` flag
+   short-circuits create-save when the user has never typed.
+   Commit `b89e93b`.
+6. ✅ **Auth-gated `/` → `/home` redirect** so non-personal deploys
+   (Pages, e2e) keep `/` rendering the editor. Commit `e50d87c`.
 
-### Phase 2 — Personal mode chrome
+### Phase 2 — Personal mode chrome  ✅ shipped 2026-06-11
 
-5. **AccountMenu → Admin entry** for admin users. §2.7. ~1 file.
-6. **PersonalAuthGate exempts share / room routes.** §2.8 / §3.5. ~1 file.
-7. **Single-mode share = view-only / download.** §2.8. ~1 file + copy.
-8. **Title bar filename editable.** §2.11. ~2 files.
-9. **`document.title` tracks workbook name.** §2.12. ~1 hook.
-10. **Logout dirty-check.** §2.14. ~1 file.
+5. ✅ **AccountMenu → Admin entry** for `user.isAdmin`. Commit `96d39ee`.
+6. ✅ **PersonalAuthGate exempts `/r/<roomId>`** — anonymous coedit
+   joiners aren't asked to claim an account on the host's box.
+   Commit `96d39ee`.
+7. ⚖️ **Single-mode share = view-only / download.** Deferred per
+   user direction: "for anonymous writer it's user's fault as he can
+   share write access with password — architectural choice."
+8. ✅ **Title-bar filename editable.** Already existed via TitleBar
+   click-to-rename input.
+9. ✅ **`document.title` tracks workbook name** — keyed off
+   `route.kind` so back / forward flip the title immediately.
+   Commit `96d39ee`.
+10. ✅ **Logout dirty-check.** AccountMenu reads workbook context;
+    `window.confirm` fires when `meta.hasUserEdited === true`.
+    Commit `96d39ee`.
 
 ### Phase 3 — Mobile + a11y
 
-11. **Mobile responsive `/`.** §2.15. ~2 files.
-12. **Keyboard help modal** (`?` opens). §2.16. ~1 file.
-13. **Settings consolidation.** §2.13. ~1 file.
+11. ✅ **Mobile responsive `/home`.** `useIsMobile()` matchMedia
+    hook, tighter padding, smaller title, wrapping actions row,
+    Delete affordance always-visible on touch (no hover).
+    Commit `2abb2ec`. Also fixed a FileSource-swap race that could
+    flash an empty list on sign-in (same commit).
+12. ✅ **Keyboard shortcuts cheat sheet** + `formatShortcut` util.
+    Opens via `Ctrl+/`, `?` (outside an input), or Help menu.
+    Renders ⌘ on Mac, `Ctrl+` on Win/Linux, friendly key names
+    (PgUp / Esc). Commit `5962406`. MenuBar's existing entries now
+    render through the same util — pays down the
+    `feedback-shortcut-strings` memory debt. Commit `9f92397`.
+13. ⏳ **Settings consolidation.** SettingsModal already has
+    Profile / Security / Preferences tabs; the only "scattered"
+    surfaces remaining are intentional (theme toggle as a one-click
+    titlebar button, per-dialog dialogs). Closing unless a specific
+    scattered thing surfaces.
 
 ### Phase 4 — Shared infra
 
-14. **Error → activity log + retry chips.** §4.1. ~2 files.
-15. **Command palette (Cmd+K)** port from Drive. §4.2. ~3 files.
-16. **AutosaveStatus in TitleBar.** §4.3. ~1 file.
-17. **Avatars + name pre-fill in collab.** §4.4 + §4.5. ~2 files.
+14. ⏳ **Error → activity log + retry chips.** New surface. Needs a
+    design call: persistent sidebar (Notion-style) vs. modal log
+    (VS Code Output panel) vs. menu entry. Audit-estimated ~2 files
+    is light — closer to 4–5 with state container + retry plumbing.
+15. ✅ **Command-palette chord** — `Ctrl+Shift+P` (VS Code / Linear)
+    aliased to the existing `CommandSearchDialog` (already bound to
+    Alt+Q from Office). Three entry points, one dialog. Ctrl+K
+    intentionally left as Insert Link (Excel convention).
+    Commit `7c84605`.
+16. ✅ **SaveStatusPill in TitleBar.** New `SaveStatusProvider` +
+    `<SaveStatusPill>` shows Saving… → Saved {N ago} → Save failed
+    with a relative-time tick. EditTracker drops the pill back to
+    idle on the next mutation so it doesn't keep claiming "Saved 1
+    hour ago" while the user is mid-typing. Commit `ea2b3fc`.
+17. ✅ **Collab display name pre-fill.** CollabDriver reads the
+    signed-in user via `useCurrentUser()` and pre-fills the room
+    identity from `user.username` (write-through to localStorage so
+    sign-out → anon-join keeps the same identity). Commit `43ed996`.
 
 ### Phase 5 — Needs design pass (NOT code yet)
 

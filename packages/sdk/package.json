@@ -42,7 +42,11 @@
       "types": "./dist/xlsx.d.ts",
       "import": "./dist/xlsx.js",
       "require": "./dist/xlsx.cjs"
-    }
+    },
+    "./embed-runtime": {
+      "import": "./dist/embed/embed-runtime.js"
+    },
+    "./embed/embed.html": "./dist/embed/embed.html"
   },
   "files": [
     "dist",

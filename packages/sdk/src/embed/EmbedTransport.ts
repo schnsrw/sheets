@@ -27,6 +27,8 @@ import {
   type CommandSetReadOnlyData,
   type CommandSetThemeData,
   type CommandSetLocaleData,
+  type CommandSetViewModeData,
+  type CasualErrorData,
   type SignatureRequestData,
   type SignatureRequestAckData,
   type SignatureFieldSignedData,
@@ -58,6 +60,8 @@ export interface EmbedTransportHandlers {
   onCommandSetReadOnly?: (data: CommandSetReadOnlyData) => void | Promise<void>;
   onCommandSetTheme?: (data: CommandSetThemeData) => void | Promise<void>;
   onCommandSetLocale?: (data: CommandSetLocaleData) => void | Promise<void>;
+  /** Host → editor: switch chrome density (preview ↔ editor). */
+  onCommandSetViewMode?: (data: CommandSetViewModeData) => void | Promise<void>;
   onCommandFocus?: () => void | Promise<void>;
   onCommandSave?: () => void | Promise<void>;
   onCommandLoad?: () => void | Promise<void>;
@@ -162,6 +166,12 @@ export class EmbedTransport {
     this.post('casual.signature.cancel', { reason });
   }
 
+  /** Editor → Host: fatal boot / load error. Host surfaces via wrapper
+   *  `onError` callback. Fire-and-forget. */
+  sendError(data: CasualErrorData): void {
+    this.post('casual.error', data);
+  }
+
   /** Tear down listeners. Idempotent. */
   destroy(): void {
     if (this.destroyed) return;
@@ -205,6 +215,9 @@ export class EmbedTransport {
         return;
       case 'casual.command.setLocale':
         await this.handlers.onCommandSetLocale?.(env.data as CommandSetLocaleData);
+        return;
+      case 'casual.command.set.viewmode':
+        await this.handlers.onCommandSetViewMode?.(env.data as CommandSetViewModeData);
         return;
       case 'casual.command.focus':
         await this.handlers.onCommandFocus?.();

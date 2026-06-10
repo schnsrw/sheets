@@ -29,7 +29,12 @@ const rewriteParserWorkerUrl: Plugin = {
   },
 };
 
-export default defineConfig({
+import { promises as fs } from 'node:fs';
+
+// Main library entries — code-split as before. The embed-runtime ships
+// from a second config below so consumers get a self-contained ESM
+// blob to drop into their public dir (not 100+ shared chunks).
+const mainConfig = defineConfig({
   entry: {
     index: 'src/index.ts',
     signing: 'src/signing/index.ts',
@@ -37,9 +42,6 @@ export default defineConfig({
     sheets: 'src/sheets/index.ts',
     styles: 'src/styles.ts',
     xlsx: 'src/xlsx/index.ts',
-    // Worker entry — emits dist/parser.worker.mjs + .cjs sibling.
-    // The runtime URL in parse-in-worker.ts is rewritten via
-    // rewriteParserWorkerUrl above so consumer bundlers can resolve it.
     'parser.worker': 'src/xlsx/parser.worker.ts',
   },
   format: ['esm', 'cjs'],
@@ -47,11 +49,41 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: [
-    'react',
-    'react-dom',
-    // Univer is peer; consumers install the matching @univerjs/* set.
-    /^@univerjs\//,
-  ],
+  external: ['react', 'react-dom', /^@univerjs\//],
   plugins: [rewriteParserWorkerUrl],
 });
+
+// Embed-runtime — the in-iframe entry. Doc 16 §6. One self-contained
+// file the consumer copies into `{embedBasePath}/embed-runtime.js`
+// alongside `embed.html` (also copied below).
+const embedRuntimeConfig = defineConfig({
+  entry: { 'embed-runtime': 'src/embed-runtime/index.tsx' },
+  outDir: 'dist/embed',
+  format: ['esm'],
+  // No dts — the runtime is a side-effect script loaded by embed.html
+  // via <script type="module">, not imported by user code. Skipping
+  // dts also dodges a tsup parallel-clean race that wipes
+  // dist/embed/*.d.ts after the main config's clean=true fires.
+  dts: false,
+  splitting: false,
+  sourcemap: false,
+  clean: false,
+  minify: true,
+  external: ['react', 'react-dom', 'react-dom/client', /^@univerjs\//],
+  plugins: [
+    rewriteParserWorkerUrl,
+    {
+      name: 'copy-embed-html',
+      async buildEnd() {
+        try {
+          await fs.mkdir('dist/embed', { recursive: true });
+          await fs.copyFile('src/embed-runtime/embed.html', 'dist/embed/embed.html');
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') throw err;
+        }
+      },
+    },
+  ],
+});
+
+export default [mainConfig, embedRuntimeConfig];

@@ -122,6 +122,25 @@ export interface CommandSetLocaleData {
   locale: string;
 }
 
+/** Host → editor: switch chrome density between the two consumer-facing
+ *  modes without re-mounting. `preview` hides toolbar / formula bar /
+ *  side panel / status bar / sheet tabs and runs read-only; `editor`
+ *  shows the full UI. Mirrors the `viewMode` prop on `<CasualSheetsIframe>`. */
+export interface CommandSetViewModeData {
+  viewMode: 'preview' | 'editor';
+}
+
+// ---------------------------------------------------------------
+// Errors (editor → host fatal signals)
+// ---------------------------------------------------------------
+
+/** Editor → host: a fatal error during boot / load. Hosts surface this
+ *  via the wrapper's `onError` callback. */
+export interface CasualErrorData {
+  code: 'embed_not_served' | 'load_failed' | 'parse_failed' | 'boot_failed' | 'internal';
+  message: string;
+}
+
 // ---------------------------------------------------------------
 // Signing (uniform with the SDK `signing` prop)
 // ---------------------------------------------------------------

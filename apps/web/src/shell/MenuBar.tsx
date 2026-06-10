@@ -7,6 +7,7 @@ import { FormatCellsDialog } from './FormatCellsDialog';
 import { AboutDialog } from './AboutDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useSaveStatus } from './save-status-context';
+import { formatShortcut } from './shortcut-format';
 import { CommandSearchDialog, type CommandSearchItem } from './CommandSearchDialog';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
@@ -2400,7 +2401,11 @@ function MenuList({
           >
             {item.icon && <Icon name={item.icon} size="sm" className="menu__item-icon" />}
             <span>{item.label}</span>
-            {item.shortcut && <span className="menu__item-shortcut">{item.shortcut}</span>}
+            {item.shortcut && (
+              <span className="menu__item-shortcut">
+                {formatShortcut(item.shortcut, navigator.platform)}
+              </span>
+            )}
           </button>
         );
       })}

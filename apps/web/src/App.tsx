@@ -48,8 +48,19 @@ import { AuthProvider, PersonalAuthGate } from './auth';
 import { useVersionHistoryCapture } from './version-history/useVersionHistoryCapture';
 import { useTouchPan } from './touch/useTouchPan';
 import { MobileActionBar } from './shell/MobileActionBar';
+import { useRoute } from './router';
+import { MySpreadsheetsList } from './home/MySpreadsheetsList';
 
 export function App() {
+  // Route gate. UX_AUDIT.md §1, §5 — personal-mode IA needs `/home` to
+  // render the file picker, not the always-mounted editor. The editor
+  // tree still mounts for every other route (sheet / sheet-draft / room
+  // / unknown) so workbook open / collab / autosave continue working
+  // exactly as before; the only behavioural change is that `/home` no
+  // longer shows the empty default workbook with an overlay.
+  const route = useRoute();
+  const showHomeList = route.kind === 'home' || route.kind === 'templates';
+
   // Snapshot lives in a ref, NOT React state — see workbook-context.tsx.
   // Stage 3 of the large-file pipeline: keeping a multi-MB IWorkbookData
   // tree in React state alongside Univer's own copy doubled the peak heap
@@ -367,7 +378,10 @@ export function App() {
                             <PreviewDriver />
                             <ThemeBridge />
                             <PersonalAuthGate>
-                              <CollabDriver>
+                              {showHomeList ? (
+                                <MySpreadsheetsList />
+                              ) : (
+                                <CollabDriver>
                                 <div
                                   className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
                                   data-testid="app-shell"
@@ -398,10 +412,16 @@ export function App() {
                                   )}
                                 </div>
                               </CollabDriver>
-                              <HomeScreen
-                                dismissed={homeDismissed}
-                                onDismiss={() => setHomeDismissed(true)}
-                              />
+                              )}
+                              {/* HomeScreen overlay only renders on editor routes —
+                                  on /home + /templates the new MySpreadsheetsList
+                                  is the full surface, no overlay needed. */}
+                              {!showHomeList && (
+                                <HomeScreen
+                                  dismissed={homeDismissed}
+                                  onDismiss={() => setHomeDismissed(true)}
+                                />
+                              )}
                               <LoadingOverlay />
                               <ChartLayer />
                               <SparklineLayer />

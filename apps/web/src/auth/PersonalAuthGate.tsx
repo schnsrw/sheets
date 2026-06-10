@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { useAuth } from './auth-context';
 import { detectWopiContext } from '../file-source/wopi-file-source';
+import { useRoute } from '../router';
 import { LoginView } from './LoginView';
 import { SignupView } from './SignupView';
 import './auth.css';
@@ -26,12 +27,20 @@ import './auth.css';
 
 export function PersonalAuthGate({ children }: { children: ReactNode }) {
   const { state, refresh } = useAuth();
+  const route = useRoute();
 
   // Embedded-host (WOPI) deploys carry a URL access token and are
   // authenticated against the embedding host's identity, not the
   // self-host personal-mode users table. Skip the gate so the
   // editor mounts immediately and the WopiFileSource takes over.
   if (detectWopiContext()) return <>{children}</>;
+
+  // Anonymous-collab room routes (`/r/<roomId>`, optionally with a
+  // share token) skip the personal-auth gate entirely. The room is
+  // joined as a guest via NamePill; gating it would force the joiner
+  // to create or claim an account on the host's box, which isn't the
+  // intent of share-for-edit. UX_AUDIT.md §2.8.
+  if (route.kind === 'room') return <>{children}</>;
 
   if (state.kind === 'disabled') return <>{children}</>;
   if (state.kind === 'authenticated') return <>{children}</>;

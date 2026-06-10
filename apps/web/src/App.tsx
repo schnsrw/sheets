@@ -82,15 +82,17 @@ export function App() {
   const [homeDismissed, setHomeDismissed] = useState(false);
 
   // Mirror the open file's name into the browser tab/window title,
-  // Office-style ("Book1 — Casual Sheets"). On the home screen keep the
-  // original marketing/SEO title (captured once at mount) so bookmarks
-  // and shared links stay descriptive.
+  // Office-style ("Book1 — Casual Sheets"). On `/home` or `/templates`
+  // keep the original marketing/SEO title (captured once at mount) so
+  // bookmarks and shared links stay descriptive. Gating on `route.kind`
+  // (not `homeDismissed`) means the title flips the moment the URL
+  // changes, including via back/forward — UX_AUDIT.md §2.12.
   const baseTitle = useRef(document.title);
   useEffect(() => {
-    document.title = homeDismissed
-      ? `${meta.name || 'Untitled'} — Casual Sheets`
-      : baseTitle.current;
-  }, [homeDismissed, meta.name]);
+    document.title = showHomeList
+      ? baseTitle.current
+      : `${meta.name || 'Untitled'} — Casual Sheets`;
+  }, [showHomeList, meta.name]);
   // Auto-dismiss the home screen when an autosave record exists, so
   // the AutosaveRestoreBanner is visible on first paint instead of
   // being hidden behind the template gallery. Best-effort IDB probe —
@@ -236,6 +238,15 @@ export function App() {
     setMeta((prev) => (prev.hasUserEdited ? prev : { ...prev, hasUserEdited: true }));
   }, []);
 
+  // Cleared at the tail of every successful Save (any source — server,
+  // FSA, download). Drives the logout dirty-check (UX_AUDIT.md §2.14):
+  // `hasUserEdited === true` after a save means the user typed AFTER
+  // the save completed, so logout should still warn. A user who saved
+  // and then typed gets warned; one who saved and idled doesn't.
+  const markSaved = useCallback(() => {
+    setMeta((prev) => (prev.hasUserEdited ? { ...prev, hasUserEdited: false } : prev));
+  }, []);
+
   const updateServerFileId = useCallback((fileId: string | null) => {
     setMeta((prev) => (prev.serverFileId === fileId ? prev : { ...prev, serverFileId: fileId }));
     // Rebind the URL so the draft `/sheet/new` becomes the canonical
@@ -268,6 +279,7 @@ export function App() {
       updateServerEtag,
       updateServerFileId,
       markUserEdited,
+      markSaved,
       preview,
       enterPreview,
       exitPreview,
@@ -280,6 +292,7 @@ export function App() {
       updateServerEtag,
       updateServerFileId,
       markUserEdited,
+      markSaved,
       preview,
       enterPreview,
       exitPreview,

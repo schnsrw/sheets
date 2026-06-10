@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Icon } from '../shell/Icon';
 import { useAuth, useCurrentUser } from './auth-context';
 import { logout } from './api';
 import { SettingsModal } from './SettingsModal';
 import { avatarUrl } from './profile-api';
+import { WorkbookContext } from '../workbook-context';
 
 /**
  * Title-bar account menu — only renders when a personal-mode
@@ -55,10 +56,28 @@ export function AccountMenu() {
     setAvatarOk(true);
   }, [user?.id, avatarBust]);
 
+  // Read the workbook context directly (not via useWorkbook) because
+  // AccountMenu is rendered on `/home` too — where WorkbookContext is
+  // still mounted, but a future code path might not provide one. Plain
+  // `useContext` returns null instead of throwing, which is the right
+  // shape for an "is there anything to lose?" probe.
+  const wbCtx = useContext(WorkbookContext);
+
   if (!user) return null;
 
   const initial = user.username.charAt(0).toUpperCase();
   const onLogout = async () => {
+    // UX_AUDIT.md §2.14 — confirm before discarding unsaved edits. The
+    // dirty flag is reset on every successful save, so this only fires
+    // when the user has typed since the last save (or since opening a
+    // fresh draft). Native `confirm` is fine here: it's the same
+    // pattern Google Docs / Excel use for the equivalent surface.
+    if (wbCtx?.meta.hasUserEdited) {
+      const ok = window.confirm(
+        'You have unsaved changes. Sign out anyway? Your edits will be lost.',
+      );
+      if (!ok) return;
+    }
     setOpen(false);
     await logout();
     setUnauthenticated();
@@ -106,6 +125,23 @@ export function AccountMenu() {
               <Icon name="settings" size="sm" />
               <span>Settings</span>
             </button>
+            {user.isAdmin && (
+              // Admin panel lives in a separate React entry point
+              // (apps/web/src/admin/AdminApp.tsx) selected at boot
+              // from `window.location.pathname.startsWith('/admin')`,
+              // so it's not router-navigable from this tree — use a
+              // plain anchor for a full reload. UX_AUDIT.md §2.7.
+              <a
+                role="menuitem"
+                className="account-menu__item"
+                href="/admin"
+                onClick={() => setOpen(false)}
+                data-testid="account-menu-admin"
+              >
+                <Icon name="settings_applications" size="sm" />
+                <span>Admin panel</span>
+              </a>
+            )}
             <button
               type="button"
               role="menuitem"

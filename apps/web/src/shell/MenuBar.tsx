@@ -1020,6 +1020,10 @@ export function MenuBar() {
       const ext = (workbook.meta.sourceFormat || 'xlsx').toLowerCase();
       const displayName = /\.(xlsx|ods|csv|tsv)$/i.test(name) ? name : `${name}.${ext}`;
       toast.success(`Saved ${displayName}`);
+      // Clears `hasUserEdited` so the logout dirty-check stays quiet
+      // for users who saved and walked away (UX_AUDIT.md §2.14). The
+      // EditTracker flips the flag back on the very next mutation.
+      workbook.markSaved();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Couldn't save: ${msg}`);

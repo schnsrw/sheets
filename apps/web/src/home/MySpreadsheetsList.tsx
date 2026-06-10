@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useFileSource } from '../file-source';
 import { navigate } from '../router';
 import type { RecentEntry } from '../file-source/types';
+import { AccountMenu } from '../auth/AccountMenu';
 
 interface ListState {
   status: 'idle' | 'loading' | 'ready' | 'error';
@@ -103,6 +104,11 @@ export function MySpreadsheetsList() {
           >
             + New blank
           </button>
+          {/* Same account chip that lives in the title bar — gives the
+              user a way to reach Settings / Admin / Sign out without
+              opening a workbook first. AccountMenu self-hides in
+              non-personal modes (returns null when user is unset). */}
+          <AccountMenu />
         </div>
       </header>
 

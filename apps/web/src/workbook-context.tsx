@@ -90,6 +90,12 @@ export type WorkbookCtxValue = {
    *  the first non-selection mutation after a mount / replaceWorkbook.
    *  Idempotent — repeated calls after the first are no-ops. */
   markUserEdited: () => void;
+  /** Flip `hasUserEdited` back to false. Called by the Save handler on
+   *  any successful save (server PUT, FSA write, download). Drives the
+   *  logout dirty-check (UX_AUDIT.md §2.14): a user who saves and then
+   *  types is still considered dirty; one who saves and walks away
+   *  isn't. Idempotent. */
+  markSaved: () => void;
   /**
    * Rename the active workbook in place — updates `meta.name` and calls
    * Univer's `setName` on the active workbook. No re-mount.

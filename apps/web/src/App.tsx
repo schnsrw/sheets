@@ -50,6 +50,7 @@ import { useTouchPan } from './touch/useTouchPan';
 import { MobileActionBar } from './shell/MobileActionBar';
 import { navigate, useRoute } from './router';
 import { MySpreadsheetsList } from './home/MySpreadsheetsList';
+import { useUniverAPI } from './use-univer';
 
 export function App() {
   // Route gate. UX_AUDIT.md §1, §5 — personal-mode IA needs `/home` to
@@ -208,6 +209,10 @@ export function App() {
         // falls into the "new" path.
         serverFileId: server?.fileId ?? null,
         serverEtag: server?.etag ?? null,
+        // Reset the user-edit gate. The new workbook starts from a
+        // clean slate; first content mutation flips this back true via
+        // the EditTracker driver. UX_AUDIT.md §5.
+        hasUserEdited: false,
       }));
       // Free the ref after consumers have processed the revision
       // bump. We wait two macrotasks: the first lets React flush its
@@ -225,6 +230,10 @@ export function App() {
 
   const updateServerEtag = useCallback((etag: string | null) => {
     setMeta((prev) => (prev.serverEtag === etag ? prev : { ...prev, serverEtag: etag }));
+  }, []);
+
+  const markUserEdited = useCallback(() => {
+    setMeta((prev) => (prev.hasUserEdited ? prev : { ...prev, hasUserEdited: true }));
   }, []);
 
   const updateServerFileId = useCallback((fileId: string | null) => {
@@ -258,6 +267,7 @@ export function App() {
       renameWorkbook,
       updateServerEtag,
       updateServerFileId,
+      markUserEdited,
       preview,
       enterPreview,
       exitPreview,
@@ -269,6 +279,7 @@ export function App() {
       renameWorkbook,
       updateServerEtag,
       updateServerFileId,
+      markUserEdited,
       preview,
       enterPreview,
       exitPreview,
@@ -395,6 +406,7 @@ export function App() {
                             <PreviewDriver />
                             <ThemeBridge />
                             <RouteWorkbookSync replaceWorkbook={replaceWorkbook} />
+                            <EditTracker markUserEdited={markUserEdited} />
                             <PersonalAuthGate>
                               {showHomeList ? (
                                 <MySpreadsheetsList />
@@ -459,6 +471,42 @@ export function App() {
       </UIContext.Provider>
     </UniverRoot>
   );
+}
+
+/** Effect-only — listens for the first meaningful content mutation on
+ *  the workbook and flips `meta.hasUserEdited`. UX_AUDIT.md §5: the
+ *  Save handler uses this to skip create-saves of `/sheet/new` drafts
+ *  the user opened but never typed in. Mirrors the noisy-mutation
+ *  filter from useAutosave so navigation / focus / selection events
+ *  don't accidentally promote a clean draft to a server row. */
+function EditTracker({ markUserEdited }: { markUserEdited: () => void }): ReactNode {
+  const api = useUniverAPI();
+  useEffect(() => {
+    if (!api) return;
+    // Univer's command service is the canonical mutation stream.
+    // `onMutationExecutedForCollab` matches the autosave hook so we
+    // don't drift between which-events-count between the two
+    // consumers. eslint-disable any: the typings on Univer's facade
+    // call this a private API surface, but it's the same one the
+    // autosave hook reaches into; if it breaks they break together.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const univer = (api as unknown as { getUniver(): any }).getUniver();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cmdSvc = univer?.__getInjector?.()?.get('ICommandService');
+    if (!cmdSvc) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sub = cmdSvc.onMutationExecutedForCollab((info: any, options: any) => {
+      if (options?.fromCollab) return; // remote replays don't count
+      const id = info?.id ?? '';
+      // Same noisy-mutation filter as useAutosave so navigation /
+      // selection / sheet-switch don't promote a clean draft.
+      if (id.startsWith('sheet.mutation.set-selections')) return;
+      if (id === 'sheet.mutation.set-worksheet-active-operation') return;
+      markUserEdited();
+    });
+    return () => sub?.dispose?.();
+  }, [api, markUserEdited]);
+  return null;
 }
 
 /** Effect-only — watches the route and calls `fileSource.openRecent` when

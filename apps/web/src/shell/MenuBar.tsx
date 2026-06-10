@@ -959,6 +959,19 @@ export function MenuBar() {
   // swallowed at the call site and the user saw nothing.
   const handleSave = async () => {
     if (!api) return;
+    // Draft skip — UX_AUDIT.md §5. A workbook opened from `/sheet/new`
+    // (no server id yet) that the user has never typed in shouldn't
+    // materialise a server row on Ctrl+S; that's the silent-junk-row
+    // bug that prompted this audit. Once `hasUserEdited` flips, every
+    // subsequent Save runs normally — including a "save as empty doc"
+    // after they delete every cell, since that delete itself counts.
+    if (
+      (workbook.meta.serverFileId ?? null) === null &&
+      workbook.meta.hasUserEdited !== true
+    ) {
+      toast.info('Nothing to save yet — type something first.');
+      return;
+    }
     const name = workbook.meta.name || 'workbook';
     // Server-backed save threads the tracked file id + etag in; the
     // FileSource does the in-place PUT and returns the new etag, which

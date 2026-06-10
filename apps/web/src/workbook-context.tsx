@@ -34,6 +34,12 @@ export type WorkbookMeta = {
    *  (or `X-WOPI-ItemVersion`) on the next save so a stale browser
    *  doesn't overwrite a teammate's edit. */
   serverEtag?: string | null;
+  /** True once the user has performed a meaningful content edit since
+   *  the workbook was opened / created. Drives the draft-skip rule in
+   *  the Save handler (UX_AUDIT.md §5): a `/sheet/new` draft that's
+   *  never been typed in shouldn't materialise a server row. Reset
+   *  to false on every `replaceWorkbook` call. */
+  hasUserEdited?: boolean;
 };
 
 /**
@@ -80,6 +86,10 @@ export type WorkbookCtxValue = {
    *  the browser URL from `/sheet/new` → `/sheet/<id>` via
    *  history.replaceState so back / refresh / bookmark all converge. */
   updateServerFileId: (fileId: string | null) => void;
+  /** Flip `hasUserEdited` to true. Called by the EditTracker driver on
+   *  the first non-selection mutation after a mount / replaceWorkbook.
+   *  Idempotent — repeated calls after the first are no-ops. */
+  markUserEdited: () => void;
   /**
    * Rename the active workbook in place — updates `meta.name` and calls
    * Univer's `setName` on the active workbook. No re-mount.

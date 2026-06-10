@@ -5,6 +5,7 @@ import { activeSheet, rangeFromA1, sheetId as facadeSheetId } from '../univer-fa
 import { PropertiesDialog } from './PropertiesDialog';
 import { FormatCellsDialog } from './FormatCellsDialog';
 import { AboutDialog } from './AboutDialog';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { CommandSearchDialog, type CommandSearchItem } from './CommandSearchDialog';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
@@ -358,6 +359,7 @@ export function MenuBar() {
   const [showInsertPivot, setShowInsertPivot] = useState(false);
   const [insertPivotDefault, setInsertPivotDefault] = useState('A1');
   const [showCommandSearch, setShowCommandSearch] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const addToSelectionModeRef = useRef(false);
   const selectionRangesRef = useRef<SheetRange[]>([]);
   const syntheticSelectionRef = useRef(false);
@@ -791,6 +793,20 @@ export function MenuBar() {
       if (!mod && e.altKey && !e.shiftKey && k === 'q') {
         e.preventDefault();
         setShowCommandSearch(true);
+      }
+      // ── Keyboard shortcuts cheat sheet: Ctrl+/ ─────────────────
+      // Mirrors Excel for the Web. `?` (Shift+/) is the Google Docs
+      // standard but conflicts with the formula-bar editor where the
+      // user might type a literal `?`, so we only honour it outside
+      // a text-input context — `Ctrl+/` always works.
+      if (mod && !e.altKey && !e.shiftKey && (e.key === '/' || e.code === 'Slash')) {
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+      if (!mod && !e.altKey && e.shiftKey && (e.key === '?' || e.key === '/')) {
+        if (inTextInput) return;
+        e.preventDefault();
+        setShowShortcuts(true);
       }
       // ── Close workbook / leave room: Ctrl+W ─────────────────────
       // Browser default is "close tab" — preventDefault and route to /
@@ -1978,6 +1994,14 @@ export function MenuBar() {
           shortcut: 'Alt+Q',
           onClick: () => setShowCommandSearch(true),
         },
+        {
+          kind: 'item',
+          id: 'keyboard-shortcuts',
+          label: 'Keyboard shortcuts',
+          icon: 'info',
+          shortcut: 'Ctrl+/',
+          onClick: () => setShowShortcuts(true),
+        },
         { kind: 'separator', id: 'sep-1' },
         {
           kind: 'item',
@@ -2028,6 +2052,10 @@ export function MenuBar() {
       {showFormatCells && <FormatCellsDialog onClose={() => setShowFormatCells(false)} />}
 
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+
+      {showShortcuts && (
+        <KeyboardShortcutsDialog onClose={() => setShowShortcuts(false)} />
+      )}
 
       {showCommandSearch && (
         <CommandSearchDialog

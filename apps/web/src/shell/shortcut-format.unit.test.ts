@@ -1,0 +1,51 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { formatShortcut, isMacPlatform } from './shortcut-format';
+
+describe('isMacPlatform', () => {
+  it('returns true for canonical Mac platform strings', () => {
+    assert.equal(isMacPlatform('MacIntel'), true);
+    assert.equal(isMacPlatform('iPhone'), true);
+    assert.equal(isMacPlatform('iPad'), true);
+  });
+  it('returns false for Windows / Linux strings', () => {
+    assert.equal(isMacPlatform('Win32'), false);
+    assert.equal(isMacPlatform('Linux x86_64'), false);
+  });
+});
+
+describe('formatShortcut', () => {
+  it('passes plain Ctrl+X through on Win/Linux', () => {
+    assert.equal(formatShortcut('Ctrl+X', 'Win32'), 'Ctrl+X');
+    assert.equal(formatShortcut('Ctrl+Shift+V', 'Linux x86_64'), 'Ctrl+Shift+V');
+  });
+
+  it('collapses Ctrl+X to ⌘X on Mac', () => {
+    assert.equal(formatShortcut('Ctrl+X', 'MacIntel'), '⌘X');
+    assert.equal(formatShortcut('Ctrl+S', 'MacIntel'), '⌘S');
+  });
+
+  it('orders mac modifiers in Apple-HIG order ⌃⌥⇧⌘', () => {
+    // Canonical Ctrl+Shift+V → ⇧⌘V on Mac (Shift before Cmd).
+    assert.equal(formatShortcut('Ctrl+Shift+V', 'MacIntel'), '⇧⌘V');
+    // Ctrl+Alt+V → ⌥⌘V (Alt before Cmd, no Shift).
+    assert.equal(formatShortcut('Ctrl+Alt+V', 'MacIntel'), '⌥⌘V');
+  });
+
+  it('renders friendly key names (PgUp / Esc / Space)', () => {
+    assert.equal(formatShortcut('Ctrl+PageUp', 'Win32'), 'Ctrl+PgUp');
+    assert.equal(formatShortcut('Ctrl+PageDown', 'MacIntel'), '⌘PgDn');
+    assert.equal(formatShortcut('Escape', 'Win32'), 'Esc');
+    assert.equal(formatShortcut('Ctrl+Space', 'Win32'), 'Ctrl+Space');
+  });
+
+  it('passes single F-keys through on both platforms', () => {
+    assert.equal(formatShortcut('F2', 'MacIntel'), 'F2');
+    assert.equal(formatShortcut('F2', 'Win32'), 'F2');
+    assert.equal(formatShortcut('Shift+F11', 'MacIntel'), '⇧F11');
+  });
+
+  it('returns empty string for empty input (defensive)', () => {
+    assert.equal(formatShortcut('', 'Win32'), '');
+  });
+});

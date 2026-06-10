@@ -10,6 +10,7 @@ import { BusyPill } from './BusyPill';
 import { MenuBar } from './MenuBar';
 import { NamePill } from './NamePill';
 import { AccountMenu } from '../auth/AccountMenu';
+import { navigate } from '../router';
 
 /**
  * Title bar — Google-Docs-style two-row chrome.
@@ -93,7 +94,18 @@ export function TitleBar() {
     <header className="titlebar" data-testid="titlebar" role="banner">
       <a
         className="titlebar__brand"
-        href="/"
+        href="/home"
+        onClick={(e) => {
+          // Single-click → SPA navigate to /home (My Spreadsheets) instead
+          // of a full reload. Cmd/Ctrl+click + middle-click + right-click
+          // all preserve the default browser behaviour (open in new tab,
+          // download, etc.) so we only intercept the plain left-click.
+          if (e.defaultPrevented) return;
+          if (e.button !== 0) return;
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+          navigate('/home');
+        }}
         aria-label="Casual Sheets — home"
         title="Casual Sheets"
       >

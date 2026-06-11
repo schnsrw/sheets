@@ -81,6 +81,12 @@ const embedRuntimeConfig = defineConfig({
   // Empty external list — bundle every bare import into the runtime.
   external: [],
   noExternal: [/.*/],
+  // Browser target: pick the `browser` field from each dep's package.json
+  // so packages with Node/browser splits (nanoid, etc.) load the
+  // browser variant. Without this, esbuild grabs `import { ... } from
+  // 'crypto'` from the Node fork of nanoid and the iframe load fails.
+  platform: 'browser',
+  target: 'es2020',
   plugins: [
     rewriteParserWorkerUrl,
     {

@@ -1,5 +1,15 @@
 # @schnsrw/casual-sheets
 
+## 0.5.2
+
+### Patch Changes
+
+- Add `platform: 'browser'` to the embed-runtime tsup config so esbuild
+  picks the browser variant of dual-target deps (nanoid, etc.). 0.5.1
+  bundled everything but still grabbed `import { ... } from 'crypto'`
+  from the Node fork of nanoid, which the browser can't resolve. The
+  runtime now lands fully clean.
+
 ## 0.5.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @sheet/web
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies
+  - @schnsrw/casual-sheets@0.5.5
+
 ## 0.3.6
 
 ### Patch Changes

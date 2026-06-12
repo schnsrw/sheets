@@ -49,6 +49,14 @@ export interface MountEmbeddedOptions {
 }
 
 /** Public entry — called by embed.html. */
+// Side-effect import: pull in Univer's CSS modules so the embed
+// runtime is fully self-contained. Without these, the embed.html has
+// no <link rel="stylesheet"> and Univer's workbench renders unstyled
+// (the canvas mounts at 0×0 size, all chrome divs have no layout).
+// `injectStyle: true` in tsup turns each import into a runtime
+// <style> tag append.
+import '../styles';
+
 export function mountEmbedded(opts: MountEmbeddedOptions): void {
   const search = opts.search ?? (typeof window !== 'undefined' ? window.location.search : '');
   const config = parseUrlConfig(search);

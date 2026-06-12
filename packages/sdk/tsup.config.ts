@@ -84,7 +84,16 @@ const mainConfig = defineConfig({
 // conflict with the host's copy. Trade-off: the runtime grows to
 // ~10MB+, downloaded once per iframe load (cached after).
 const embedRuntimeConfig = defineConfig({
-  entry: { 'embed-runtime': 'src/embed-runtime/index.tsx' },
+  // Emit BOTH the embed runtime AND the parser worker into dist/embed/.
+  // mainConfig also emits parser.worker.js to dist/, but tsup runs the
+  // two configs in parallel — the embed config's `buildEnd` fires
+  // before mainConfig finishes, so any "copy after" plugin races with
+  // mainConfig's emission and silently fails. Emitting from the embed
+  // config directly removes the race.
+  entry: {
+    'embed-runtime': 'src/embed-runtime/index.tsx',
+    'parser.worker': 'src/xlsx/parser.worker.ts',
+  },
   outDir: 'dist/embed',
   format: ['esm'],
   // No dts — the runtime is a side-effect script loaded by embed.html
@@ -96,7 +105,11 @@ const embedRuntimeConfig = defineConfig({
   sourcemap: false,
   clean: false,
   minify: true,
-  // Empty external list — bundle every bare import into the runtime.
+  // Bundle every bare import into both the runtime and the worker so
+  // the in-iframe ES module loader doesn't try to resolve specifiers
+  // it has no map for. Same posture as the parser worker emitted by
+  // mainConfig — but emitted from THIS config so the file actually
+  // lands in dist/embed/.
   external: [],
   noExternal: [/.*/],
   // Browser target: pick the `browser` field from each dep's package.json
@@ -105,6 +118,14 @@ const embedRuntimeConfig = defineConfig({
   // 'crypto'` from the Node fork of nanoid and the iframe load fails.
   platform: 'browser',
   target: 'es2020',
+  // Inline Univer's CSS modules into the runtime bundle. Without this
+  // the embed.html has no <link rel="stylesheet"> and Univer's
+  // workbench renders unstyled (the canvas mounts at 0x0 size, the
+  // chrome divs have no visible layout). With injectStyle, every
+  // imported CSS module turns into a JS string that gets appended to
+  // a <style> tag at runtime — fully self-contained.
+  injectStyle: true,
+  loader: { '.css': 'css' },
   plugins: [
     rewriteParserWorkerUrl,
     {

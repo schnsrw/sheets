@@ -123,13 +123,22 @@ export function CasualSheets({
     const uiOpts = { ...DEFAULT_UI, ...ui, container };
 
     univer.registerPlugin(UniverRenderEnginePlugin);
-    univer.registerPlugin(UniverFormulaEnginePlugin);
+    // `notExecuteFormula: true` on the formula plugins so the bundle
+    // doesn't try to spin up a Univer RPC formula worker that we
+    // never registered. Without this Univer hangs in init waiting
+    // for the worker handshake — the symptom is an empty mount div
+    // with no console error, observed when the SDK is embedded in
+    // an iframe that has no UniverRPCMainThreadPlugin. apps/web's
+    // plugin chain (`apps/web/src/univer/plugins.ts`) is the
+    // reference; the SDK matches its notExecuteFormula posture but
+    // skips the worker plugin since the SDK doesn't ship one.
+    univer.registerPlugin(UniverFormulaEnginePlugin, { notExecuteFormula: true });
     univer.registerPlugin(UniverUIPlugin, uiOpts);
     univer.registerPlugin(UniverDocsPlugin);
     univer.registerPlugin(UniverDocsUIPlugin);
-    univer.registerPlugin(UniverSheetsPlugin);
+    univer.registerPlugin(UniverSheetsPlugin, { notExecuteFormula: true });
     univer.registerPlugin(UniverSheetsUIPlugin);
-    univer.registerPlugin(UniverSheetsFormulaPlugin);
+    univer.registerPlugin(UniverSheetsFormulaPlugin, { notExecuteFormula: true });
     univer.registerPlugin(UniverSheetsFormulaUIPlugin);
     univer.registerPlugin(UniverSheetsNumfmtPlugin);
     univer.registerPlugin(UniverSheetsNumfmtUIPlugin);

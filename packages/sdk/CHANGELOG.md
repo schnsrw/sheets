@@ -1,5 +1,22 @@
 # @schnsrw/casual-sheets
 
+## 0.5.5
+
+### Patch Changes
+
+- Three fixes for end-to-end iframe rendering:
+  1. embed-runtime imports `../styles` (Univer CSS) so injectStyle bundles
+     Univer's stylesheet into the runtime. Without this the workbench
+     mounted but rendered unstyled (canvas at 0×0).
+  2. Emit `parser.worker.js` directly from the embedRuntimeConfig
+     (alongside embed-runtime.js) instead of relying on a post-build
+     copy from mainConfig — the configs run in parallel so the copy
+     races and silently fails.
+  3. CasualSheets passes `notExecuteFormula: true` to the formula
+     plugins so the bundle doesn't hang waiting for an
+     UniverRPCMainThreadPlugin formula worker that the SDK never
+     registers.
+
 ## 0.5.4
 
 ### Patch Changes

@@ -34,8 +34,31 @@ async function dismissHomeIfPresent(page: Page) {
   }
 }
 
-async function waitForAppReady(page: Page) {
-  await page.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 });
+/** Wait until the authenticated user has landed somewhere — either
+ *  the My Spreadsheets list (the default post-signup destination) or
+ *  the editor canvas (when a workbook was already open). */
+async function waitForSignedInLanding(page: Page) {
+  await Promise.any([
+    page.getByTestId('home-files-grid').waitFor({ timeout: 30_000 }),
+    page.getByTestId('home-empty').waitFor({ timeout: 30_000 }),
+    page.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 }),
+  ]);
+}
+
+/** Make sure an editor canvas is mounted. Personal-mode signup lands
+ *  the user on `/home`; tests that need to drive `window.__univerAPI`
+ *  must open or create a workbook first. */
+async function openEditorCanvas(page: Page) {
+  const canvas = page.locator('[id^="univer-sheet-main-canvas_"]');
+  if (await canvas.count()) return;
+  // Try opening an existing file first; fall back to "+ New blank".
+  const firstFile = page.locator('[data-testid^="home-file-row-"]').first();
+  if (await firstFile.count()) {
+    await firstFile.click();
+  } else {
+    await page.getByTestId('home-new-blank').click();
+  }
+  await canvas.waitFor({ timeout: 30_000 });
 }
 
 // Long happy-path: signup → editor mount → save → reload → list
@@ -68,8 +91,10 @@ test('signup → save → reload → list → sign out → login → settings', 
     await page.getByTestId('auth-login-submit').click();
   }
 
-  // Gate flips to authenticated → app shell renders.
-  await waitForAppReady(page);
+  // Gate flips to authenticated → user lands on /home; open the
+  // editor so the save flow has a workbook to operate on.
+  await waitForSignedInLanding(page);
+  await openEditorCanvas(page);
   await dismissHomeIfPresent(page);
 
   // ── 2. Edit + Save → toast lands in the user's files ─────────────
@@ -105,7 +130,7 @@ test('signup → save → reload → list → sign out → login → settings', 
 
   // ── 3. Reload, file is still there ────────────────────────────────
   await page.reload();
-  await waitForAppReady(page);
+  await waitForSignedInLanding(page);
   await expect(page.getByTestId('auth-gate-unauthenticated')).toHaveCount(0);
 
   // ── 4. Sign out from the account menu ────────────────────────────
@@ -123,7 +148,7 @@ test('signup → save → reload → list → sign out → login → settings', 
   await page.getByTestId('auth-login-username').fill(USERNAME);
   await page.getByTestId('auth-login-password').fill(PASSWORD);
   await page.getByTestId('auth-login-submit').click();
-  await waitForAppReady(page);
+  await waitForSignedInLanding(page);
 
   // Verify the file is still listed server-side.
   const reList = await page.evaluate(async () => {

@@ -527,6 +527,17 @@ function RouteHost({
   const personalActive =
     auth.state.kind === 'authenticated' || auth.state.kind === 'loading';
   useEffect(() => {
+    // WOPI embeds boot at `/?access_token=…` and need that token to
+    // survive the first render so `detectWopiContext()` keeps
+    // resolving the bound file. A redirect to `/home` would strip the
+    // query string and the source picker would silently flip to the
+    // browser source — recents empty, home-recent-open never renders.
+    if (
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('access_token')
+    ) {
+      return;
+    }
     if (
       personalActive &&
       typeof window !== 'undefined' &&

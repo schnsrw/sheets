@@ -24,41 +24,51 @@ const ADMIN_USER = `admin${process.pid}`;
 const ADMIN_PASSWORD = 'longadminpassword';
 const ADMIN_PASSWORD_NEXT = 'newlongadminpassword';
 
+/** After signup/login on personal mode, the router redirects to
+ *  `/home` (the My Spreadsheets list view) — NOT a blank editor.
+ *  Tests that only need the authenticated-state gate flipped can
+ *  treat any of these as "landed": the home grid, the home empty
+ *  state, or the editor canvas (if a workbook was already open). */
+async function waitForLandedSignedIn(page: import('@playwright/test').Page) {
+  await Promise.any([
+    page.getByTestId('home-files-grid').waitFor({ timeout: 30_000 }),
+    page.getByTestId('home-empty').waitFor({ timeout: 30_000 }),
+    page.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 }),
+  ]);
+}
+
 async function ensureSignedIn(page: import('@playwright/test').Page) {
   await page.goto('/');
   const login = page.getByTestId('auth-login');
-  const editor = page.locator('[id^="univer-sheet-main-canvas_"]');
   await Promise.race([
     login.waitFor({ timeout: 10_000 }).catch(() => undefined),
-    editor.waitFor({ timeout: 10_000 }).catch(() => undefined),
+    page
+      .getByTestId('home-empty')
+      .waitFor({ timeout: 10_000 })
+      .catch(() => undefined),
+    page
+      .getByTestId('home-files-grid')
+      .waitFor({ timeout: 10_000 })
+      .catch(() => undefined),
   ]);
   if (await login.count()) {
     await page.getByTestId('auth-login-username').fill(ADMIN_USER);
     await page.getByTestId('auth-login-password').fill(ADMIN_PASSWORD);
     await page.getByTestId('auth-login-submit').click();
-    await editor.waitFor({ timeout: 30_000 });
-  }
-  // Personal-mode signin lands on a blank Untitled workbook, which
-  // re-mounts the home overlay. It intercepts pointer events for the
-  // title-bar buttons (account menu, theme toggle), so dismiss it
-  // before doing anything chrome-related.
-  const home = page.getByTestId('home-screen');
-  if (await home.count()) {
-    await page
-      .getByTestId('home-close')
-      .click({ timeout: 5_000 })
-      .catch(() => undefined);
-    await home.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => undefined);
+    await waitForLandedSignedIn(page);
   }
 }
 
-test('01 first signup creates the admin and lands the editor', async ({ page }) => {
+test('01 first signup creates the admin and lands the home screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('auth-signup')).toBeVisible({ timeout: 15_000 });
   await page.getByTestId('auth-signup-username').fill(ADMIN_USER);
   await page.getByTestId('auth-signup-password').fill(ADMIN_PASSWORD);
   await page.getByTestId('auth-signup-submit').click();
-  await page.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 });
+  // Personal-mode signup redirects to /home; the empty list shows
+  // first ("No spreadsheets yet"). Either the grid or the empty
+  // sentinel is the success state for "the gate flipped to authed".
+  await waitForLandedSignedIn(page);
 });
 
 test('02 duplicate username returns username-taken via the signup view', async ({ page }) => {
@@ -118,7 +128,7 @@ test('06 change-password invalidates every other session', async ({ page, contex
   await otherPage.getByTestId('auth-login-username').fill(ADMIN_USER);
   await otherPage.getByTestId('auth-login-password').fill(ADMIN_PASSWORD);
   await otherPage.getByTestId('auth-login-submit').click();
-  await otherPage.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 });
+  await waitForLandedSignedIn(otherPage);
 
   // Now change the password from the primary tab.
   await page.getByTestId('account-menu-trigger').click();
@@ -153,7 +163,7 @@ test('07 the password we just set works for a fresh login', async ({ page, conte
   // New password should work.
   await page.getByTestId('auth-login-password').fill(ADMIN_PASSWORD_NEXT);
   await page.getByTestId('auth-login-submit').click();
-  await page.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 });
+  await waitForLandedSignedIn(page);
 });
 
 test('08 restore admin password so later specs find the credential they expect', async ({

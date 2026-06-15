@@ -1,5 +1,26 @@
 # @schnsrw/casual-sheets
 
+## 0.5.6
+
+### Patch Changes
+
+- Drop `UniverSheetsFormulaPlugin` + `UniverSheetsFormulaUIPlugin` from
+  the CasualSheets plugin chain — they resolve `IRPCChannelService`
+  via Univer's DI at construction, and with no
+  `UniverRPCMainThreadPlugin` registered (the SDK doesn't bundle a
+  formula worker) the resolve fails with the visible console error
+  "[redi]: Expect 1 dependency item(s) for id IRPCChannelService".
+
+  Cells stay editable; formula computation is the lost capability
+  (already disabled in 0.5.x via `notExecuteFormula: true`). A future
+  revision can let consumers opt in to a bundled formula worker.
+
+  Also: embed-runtime passes a UI preset to `<CasualSheets ui={...}>`
+  based on the `viewMode` URL param so preview mode renders just the
+  canvas. Editor mode currently uses the same preset (the toolbar
+  chrome requires sheets-ui plugins not yet bundled into the embed
+  runtime — tracked for 0.6.x).
+
 ## 0.5.5
 
 ### Patch Changes

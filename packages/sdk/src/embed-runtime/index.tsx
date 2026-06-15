@@ -101,15 +101,42 @@ export function mountEmbedded(opts: MountEmbeddedOptions): void {
   transport.sendReady();
 
   const reactRoot = createRoot(opts.root);
-  reactRoot.render(<EmbeddedSheets transport={transport} docId={config.docId} />);
+  reactRoot.render(
+    <EmbeddedSheets
+      transport={transport}
+      docId={config.docId}
+      initialViewMode={config.viewMode}
+    />,
+  );
 }
 
 /** Inner React component — handles the async xlsx load + workbook
  *  mount. Splitting it out lets useEffect orchestrate the
  *  request/response without blocking the React tree at mount. */
-function EmbeddedSheets({ transport, docId }: { transport: EmbedTransport; docId: string }) {
+function EmbeddedSheets({
+  transport,
+  docId,
+  initialViewMode,
+}: {
+  transport: EmbedTransport;
+  docId: string;
+  initialViewMode: 'preview' | 'editor';
+}) {
   const [data, setData] = useState<IWorkbookData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // viewMode is plumbed through but doesn't toggle Univer chrome in
+  // 0.5.x — enabling header/toolbar/footer requires the full
+  // sheets-ui plugin chain (sort/filter/drawing/comment/etc.) that
+  // the SDK doesn't bundle into the embed runtime. With those
+  // missing, registering UniverUIPlugin with toolbar:true silently
+  // wedges the workbench mount. For now both modes render the canvas
+  // only (cells are still editable via keyboard input — editing
+  // semantics don't depend on the toolbar). v0.6.x will gate the
+  // chrome behind explicit plugin registration so consumers that
+  // want the ribbon can opt in.
+  void initialViewMode;
+  const ui = { header: false, toolbar: false, footer: false, contextMenu: true };
 
   useEffect(() => {
     let cancelled = false;
@@ -178,7 +205,7 @@ function EmbeddedSheets({ transport, docId }: { transport: EmbedTransport; docId
     );
   }
 
-  return <CasualSheets initialData={data} />;
+  return <CasualSheets initialData={data} ui={ui} />;
 }
 
 function inferHostOrigin(): string | undefined {

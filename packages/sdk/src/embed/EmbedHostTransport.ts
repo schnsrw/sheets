@@ -18,6 +18,8 @@ import {
   type CommandSetThemeData,
   type CommandSetLocaleData,
   type CommandSetViewModeData,
+  type CommandExecuteData,
+  type SelectionFormatStateData,
   type EditorHelloData,
   type HostHelloData,
   type LoadRequestData,
@@ -50,6 +52,7 @@ export interface EmbedHostHandlers {
   /** Editor requests a save. */
   onSaveRequest?: (data: SaveRequestData) => Promise<SaveResponseData> | SaveResponseData;
   onSelectionChanged?: (data: SelectionChangedData) => void;
+  onSelectionFormatState?: (data: SelectionFormatStateData) => void;
   onTelemetry?: (data: TelemetryEventData) => void;
   onSignatureFieldSigned?: (data: SignatureFieldSignedData) => void;
   onSignatureComplete?: (data: SignatureCompleteData) => void;
@@ -109,6 +112,12 @@ export class EmbedHostTransport {
 
   sendCommandFocus(): void {
     this.post('casual.command.focus', null);
+  }
+
+  /** Host → Editor: run a formatting / navigation command (bold,
+   *  italic, undo, …) against the active selection. v0.6+. */
+  sendCommandExecute(data: CommandExecuteData): void {
+    this.post('casual.command.execute', data);
   }
 
   sendSignatureRequest(id: string, data: SignatureRequestData): void {
@@ -175,6 +184,9 @@ export class EmbedHostTransport {
       }
       case 'casual.selection.changed':
         this.handlers.onSelectionChanged?.(env.data as SelectionChangedData);
+        return;
+      case 'casual.selection.format-state':
+        this.handlers.onSelectionFormatState?.(env.data as SelectionFormatStateData);
         return;
       case 'casual.telemetry.event':
         this.handlers.onTelemetry?.(env.data as TelemetryEventData);

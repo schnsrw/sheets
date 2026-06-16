@@ -57,6 +57,14 @@ export interface MountEmbeddedOptions {
 // <style> tag append.
 import '../styles';
 
+// Side-effect imports: augment the FUniver facade with the
+// `getActiveWorkbook` / `getActiveSheet` / `getActiveRange` chain
+// the toolbar bridge calls. The sheet SDK ships these on Univer's
+// sheets / sheets-ui packages as facade extensions; without the
+// import the typings are missing and the runtime calls noop.
+import '@univerjs/sheets/facade';
+import '@univerjs/sheets-ui/facade';
+
 export function mountEmbedded(opts: MountEmbeddedOptions): void {
   const search = opts.search ?? (typeof window !== 'undefined' ? window.location.search : '');
   const config = parseUrlConfig(search);
@@ -211,7 +219,130 @@ function EmbeddedSheets({
 
   // Force a remount when viewMode flips — CasualSheets locks the UI
   // config at registerPlugin time and won't pick up new props.
-  return <CasualSheets key={viewMode} initialData={data} ui={ui} />;
+  return (
+    <CasualSheets
+      key={viewMode}
+      initialData={data}
+      ui={ui}
+      onReady={(api) => {
+        // Wire host → editor command.execute (Drive's custom toolbar
+        // calls this for bold / italic / undo / …). Maps the small
+        // protocol union to the Univer command id the FUniver facade
+        // dispatches. The command set is intentionally narrow — v0.6
+        // ships the always-relevant operations, font / color / fill
+        // land in v0.7 once we lock the cell-mutate payload shape.
+        // Cast through `unknown` — the FUniver type is augmented via
+        // @univerjs/sheets/facade module augmentation (the side-effect
+        // import above), but tsc doesn't always pick up the merged
+        // signature when the facade is imported as a side effect inside
+        // a different module. The runtime behaviour is fine.
+        const apiAny = api as unknown as {
+          executeCommand(id: string, params?: object): Promise<unknown>;
+          getActiveWorkbook(): { getActiveSheet(): SheetLike | null } | null;
+        };
+        transport.on({
+          onCommandExecute: ({ command }) => {
+            const id = SHEET_COMMAND_MAP[command];
+            if (!id) return;
+            const params: object | undefined =
+              command === 'align-left'
+                ? { value: 'left' }
+                : command === 'align-center'
+                  ? { value: 'center' }
+                  : command === 'align-right'
+                    ? { value: 'right' }
+                    : undefined;
+            try {
+              void apiAny.executeCommand(id, params);
+            } catch {
+              /* swallow — bad command id from a stale host shouldn't crash the iframe */
+            }
+          },
+        });
+
+        // Editor → host: emit format state on a coarse interval. The
+        // FUniver facade in 0.24 doesn't expose a stable
+        // selection-changed event hook on FWorksheet (the public API
+        // is in flux); polling every 200 ms is the smallest reliable
+        // surface that keeps the toolbar buttons in sync without
+        // hooking the internal command service. Drive throttles its
+        // own re-renders, so the wire stays cheap.
+        const emit = () => {
+          try {
+            const wb = apiAny.getActiveWorkbook();
+            const sheet = wb?.getActiveSheet();
+            const range = sheet?.getActiveRange?.();
+            if (!range) return;
+            const cell = range.getCell?.(0, 0) ?? range;
+            const fmt = readFormatFlags(cell);
+            transport.sendSelectionFormatState(fmt);
+          } catch {
+            /* selection may not exist yet during boot — ignore */
+          }
+        };
+        emit();
+        const interval = setInterval(emit, 200);
+        // Best-effort cleanup — there's no unmount hook here, but if
+        // the iframe navigates away the interval is GC'd with the
+        // closure.
+        void interval;
+      }}
+    />
+  );
+}
+
+/** Maps the small host-facing protocol union to Univer command ids the
+ *  FUniver facade dispatches. Kept inline so the wire surface and the
+ *  Univer integration evolve together. */
+const SHEET_COMMAND_MAP: Record<string, string> = {
+  undo: 'univer.command.undo',
+  redo: 'univer.command.redo',
+  bold: 'sheet.command.set-range-bold',
+  italic: 'sheet.command.set-range-italic',
+  underline: 'sheet.command.set-range-underline',
+  strikethrough: 'sheet.command.set-range-strike-through',
+  'align-left': 'sheet.command.set-horizontal-text-align',
+  'align-center': 'sheet.command.set-horizontal-text-align',
+  'align-right': 'sheet.command.set-horizontal-text-align',
+};
+
+interface CellLike {
+  getFontWeight?: () => unknown;
+  getFontStyle?: () => unknown;
+  getUnderline?: () => unknown;
+  getStrikethrough?: () => unknown;
+  getHorizontalAlignment?: () => unknown;
+}
+
+interface RangeLike {
+  getCell?(row: number, col: number): unknown;
+  getFontWeight?: () => unknown;
+  getFontStyle?: () => unknown;
+  getUnderline?: () => unknown;
+  getStrikethrough?: () => unknown;
+  getHorizontalAlignment?: () => unknown;
+}
+
+interface SheetLike {
+  getActiveRange?(): RangeLike | null;
+}
+
+function readFormatFlags(cell: unknown): {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strikethrough: boolean;
+  align: 'left' | 'center' | 'right' | null;
+} {
+  const c = cell as CellLike;
+  const bold = String(c.getFontWeight?.() ?? '').toLowerCase() === 'bold';
+  const italic = String(c.getFontStyle?.() ?? '').toLowerCase() === 'italic';
+  const underline = !!c.getUnderline?.();
+  const strikethrough = !!c.getStrikethrough?.();
+  const ha = String(c.getHorizontalAlignment?.() ?? '').toLowerCase();
+  const align: 'left' | 'center' | 'right' | null =
+    ha === 'left' || ha === 'center' || ha === 'right' ? ha : null;
+  return { bold, italic, underline, strikethrough, align };
 }
 
 function inferHostOrigin(): string | undefined {

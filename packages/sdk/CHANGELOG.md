@@ -1,5 +1,19 @@
 # @schnsrw/casual-sheets
 
+## 0.6.0
+
+### Minor Changes
+
+- Host-controlled toolbar wire (UX-EDITOR-1):
+
+  New protocol envelopes
+  - `casual.command.execute { command }` — host → editor. Initial union: `undo | redo | bold | italic | underline | strikethrough | align-left | align-center | align-right`. Maps to the corresponding Univer command ids inside the iframe.
+  - `casual.selection.format-state { bold, italic, underline, strikethrough, align }` — editor → host. Emitted on a 200 ms poll while the workbook is mounted so hosts can mirror the active cell's format flags in their toolbar's pressed state.
+
+  CasualSheetsIframe ref gains `executeCommand(command)`. CasualSheetsIframeProps gains `onSelectionFormatState(data)`. Drive (or any host) can now render its own toolbar above the iframe and dispatch commands without needing Univer's built-in ribbon (which the SDK can't ship because the ribbon plugins require IRPCChannelService and no worker is bundled).
+
+  Font / size / colour / fill / merge / row+column ops are intentionally NOT in v0.6 — they need a richer command-execute payload shape we haven't locked yet.
+
 ## 0.5.7
 
 ### Patch Changes

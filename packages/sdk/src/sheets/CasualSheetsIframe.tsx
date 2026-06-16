@@ -25,9 +25,11 @@ import {
 import { EmbedHostTransport } from '../embed/EmbedHostTransport';
 import type {
   CasualErrorData,
+  CommandExecuteData,
   LoadResponseData,
   SaveResponseData,
   SelectionChangedData,
+  SelectionFormatStateData,
   TelemetryEventData,
 } from '../embed/protocol';
 
@@ -41,6 +43,9 @@ export interface HostFileBridge {
 export interface CasualSheetsIframeRef {
   setViewMode(mode: 'preview' | 'editor'): void;
   iframe(): HTMLIFrameElement | null;
+  /** Dispatch a formatting / navigation command (bold, italic, undo, …)
+   *  against the iframe's active selection. v0.6+. */
+  executeCommand(command: CommandExecuteData['command']): void;
 }
 
 export interface CasualSheetsIframeProps {
@@ -56,6 +61,10 @@ export interface CasualSheetsIframeProps {
    *  to this path. */
   embedBasePath?: string;
   onSelectionChanged?: (data: SelectionChangedData) => void;
+  /** Fires when the active cell's format flags change (bold, italic,
+   *  …). Drive's custom toolbar reflects this state in the button
+   *  "pressed" indicators. v0.6+. */
+  onSelectionFormatState?: (data: SelectionFormatStateData) => void;
   onTelemetry?: (data: TelemetryEventData) => void;
   onError?: (data: CasualErrorData) => void;
   style?: CSSProperties;
@@ -78,6 +87,7 @@ export const CasualSheetsIframe = forwardRef<CasualSheetsIframeRef, CasualSheets
       viewMode = 'editor',
       embedBasePath = '/embed/sheets',
       onSelectionChanged,
+      onSelectionFormatState,
       onTelemetry,
       onError,
       style,
@@ -90,26 +100,23 @@ export const CasualSheetsIframe = forwardRef<CasualSheetsIframeRef, CasualSheets
     const fileSourceRef = useRef(fileSource);
     fileSourceRef.current = fileSource;
 
-    const onLoad = useCallback(
-      async (req: { docId: string }): Promise<LoadResponseData> => {
-        try {
-          const { bytes, name, etag } = await fileSourceRef.current.open(req.docId);
-          return {
-            ok: true,
-            bytes,
-            fileName: name,
-            ...(etag !== undefined ? { etag } : {}),
-          };
-        } catch (err) {
-          return {
-            ok: false,
-            code: 'open_failed',
-            message: err instanceof Error ? err.message : String(err),
-          };
-        }
-      },
-      [],
-    );
+    const onLoad = useCallback(async (req: { docId: string }): Promise<LoadResponseData> => {
+      try {
+        const { bytes, name, etag } = await fileSourceRef.current.open(req.docId);
+        return {
+          ok: true,
+          bytes,
+          fileName: name,
+          ...(etag !== undefined ? { etag } : {}),
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          code: 'open_failed',
+          message: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }, []);
 
     const onSave = useCallback(
       async (req: {
@@ -152,6 +159,7 @@ export const CasualSheetsIframe = forwardRef<CasualSheetsIframeRef, CasualSheets
         onLoadRequest: onLoad,
         onSaveRequest: onSave,
         ...(onSelectionChanged ? { onSelectionChanged } : {}),
+        ...(onSelectionFormatState ? { onSelectionFormatState } : {}),
         ...(onTelemetry ? { onTelemetry } : {}),
         ...(onError ? { onError } : {}),
         onEditorReady: () => {
@@ -160,7 +168,15 @@ export const CasualSheetsIframe = forwardRef<CasualSheetsIframeRef, CasualSheets
         },
       });
       transportRef.current = transport;
-    }, [onLoad, onSave, onSelectionChanged, onTelemetry, onError, viewMode]);
+    }, [
+      onLoad,
+      onSave,
+      onSelectionChanged,
+      onSelectionFormatState,
+      onTelemetry,
+      onError,
+      viewMode,
+    ]);
 
     useEffect(() => {
       transportRef.current?.sendSetViewMode({ viewMode });
@@ -178,6 +194,7 @@ export const CasualSheetsIframe = forwardRef<CasualSheetsIframeRef, CasualSheets
       apiRef.current = {
         setViewMode: (mode) => transportRef.current?.sendSetViewMode({ viewMode: mode }),
         iframe: () => iframeRef.current,
+        executeCommand: (command) => transportRef.current?.sendCommandExecute({ command }),
       };
     }
 

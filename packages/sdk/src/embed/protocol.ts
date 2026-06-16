@@ -130,6 +130,41 @@ export interface CommandSetViewModeData {
   viewMode: 'preview' | 'editor';
 }
 
+/** Host → editor: execute a formatting / navigation command against
+ *  the active selection in the embedded workbook. Hosts (like Casual
+ *  Drive) build their own toolbar above the iframe and dispatch these
+ *  commands instead of Univer's built-in ribbon, which the SDK can't
+ *  ship because the ribbon resolves IRPCChannelService at construction
+ *  and that service needs a worker the SDK doesn't bundle.
+ *
+ *  v0.6 covers the small "always relevant" set; later versions extend
+ *  the union with cell-format / sheet-management / data commands. */
+export interface CommandExecuteData {
+  command:
+    | 'undo'
+    | 'redo'
+    | 'bold'
+    | 'italic'
+    | 'underline'
+    | 'strikethrough'
+    | 'align-left'
+    | 'align-center'
+    | 'align-right';
+}
+
+/** Editor → host: emitted whenever the selection's active cell's
+ *  format flags change. Drive's toolbar mirrors this state in the
+ *  button "pressed" indicators so the surface always reflects what
+ *  the user would see in the cell. Light by design — only flags the
+ *  toolbar needs. */
+export interface SelectionFormatStateData {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strikethrough: boolean;
+  align: 'left' | 'center' | 'right' | null;
+}
+
 // ---------------------------------------------------------------
 // Errors (editor → host fatal signals)
 // ---------------------------------------------------------------

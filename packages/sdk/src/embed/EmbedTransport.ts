@@ -28,6 +28,8 @@ import {
   type CommandSetThemeData,
   type CommandSetLocaleData,
   type CommandSetViewModeData,
+  type CommandExecuteData,
+  type SelectionFormatStateData,
   type CasualErrorData,
   type SignatureRequestData,
   type SignatureRequestAckData,
@@ -62,6 +64,9 @@ export interface EmbedTransportHandlers {
   onCommandSetLocale?: (data: CommandSetLocaleData) => void | Promise<void>;
   /** Host → editor: switch chrome density (preview ↔ editor). */
   onCommandSetViewMode?: (data: CommandSetViewModeData) => void | Promise<void>;
+  /** Host → editor: execute a formatting / navigation command (bold,
+   *  italic, undo, …) against the active selection. v0.6+. */
+  onCommandExecute?: (data: CommandExecuteData) => void | Promise<void>;
   onCommandFocus?: () => void | Promise<void>;
   onCommandSave?: () => void | Promise<void>;
   onCommandLoad?: () => void | Promise<void>;
@@ -145,6 +150,13 @@ export class EmbedTransport {
     this.post('casual.selection.changed', data);
   }
 
+  /** Editor → Host: format flags on the active cell changed (bold,
+   *  italic, …). Drive's custom toolbar mirrors this state in its
+   *  "pressed" indicators. v0.6+. */
+  sendSelectionFormatState(data: SelectionFormatStateData): void {
+    this.post('casual.selection.format-state', data);
+  }
+
   /** Editor → Host: a noteworthy event. */
   sendTelemetry(data: TelemetryEventData): void {
     this.post('casual.telemetry.event', data);
@@ -218,6 +230,9 @@ export class EmbedTransport {
         return;
       case 'casual.command.set.viewmode':
         await this.handlers.onCommandSetViewMode?.(env.data as CommandSetViewModeData);
+        return;
+      case 'casual.command.execute':
+        await this.handlers.onCommandExecute?.(env.data as CommandExecuteData);
         return;
       case 'casual.command.focus':
         await this.handlers.onCommandFocus?.();

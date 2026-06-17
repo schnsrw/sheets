@@ -53,7 +53,7 @@ Legend: `✅` survived · `⚠️` partial · `❌` dropped
 
 | Probe | Reference | Actual | Status |
 | --- | --- | --- | --- |
-| C2 external hyperlink | `"https://github.com/schnsrw/sheets"` | `"https://github.com/schnsrw/sheets"` | ✅ |
+| C2 external hyperlink | `"https://github.com/CasualOffice/sheets"` | `"https://github.com/CasualOffice/sheets"` | ✅ |
 
 ## Comments
 

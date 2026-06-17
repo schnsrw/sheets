@@ -1,2 +1,2 @@
-export { xlsxToWorkbookData } from '@schnsrw/casual-sheets/xlsx';
+export { xlsxToWorkbookData } from '@casualoffice/sheets/xlsx';
 export { workbookDataToXlsx } from './export';

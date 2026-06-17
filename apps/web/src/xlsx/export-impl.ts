@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { CustomRangeType, type IStyleData, type IWorkbookData } from '@univerjs/core';
 // Shared xlsx utilities (style mappers + resource readers/writers) live
-// in @schnsrw/casual-sheets/xlsx alongside the importer. Export-side
+// in @casualoffice/sheets/xlsx alongside the importer. Export-side
 // snapshot extensions (outline / charts / pivots / sparklines) stay
 // local to apps/web because they pull in per-feature state types.
 import {
@@ -19,7 +19,7 @@ import {
   refToRowCol,
   RESOURCES_SHEET,
   univerStyleToExcel,
-} from '@schnsrw/casual-sheets/xlsx';
+} from '@casualoffice/sheets/xlsx';
 import { writeOutlineIntoSnapshot } from '../outline/resources';
 import { writeChartsIntoSnapshot } from '../charts/resources';
 import { writePivotsIntoSnapshot } from '../pivots/resources';

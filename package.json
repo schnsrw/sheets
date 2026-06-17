@@ -20,7 +20,7 @@
     "fork:swap": "node scripts/swap-fork-pkgs.mjs",
     "fork:restore": "node scripts/swap-fork-pkgs.mjs --restore",
     "version-packages": "pnpm dlx @changesets/cli@2 version",
-    "release": "pnpm --filter @schnsrw/casual-sheets build && pnpm dlx @changesets/cli@2 publish"
+    "release": "pnpm --filter @casualoffice/sheets build && pnpm dlx @changesets/cli@2 publish"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

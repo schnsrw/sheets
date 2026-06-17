@@ -143,7 +143,7 @@ to match.
 ```yaml
 services:
   app:
-    image: schnsrw/casual-sheets:0.1
+    image: casualoffice/sheets:0.1
     labels:
       - traefik.enable=true
       - traefik.http.routers.sheets.rule=Host(`sheets.acme.example`)

@@ -21,7 +21,7 @@ For the architectural design + the broader 3-mode picture see
 # docker-compose.yml
 services:
   app:
-    image: schnsrw/casual-sheets:0.2
+    image: casualoffice/sheets:0.2
     ports: ['3000:3000']
     environment:
       CASUAL_PERSONAL_MODE: single # 'single' (one account) or 'multi'

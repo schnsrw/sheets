@@ -63,7 +63,7 @@ export function AboutDialog({ onClose }: Props) {
           </dd>
           <dt>Self-host</dt>
           <dd>
-            <code>docker run -p 3000:3000 schnsrw/casual-sheets</code> —{' '}
+            <code>docker run -p 3000:3000 casualoffice/sheets</code> —{' '}
             <a href="https://casualoffice.org/#work" target="_blank" rel="noreferrer">guide</a>
           </dd>
           <dt>Engine</dt>

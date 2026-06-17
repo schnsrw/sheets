@@ -3,7 +3,7 @@
  *
  * Phase-A surface (this release): IMPORT only.
  *
- *   import { xlsxToWorkbookData } from '@schnsrw/casual-sheets/xlsx';
+ *   import { xlsxToWorkbookData } from '@casualoffice/sheets/xlsx';
  *
  * The parser runs in a Web Worker so multi-MB workbooks don't block
  * the main thread; bundler must support the `new Worker(new URL(...),

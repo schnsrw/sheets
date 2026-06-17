@@ -1,6 +1,6 @@
 /**
  * embed-runtime — the in-iframe entry point for the sheet SDK's iframe
- * delivery mode. Sheet sibling of `@schnsrw/docx-js-editor`'s
+ * delivery mode. Sheet sibling of `@casualoffice/docs`'s
  * `embed-runtime`; see doc 16 in the parent repo.
  *
  * Lifecycle:

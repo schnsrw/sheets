@@ -30,13 +30,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       - run: pnpm lint
 
   typecheck:
@@ -53,13 +53,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       - run: pnpm typecheck
 
   unit:
@@ -80,13 +80,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       - run: pnpm test:unit
 
   e2e:
@@ -103,13 +103,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       # Cache the Playwright browser binaries to skip the ~200 MB download
       # on most runs. The lock file is the cache key since the version is
       # pinned via @playwright/test in package.json.
@@ -156,13 +156,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       - name: Cache Playwright browsers
         id: pw-cache
         uses: actions/cache@v4
@@ -178,7 +178,7 @@ jobs:
       # Build the prod docker image with this commit's source. Compose
       # builds locally via the Dockerfile, then `up -d` boots the image
       # plus the redis sidecar. We let the image use its embedded tag
-      # (schnsrw/casual-sheets:0.0.4) without pushing.
+      # (casualoffice/sheets:0.0.4) without pushing.
       - name: Build & start docker stack
         run: docker compose up -d --build
       - name: Wait for /health
@@ -259,13 +259,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       - name: Cache Playwright browsers
         id: pw-cache
         uses: actions/cache@v4
@@ -307,13 +307,13 @@ jobs:
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
       - run: pnpm install --frozen-lockfile
-      # apps/web imports `@schnsrw/casual-sheets/xlsx` whose types resolve
+      # apps/web imports `@casualoffice/sheets/xlsx` whose types resolve
       # through packages/sdk/dist/. Build the SDK first so tsc, vite,
       # and the Playwright runner all see the same surface CI consumers
       # would. Without this, typecheck (and the e2e dev server's Vite
       # resolve) explodes with TS2307 "Cannot find module".
       - name: Build SDK (packages/sdk dist)
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
       - name: Cache Playwright browsers
         id: pw-cache
         uses: actions/cache@v4

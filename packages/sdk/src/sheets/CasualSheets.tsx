@@ -19,7 +19,7 @@
  *   - Paste-merge hooks, dev helpers, zoom-shortcut overrides,
  *     facade extensions — all app concerns.
  *
- * Styles: host must import `@schnsrw/casual-sheets/styles.css`
+ * Styles: host must import `@casualoffice/sheets/styles.css`
  * (or the per-plugin CSS) once at app boot. Tree-shaking strips the
  * styles from this entry if the host doesn't reach the styles export.
  */

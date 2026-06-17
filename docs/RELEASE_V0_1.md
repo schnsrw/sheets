@@ -59,7 +59,7 @@ Real persistence. The biggest piece of v0.1.0.
 
 **Shape:**
 - `server.host.Integration` TypeScript interface mirroring the Go
-  shape in `schnsrw/docx` (`backend/internal/host/`): `getFile`,
+  shape in `CasualOffice/docs` (`backend/internal/host/`): `getFile`,
   `putFile`, `checkFileInfo`.
 - Hocuspocus persistence adapter wired so room snapshots survive
   server restarts.
@@ -120,7 +120,7 @@ about a day of admin-panel UI + middleware integration).
 
 Operators need a clear landing for "how do I run this in production"
 that goes beyond the README's one-liner. Lands as a new docs section
-on `schnsrw.live/docs/sheets/` under the existing content collection:
+on `casualoffice.org/docs/sheets/` under the existing content collection:
 
 - **Self-hosting overview** — single-container vs. behind-proxy, when
   to add Redis, when to add real persistence (WOPI).
@@ -197,10 +197,10 @@ into the site via the existing `scripts/sync-docs.mjs` pipeline.
 - New e2e for each WOPI backend (3 specs minimum)
 - New e2e for the admin panel
 - Docker image builds + smoke-tests pass on amd64 + arm64
-- Live demo at `sheet.schnsrw.live/` updated
-- Docker Hub `schnsrw/casual-sheets:v0.1.0` + `:v0.1` + `:v0` +
+- Live demo at `sheet.casualoffice.org/` updated
+- Docker Hub `casualoffice/sheets:v0.1.0` + `:v0.1` + `:v0` +
   `:latest` published
-- Changelog entry on `schnsrw.live/changelog/`
+- Changelog entry on `casualoffice.org/changelog/`
 
 ## Tag history reference
 

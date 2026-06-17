@@ -5,7 +5,7 @@
 Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0).
 Single image — web app, Hocuspocus, and Fastify all in one container.
 
-**Source:** [github.com/schnsrw/sheets](https://github.com/schnsrw/sheets) &nbsp;·&nbsp; **Demo (single-user):** [sheet.schnsrw.live](https://sheet.schnsrw.live/) &nbsp;·&nbsp; **Docs:** [schnsrw.live/docs/sheets/](https://schnsrw.live/docs/sheets/)
+**Source:** [github.com/CasualOffice/sheets](https://github.com/CasualOffice/sheets) &nbsp;·&nbsp; **Demo (single-user):** [sheet.casualoffice.org](https://sheet.casualoffice.org/) &nbsp;·&nbsp; **Docs:** [casualoffice.org/docs/sheets/](https://casualoffice.org/docs/sheets/)
 
 ---
 
@@ -13,7 +13,7 @@ Single image — web app, Hocuspocus, and Fastify all in one container.
 
 ```sh
 # In-memory rooms — great for a quick try (rooms vanish on restart):
-docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
+docker run --rm -p 3000:3000 casualoffice/sheets:latest
 # open http://localhost:3000
 ```
 
@@ -29,7 +29,7 @@ Paste this `docker-compose.yml` if you don't want to clone the repo:
 ```yaml
 services:
   app:
-    image: schnsrw/casual-sheets:0.1   # rolling minor — auto picks up patch updates
+    image: casualoffice/sheets:0.1   # rolling minor — auto picks up patch updates
     restart: unless-stopped
     ports: ['3000:3000']
     environment:
@@ -90,7 +90,7 @@ Anonymous sessions — no accounts required. Rooms are addressed at `/r/<roomId>
 
 ## Configuration
 
-Quick reference; the canonical doc lives at [`docs/ENV.md`](https://github.com/schnsrw/sheets/blob/main/docs/ENV.md).
+Quick reference; the canonical doc lives at [`docs/ENV.md`](https://github.com/CasualOffice/sheets/blob/main/docs/ENV.md).
 
 | Env var | Default | Description |
 | --- | --- | --- |
@@ -124,7 +124,7 @@ Multi-arch manifest: `linux/amd64` + `linux/arm64`. SBOM + provenance attestatio
 | Tag | Description |
 | --- | --- |
 | `0.1.1` | Patch — fix **formula cells render blank on template load** (force initial recalc on workbook mount + swap), fix **autosave-restore banner clipped by `.app` grid overflow** (explicit grid-area), Excel-style typed-input parser ($1,234 · 15% · €99 · 15% · (500) → numbers) in the formula bar |
-| `0.1.0` | **WOPI host integration** (memory · local · S3 · Postgres backends) — **JWT auth** with role + permission + feature claims — **admin panel** at `/admin` (branding · base path · storage · networking · room limits · auth providers · webhooks) — **webhook dispatcher** with HMAC-SHA256 signing — **complex pivot cache passthrough** (audit 54/54 pristine) — **OCI image labels** + rolling-tag scheme — full self-hosting + customization docs on schnsrw.live |
+| `0.1.0` | **WOPI host integration** (memory · local · S3 · Postgres backends) — **JWT auth** with role + permission + feature claims — **admin panel** at `/admin` (branding · base path · storage · networking · room limits · auth providers · webhooks) — **webhook dispatcher** with HMAC-SHA256 signing — **complex pivot cache passthrough** (audit 54/54 pristine) — **OCI image labels** + rolling-tag scheme — full self-hosting + customization docs on casualoffice.org |
 | `0.0.6` | Excel-parity wave — Pivots P1 + drill-down, Sparklines, Goal Seek, Name Manager, Flash Fill, Show Formulas, dark theme, Google-Docs title bar, inline SVG icons, server-side view-only enforcement, recent files, 357 e2e tests |
 | `0.0.5` | Co-edit fidelity pass — charts, pivots, CF/DV/drawings sync, autosave, 337 e2e tests |
 | `0.0.4` | Co-edit polish + large-file pipeline |
@@ -138,7 +138,7 @@ Multi-arch manifest: `linux/amd64` + `linux/arm64`. SBOM + provenance attestatio
 Every published image carries `org.opencontainers.image.*` labels:
 
 ```sh
-docker inspect schnsrw/casual-sheets:latest \
+docker inspect casualoffice/sheets:latest \
   | jq '.[0].Config.Labels | with_entries(select(.key | startswith("org.opencontainers")))'
 ```
 
@@ -148,9 +148,9 @@ Sample output:
 {
   "org.opencontainers.image.title":         "Casual Sheets",
   "org.opencontainers.image.description":   "Excel-flavored web spreadsheet …",
-  "org.opencontainers.image.url":           "https://sheet.schnsrw.live/",
-  "org.opencontainers.image.source":        "https://github.com/schnsrw/sheets",
-  "org.opencontainers.image.documentation": "https://schnsrw.live/docs/sheets/",
+  "org.opencontainers.image.url":           "https://sheet.casualoffice.org/",
+  "org.opencontainers.image.source":        "https://github.com/CasualOffice/sheets",
+  "org.opencontainers.image.documentation": "https://casualoffice.org/docs/sheets/",
   "org.opencontainers.image.vendor":        "Sachin Sarwa",
   "org.opencontainers.image.licenses":      "Apache-2.0",
   "org.opencontainers.image.version":       "v0.1.0",

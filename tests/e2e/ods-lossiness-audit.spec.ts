@@ -39,7 +39,7 @@ function buildReferenceOds(): Buffer {
     D1: { t: 's', v: 'Notes' },
     A2: { t: 's', v: 'Q1' },
     B2: { t: 'n', v: 1234.56, z: '"$"#,##0.00' },
-    C2: { t: 's', v: 'GitHub', l: { Target: 'https://github.com/schnsrw/sheets' } },
+    C2: { t: 's', v: 'GitHub', l: { Target: 'https://github.com/CasualOffice/sheets' } },
     D2: { t: 's', v: 'memo', c: [{ a: 'audit', t: 'ODS comment' }] },
     A3: { t: 's', v: 'Q2' },
     B3: { t: 'n', v: 0.25, z: '0.00%' },

@@ -1,4 +1,4 @@
-# @schnsrw/casual-sheets
+# @casualoffice/sheets
 
 ## 0.8.0
 
@@ -149,7 +149,7 @@
 ### Minor Changes
 
 - e044efd: Ship the SDK iframe-delivery architecture for sheets (Phase 2 of doc 16
-  in the parent docx repo). Mirror of `@schnsrw/docx-js-editor@1.1.0`.
+  in the parent docx repo). Mirror of `@casualoffice/docs@1.1.0`.
 
   The existing `<CasualSheets>` direct-mount stays — no breaking change.
   Adds a new `<CasualSheetsIframe>` component that renders the editor
@@ -161,7 +161,7 @@
   ### What the consumer-facing API looks like
 
   ```tsx
-  import { CasualSheetsIframe } from '@schnsrw/casual-sheets';
+  import { CasualSheetsIframe } from '@casualoffice/sheets';
 
   <CasualSheetsIframe
     fileSource={{
@@ -194,7 +194,7 @@
 
   ```sh
   mkdir -p web/public/embed/sheets
-  cp node_modules/@schnsrw/casual-sheets/dist/embed/* web/public/embed/sheets/
+  cp node_modules/@casualoffice/sheets/dist/embed/* web/public/embed/sheets/
   ```
 
   ### Wire protocol additions
@@ -216,10 +216,10 @@
 
 ### Minor Changes
 
-- Ships the xlsx **import** path as `@schnsrw/casual-sheets/xlsx` (Phase A of [#56](https://github.com/CasualOffice/sheets/issues/56)).
+- Ships the xlsx **import** path as `@casualoffice/sheets/xlsx` (Phase A of [#56](https://github.com/CasualOffice/sheets/issues/56)).
 
   ```ts
-  import { xlsxToWorkbookData } from '@schnsrw/casual-sheets/xlsx';
+  import { xlsxToWorkbookData } from '@casualoffice/sheets/xlsx';
 
   const data = await xlsxToWorkbookData(arrayBuffer);
   // → IWorkbookData ready to mount via <CasualSheets initialData={data} />
@@ -254,7 +254,7 @@
     `*-resource.ts` files, `pivot-passthrough.ts`) **moved** into
     `packages/sdk/src/xlsx/`.
   - `apps/web/src/xlsx/{export,export-impl}.ts` now imports the shared
-    mappers + resource readers from `@schnsrw/casual-sheets/xlsx`. Same
+    mappers + resource readers from `@casualoffice/sheets/xlsx`. Same
     code, new path.
   - `apps/web/src/xlsx/index.ts` re-exports `xlsxToWorkbookData` from the
     SDK so existing apps/web call-sites are unaffected.
@@ -269,7 +269,7 @@
 
   ### Drive unblock
 
-  [`schnsrw/drive`](https://github.com/CasualOffice/drive) can now replace the
+  [`CasualOffice/drive`](https://github.com/CasualOffice/drive) can now replace the
   `CasualSheetWorkspace` placeholder with a real loader:
 
   ```tsx
@@ -287,7 +287,7 @@
   formula engine + UI + docs + sheets + sheets-ui + sheets-formula +
   numfmt), and surfaces the `FUniver` API to the host via `onReady`.
   Hosts (Casual Drive in particular) can now `import { CasualSheets }
-from '@schnsrw/casual-sheets/sheets'` and drop in a working
+from '@casualoffice/sheets/sheets'` and drop in a working
   spreadsheet view without re-implementing the boot dance.
 
   Lazy plugins (CF, drawings, sort, filter, hyperlinks, tables,
@@ -295,7 +295,7 @@ from '@schnsrw/casual-sheets/sheets'` and drop in a working
   facade extensions stay app concerns — hosts layer them on top of
   `FUniver` after `onReady`.
 
-  Also adds `./styles` (`import '@schnsrw/casual-sheets/styles'`) as a
+  Also adds `./styles` (`import '@casualoffice/sheets/styles'`) as a
   side-effect entry that brings in the eager plugin CSS in one line.
 
   Univer 0.24.x packages move to peer dependencies (all optional, all
@@ -305,10 +305,10 @@ from '@schnsrw/casual-sheets/sheets'` and drop in a working
 
 ### Minor Changes
 
-- 06a5f3a: Initial release: `@schnsrw/casual-sheets` SDK shipping the signing pipeline
+- 06a5f3a: Initial release: `@casualoffice/sheets` SDK shipping the signing pipeline
   (drawn / typed / uploaded signature surfaces, sequential / concurrent modes)
   and the iframe postMessage protocol (`EmbedTransport`, `casual.*` envelope
-  types). Wire shapes are byte-identical to `@schnsrw/docx-js-editor` — only
+  types). Wire shapes are byte-identical to `@casualoffice/docs` — only
   the `app` discriminator (`'sheet'` vs `'docs'`) and signature anchor shape
   (`{ kind: 'sheet', sheet, cell }` vs `{ kind: 'doc', paraId }`) differ. The
   Univer-Sheets React wrapper (`CasualSheets` component) is planned for a

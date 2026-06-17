@@ -8,7 +8,7 @@ import { VersionMismatchError, newVersion } from './integration.js';
 
 /**
  * In-process workbook storage. Default backend — preserves the v0.0.x
- * "no DB, no disk" shape so `docker run -p 3000:3000 schnsrw/casual-
+ * "no DB, no disk" shape so `docker run -p 3000:3000 casualoffice/
  * sheets:latest` still spins up without external dependencies.
  *
  * Trade-off: workbooks vanish on restart. Fine for quick-try and for

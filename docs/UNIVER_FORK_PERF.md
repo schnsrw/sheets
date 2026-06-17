@@ -18,7 +18,7 @@ carries upstream + our local patches + the perf commits.
 **Bootstrap on a fresh clone**:
 
 ```sh
-git clone --recurse-submodules git@github.com:schnsrw/sheets.git
+git clone --recurse-submodules git@github.com:CasualOffice/sheets.git
 cd sheets
 ./scripts/setup-fork.sh    # installs fork deps, builds it, swaps
                            # package.jsons to use built lib/

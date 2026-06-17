@@ -2,8 +2,8 @@
 #
 # Casual Sheets — single image, web + server.
 #
-#   docker build -t schnsrw/casual-sheets:latest .
-#   docker run -p 3000:3000 schnsrw/casual-sheets:latest
+#   docker build -t casualoffice/sheets:latest .
+#   docker run -p 3000:3000 casualoffice/sheets:latest
 #   open http://localhost:3000
 #
 # For persistence (rooms survive restarts), wire Redis via compose:
@@ -41,7 +41,7 @@ COPY vendor/univer-revamp vendor/univer-revamp
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
 # packages/sdk is in the pnpm workspace too — apps/web now imports
-# @schnsrw/casual-sheets/xlsx (and friends) via the workspace symlink.
+# @casualoffice/sheets/xlsx (and friends) via the workspace symlink.
 # Without these copies pnpm install fails the lockfile check; without
 # the source the SDK build below has nothing to compile.
 COPY packages/sdk/package.json packages/sdk/
@@ -57,10 +57,10 @@ COPY packages/sdk packages/sdk
 COPY apps/web apps/web
 
 # Build the SDK first so apps/web's tsc + vite resolve
-# @schnsrw/casual-sheets/* through packages/sdk/dist/. Skipping this
+# @casualoffice/sheets/* through packages/sdk/dist/. Skipping this
 # is what caused the e2e-prod failure on 4dc4dc4 — host CI builds the
 # SDK separately but the Docker image's pnpm sandbox doesn't know to.
-RUN pnpm --filter @schnsrw/casual-sheets build
+RUN pnpm --filter @casualoffice/sheets build
 
 # Build-time knobs the Vite bundle bakes in. Override via
 # `--build-arg VITE_MAX_OPEN_MB=200` on `docker build` or via the
@@ -127,7 +127,7 @@ COPY --from=build-web /repo/apps/web/dist apps/web/dist
 #     --build-arg CASUAL_BUILD_DATE=...   (RFC 3339 UTC timestamp)
 #
 # Inspect with:
-#     docker inspect schnsrw/casual-sheets:latest | jq '.[0].Config.Labels'
+#     docker inspect casualoffice/sheets:latest | jq '.[0].Config.Labels'
 #
 # Downstream operators rely on these labels to pin a specific build;
 # they're the documentation that travels with the artifact.
@@ -137,9 +137,9 @@ ARG CASUAL_BUILD_DATE=unknown
 
 LABEL org.opencontainers.image.title="Casual Sheets" \
       org.opencontainers.image.description="Excel-flavored web spreadsheet with real-time co-editing. Single image: web app, Hocuspocus WebSocket gateway, and Fastify HTTP server on one port. Built on Univer OSS." \
-      org.opencontainers.image.url="https://sheet.schnsrw.live/" \
-      org.opencontainers.image.source="https://github.com/schnsrw/sheets" \
-      org.opencontainers.image.documentation="https://schnsrw.live/docs/sheets/" \
+      org.opencontainers.image.url="https://sheet.casualoffice.org/" \
+      org.opencontainers.image.source="https://github.com/CasualOffice/sheets" \
+      org.opencontainers.image.documentation="https://casualoffice.org/docs/sheets/" \
       org.opencontainers.image.vendor="Sachin Sarwa" \
       org.opencontainers.image.authors="Sachin Sarwa <schnsrw@gmail.com>" \
       org.opencontainers.image.licenses="Apache-2.0" \

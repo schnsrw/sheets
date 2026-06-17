@@ -3,9 +3,9 @@
 How users open, save, and find their files across the three ways Casual Sheets is deployed.
 
 This is the design contract. Implementation tracker:
-**[#49](https://github.com/schnsrw/sheets/issues/49)**.
+**[#49](https://github.com/CasualOffice/sheets/issues/49)**.
 
-Driven by feature request **[#48](https://github.com/schnsrw/sheets/issues/48)**:
+Driven by feature request **[#48](https://github.com/CasualOffice/sheets/issues/48)**:
 "save files to a container volume so when the user launches the app the last
 file used is open" + "list the most recent files." Generalized to cover all
 three deployment shapes so we don't paint ourselves into a corner.

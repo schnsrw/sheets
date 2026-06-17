@@ -42,11 +42,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # apps/web imports `@schnsrw/casual-sheets/xlsx`, whose types
+      # apps/web imports `@casualoffice/sheets/xlsx`, whose types
       # resolve through packages/sdk/dist/. tsc + vite both fail with
       # TS2307 'Cannot find module' if the SDK hasn't been built yet.
       - name: Build SDK
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
 
       - name: Typecheck web
         run: pnpm --filter @sheet/web typecheck
@@ -56,7 +56,7 @@ jobs:
           # Canonical URL is the apex of the subdomain — sheet.casualoffice.org/
           # — so assets are root-relative. A small /sheets/ redirect (added
           # below) keeps the GitHub-provided URL working
-          # (schnsrw.github.io/sheets/ → 301 → sheet.casualoffice.org/sheets/
+          # (CasualOffice.github.io/sheets/ → 301 → sheet.casualoffice.org/sheets/
           # → redirect → /).
           PAGES_BASE: /
         run: pnpm --filter @sheet/web build
@@ -64,7 +64,7 @@ jobs:
       - name: Assemble Pages artifact
         # CNAME tells GitHub Pages which host to serve; without it in every
         # deploy, the custom-domain config in the Pages UI gets dropped.
-        # The /sheets/index.html redirect makes the schnsrw.github.io URL
+        # The /sheets/index.html redirect makes the CasualOffice.github.io URL
         # land on the app instead of 404.
         run: |
           set -euo pipefail

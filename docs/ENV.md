@@ -300,7 +300,7 @@ operators can `docker inspect` provenance.
 Inspect with:
 
 ```sh
-docker inspect schnsrw/casual-sheets:latest \
+docker inspect casualoffice/sheets:latest \
   | jq '.[0].Config.Labels | with_entries(select(.key | startswith("org.opencontainers")))'
 ```
 

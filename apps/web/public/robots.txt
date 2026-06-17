@@ -1,8 +1,8 @@
-# sheet.schnsrw.live — open to search engines + AI crawlers.
+# sheet.casualoffice.org — open to search engines + AI crawlers.
 # The app is the live demo for Casual Sheets, an open-source web
 # spreadsheet. Indexing helps users + assistants discover it.
 # Matches the policy declared on the canonical landing site
-# (https://schnsrw.live/robots.txt).
+# (https://casualoffice.org/robots.txt).
 
 User-agent: *
 Allow: /
@@ -46,4 +46,4 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-Sitemap: https://sheet.schnsrw.live/sitemap.xml
+Sitemap: https://sheet.casualoffice.org/sitemap.xml

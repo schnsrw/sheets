@@ -1,7 +1,7 @@
 # Co-editing — design
 
 Real-time collaborative editing layered on top of the single-user editor.
-Available in the self-hosted Docker image; the GitHub Pages demo at `sheet.schnsrw.live` stays single-user.
+Available in the self-hosted Docker image; the GitHub Pages demo at `sheet.casualoffice.org` stays single-user.
 
 ---
 
@@ -11,7 +11,7 @@ Available in the self-hosted Docker image; the GitHub Pages demo at `sheet.schns
 - Anonymous sessions — anyone with the room URL can edit. No accounts.
 - Password-protected rooms with role-based access (edit / view-only).
 - In-memory only by default; optional Redis persistence (7-day TTL) for sessions that survive restarts.
-- Single Docker image (`schnsrw/casual-sheets`) — one command to self-host.
+- Single Docker image (`casualoffice/sheets`) — one command to self-host.
 
 ## Out of scope
 
@@ -187,7 +187,7 @@ Long-lived rooms accumulate Y.Doc binary updates. The server schedules a compact
 
 ```sh
 # Quick start — in-memory, no persistence:
-docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
+docker run --rm -p 3000:3000 casualoffice/sheets:latest
 
 # With Redis — rooms survive restarts:
 docker compose up -d

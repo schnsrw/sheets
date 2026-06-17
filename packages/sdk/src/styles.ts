@@ -2,7 +2,7 @@
  * Univer plugin CSS — side-effect-only imports for the eager plugin
  * set CasualSheets boots. Hosts import this once at app boot:
  *
- *   import '@schnsrw/casual-sheets/styles';
+ *   import '@casualoffice/sheets/styles';
  *
  * If the host adds lazy plugins (sort, filter, drawing, comments,
  * conditional formatting, …) it imports the corresponding CSS

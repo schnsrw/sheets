@@ -103,7 +103,7 @@ export function humanizeOpenError(rawMessage: string, fileName: string): Humaniz
     };
   }
 
-  // ── ODS-specific path complaints (the @schnsrw/core ods loader can
+  // ── ODS-specific path complaints (the @casualoffice/core ods loader can
   //    throw "expected mimetype application/vnd.oasis…" for files
   //    masquerading as .ods).
   if (m.includes('mimetype') || m.includes('content.xml') || m.includes('ods')) {

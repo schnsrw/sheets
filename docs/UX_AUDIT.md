@@ -244,7 +244,7 @@ multi mode lacks permissions. Same fix path.
 
 ### §3.6 Save mechanics also create duplicates
 
-`@schnsrw/docx-js-editor`'s autosave uses `fileSource.save(id, bytes)`.
+`@casualoffice/docs`'s autosave uses `fileSource.save(id, bytes)`.
 The Phase C PersonalFileSource has the same "id never bound after
 first save" risk if the consumer doesn't write the result back to
 its state. Drive's `DriveFileSource.save` does — but the editor's own

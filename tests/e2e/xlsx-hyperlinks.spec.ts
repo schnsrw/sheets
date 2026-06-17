@@ -78,7 +78,7 @@ async function writeHyperlinkFixture(page: Page, fixturePath: string) {
       hyperlinks: {
         'fx-s1': [
           { row: 0, column: 0, payload: 'https://anthropic.com', display: 'Anthropic' },
-          { row: 0, column: 1, payload: 'https://github.com/schnsrw/sheets', display: 'GitHub' },
+          { row: 0, column: 1, payload: 'https://github.com/CasualOffice/sheets', display: 'GitHub' },
         ],
       },
     });
@@ -224,7 +224,7 @@ test.describe('xlsx hyperlinks & resources round-trip', () => {
     const links = await page.evaluate(() => window.__getHyperLinks__!());
     const payloads = links.map((l) => l.payload).sort();
     expect(payloads).toEqual(
-      ['https://anthropic.com', 'https://github.com/schnsrw/sheets'].sort(),
+      ['https://anthropic.com', 'https://github.com/CasualOffice/sheets'].sort(),
     );
     // Positions survive the round-trip.
     const sortedByCol = [...links].sort((a, b) => a.column - b.column);
@@ -292,7 +292,7 @@ test.describe('xlsx hyperlinks & resources round-trip', () => {
     }, Array.from(buf));
 
     expect(payloads).toEqual(
-      ['https://anthropic.com', 'https://github.com/schnsrw/sheets'].sort(),
+      ['https://anthropic.com', 'https://github.com/CasualOffice/sheets'].sort(),
     );
   });
 });

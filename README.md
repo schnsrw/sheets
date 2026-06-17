@@ -6,14 +6,14 @@
 
 [![CI](https://github.com/CasualOffice/sheets/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CasualOffice/sheets/actions/workflows/ci.yml)
 [![Deploy](https://github.com/CasualOffice/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/CasualOffice/sheets/actions/workflows/deploy-pages.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/schnsrw/casual-sheets?logo=docker)](https://hub.docker.com/r/schnsrw/casual-sheets)
-[![Image Size](https://img.shields.io/docker/image-size/schnsrw/casual-sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/schnsrw/casual-sheets)
+[![Docker Pulls](https://img.shields.io/docker/pulls/casualoffice/sheets?logo=docker)](https://hub.docker.com/r/casualoffice/sheets)
+[![Image Size](https://img.shields.io/docker/image-size/casualoffice/sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/casualoffice/sheets)
 [![E2E Tests](https://img.shields.io/badge/e2e-357%20passing-brightgreen?logo=playwright)](./tests/e2e)
 [![Unit Tests](https://img.shields.io/badge/unit-145%20passing-brightgreen)](./apps)
 [![Version](https://img.shields.io/badge/version-v0.3.1-blue)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
-[**Live Demo →**](https://sheet.casualoffice.org/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/schnsrw/casual-sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Comparisons →](https://casualoffice.org/vs/)
+[**Live Demo →**](https://sheet.casualoffice.org/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/casualoffice/sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Comparisons →](https://casualoffice.org/vs/)
 
 </div>
 
@@ -103,7 +103,7 @@ A single multi-arch image (`linux/amd64` + `linux/arm64`). Web, Hocuspocus, and 
 ### Quick start (in-memory, no persistence)
 
 ```sh
-docker run --rm -p 3000:3000 schnsrw/casual-sheets:latest
+docker run --rm -p 3000:3000 casualoffice/sheets:latest
 ```
 
 Open `http://localhost:3000`. **Anonymous mode** — no signup, no persistence; close the container and everything's gone. Good for kicking the tyres.
@@ -115,7 +115,7 @@ Paste this `docker-compose.yml` and run `docker compose up -d`:
 ```yaml
 services:
   app:
-    image: schnsrw/casual-sheets:latest
+    image: casualoffice/sheets:latest
     restart: unless-stopped
     ports: ['3000:3000']
     volumes:

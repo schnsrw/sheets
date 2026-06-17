@@ -34,8 +34,8 @@ actually boots.
 
 ### Added — packages/sdk extraction (#56)
 
-- **`@schnsrw/casual-sheets@0.4.0`** publishes the xlsx import path
-  as `@schnsrw/casual-sheets/xlsx`. Drive (and any future host) can
+- **`@casualoffice/sheets@0.4.0`** publishes the xlsx import path
+  as `@casualoffice/sheets/xlsx`. Drive (and any future host) can
   load `.xlsx` into a Univer `IWorkbookData` snapshot via
   `xlsxToWorkbookData(bytes)` instead of vendoring the parser. The
   apps/web pipeline is unchanged — just imports the shared mappers
@@ -52,7 +52,7 @@ actually boots.
 ### Build infra
 
 - CI's typecheck / e2e / e2e-prod / deploy-pages now build the SDK
-  before consuming it (apps/web imports `@schnsrw/casual-sheets/xlsx`
+  before consuming it (apps/web imports `@casualoffice/sheets/xlsx`
   whose types resolve through `packages/sdk/dist/`). Dockerfile
   does the same in the `build-web` stage. Without these, fresh
   builds fail TS2307 because `packages/sdk/dist` is empty
@@ -112,9 +112,9 @@ Univer-fork perf revamp.
 - E2E hardening: timeouts + retries on `coedit-share`, `coedit-compaction`,
   `charts-p1`, and the long personal happy-path spec.
 
-### Added — `@schnsrw/casual-sheets` SDK (separate package)
+### Added — `@casualoffice/sheets` SDK (separate package)
 
-- New `packages/sdk` shipping `@schnsrw/casual-sheets@0.2.0`
+- New `packages/sdk` shipping `@casualoffice/sheets@0.2.0`
   (signing + iframe postMessage protocol). Univer-Sheets React wrapper
   to follow.
 

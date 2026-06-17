@@ -20,7 +20,7 @@ For the broader 3-mode picture see
 | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | Building a SaaS that owns the workbook lifecycle (Quip, Notion, SharePoint, Confluence-style integration) | **Mode 2 / WOPI embed** (this doc)                        |
 | Running a homelab / small org docker and you want signups + per-user files                                | **[Mode 3 / Personal docker](./personal-mode.md)**        |
-| Just trying it out                                                                                        | **Mode 1** — open the hosted demo at `sheet.schnsrw.live` |
+| Just trying it out                                                                                        | **Mode 1** — open the hosted demo at `sheet.casualoffice.org` |
 
 The two modes happily share the same docker image. Set
 `CASUAL_JWT_SECRET` (turns Mode 2 on) and `CASUAL_PERSONAL_MODE=multi`

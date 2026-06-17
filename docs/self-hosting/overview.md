@@ -3,7 +3,7 @@
 Casual Sheets ships as a single Docker image:
 
 ```sh
-docker run --rm -p 3000:3000 schnsrw/casual-sheets:0.1
+docker run --rm -p 3000:3000 casualoffice/sheets:0.1
 # open http://localhost:3000
 ```
 
@@ -61,7 +61,7 @@ Three layers of configuration, in precedence order:
    ship a deployment with sensible defaults via env; the admin
    panel overrides individual fields.
 3. **Compiled defaults**. Last resort. See
-   [`apps/server/src/admin/config.ts`](https://github.com/schnsrw/sheets/blob/main/apps/server/src/admin/config.ts).
+   [`apps/server/src/admin/config.ts`](https://github.com/CasualOffice/sheets/blob/main/apps/server/src/admin/config.ts).
 
 Full env-var matrix: [`docs/ENV.md`](../ENV.md).
 
@@ -70,7 +70,7 @@ Full env-var matrix: [`docs/ENV.md`](../ENV.md).
 ```yaml
 services:
   app:
-    image: schnsrw/casual-sheets:0.1
+    image: casualoffice/sheets:0.1
     restart: unless-stopped
     ports: ['3000:3000']
     environment:

@@ -116,7 +116,7 @@ Single process, 4 GB RAM, 2 vCPU, in-memory storage:
 - **Hardware:** 1 vCPU, 256 MB RAM, no Redis (in-memory)
 - **Cost:** $5–10/mo (DigitalOcean droplet / Fly machine / Hetzner CX11)
 - **Limits:** restart loses state, no horizontal scale
-- **Use case:** `doc.schnsrw.live` today
+- **Use case:** `doc.casualoffice.org` today
 
 ### Tier M — Small team (recommended for v0.1)
 - **Users:** 30–150 concurrent

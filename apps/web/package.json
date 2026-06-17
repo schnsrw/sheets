@@ -12,7 +12,7 @@
   "dependencies": {
     "@e965/xlsx": "0.20.3",
     "@hocuspocus/provider": "^2.15.2",
-    "@schnsrw/casual-sheets": "workspace:*",
+    "@casualoffice/sheets": "workspace:*",
     "@univerjs/core": "0.24.0",
     "@univerjs/design": "0.24.0",
     "@univerjs/docs": "0.24.0",

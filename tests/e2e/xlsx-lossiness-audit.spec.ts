@@ -117,7 +117,7 @@ async function buildReferenceXlsx(): Promise<Buffer> {
   s1.getCell('A7').alignment = { horizontal: 'center' };
 
   // Hyperlink.
-  s1.getCell('C2').value = { text: 'GitHub', hyperlink: 'https://github.com/schnsrw/sheets' };
+  s1.getCell('C2').value = { text: 'GitHub', hyperlink: 'https://github.com/CasualOffice/sheets' };
 
   // Comment on B2 (ExcelJS API).
   s1.getCell('B2').note = 'This is a comment on Q1 revenue.';
@@ -511,8 +511,8 @@ function compareWorkbooks(ref: ExcelJS.Workbook, got: ExcelJS.Workbook): Probe[]
   // Hyperlink.
   push(
     'Hyperlinks',
-    'C2 → github.com/schnsrw/sheets',
-    'https://github.com/schnsrw/sheets',
+    'C2 → github.com/CasualOffice/sheets',
+    'https://github.com/CasualOffice/sheets',
     (() => {
       const v = gotData.getCell('C2').value;
       if (typeof v === 'object' && v && 'hyperlink' in v) return (v as { hyperlink?: string }).hyperlink;

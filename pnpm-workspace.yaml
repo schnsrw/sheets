@@ -7,7 +7,7 @@ packages:
 # As of 2026-06-06 (#51 Univer fork perf umbrella) every @univerjs/*
 # package the sheet web client depends on resolves to the in-tree fork
 # at vendor/univer-revamp/ (a submodule pinned to the casual-sheets/0.24
-# branch of git@github.com:schnsrw/univer-revamp). The override block
+# branch of git@github.com:CasualOffice/univer-revamp). The override block
 # lives in the root package.json under `pnpm.overrides`.
 #
 # `casual-sheets/0.24` carries upstream v0.24.0 + two ported patches as

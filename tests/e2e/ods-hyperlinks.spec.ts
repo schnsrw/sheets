@@ -38,7 +38,7 @@ test.describe('ods hyperlinks round-trip', () => {
     XLSX.utils.book_append_sheet(
       wb,
       {
-        A1: { t: 's', v: 'GitHub', l: { Target: 'https://github.com/schnsrw/sheets' } },
+        A1: { t: 's', v: 'GitHub', l: { Target: 'https://github.com/CasualOffice/sheets' } },
         '!ref': 'A1',
       },
       'Links',
@@ -63,7 +63,7 @@ test.describe('ods hyperlinks round-trip', () => {
     const cr = probe.body.customRanges?.[0];
     expect(cr).toBeTruthy();
     expect(cr.rangeType).toBe(0);
-    expect(cr.properties?.url).toBe('https://github.com/schnsrw/sheets');
+    expect(cr.properties?.url).toBe('https://github.com/CasualOffice/sheets');
   });
 
   test('hyperlink in snapshot exports as ods cell hyperlink', async ({ page }) => {
@@ -96,7 +96,7 @@ test.describe('ods hyperlinks round-trip', () => {
                           endIndex: 5,
                           rangeType: 0,
                           rangeId: 'hl-1',
-                          properties: { url: 'https://github.com/schnsrw/sheets' },
+                          properties: { url: 'https://github.com/CasualOffice/sheets' },
                         },
                       ],
                       paragraphs: [{ startIndex: 6 }],
@@ -117,6 +117,6 @@ test.describe('ods hyperlinks round-trip', () => {
     });
 
     const wb = XLSX.read(Buffer.from(bytes), { type: 'buffer' });
-    expect(wb.Sheets.Links.A1?.l?.Target).toBe('https://github.com/schnsrw/sheets');
+    expect(wb.Sheets.Links.A1?.l?.Target).toBe('https://github.com/CasualOffice/sheets');
   });
 });

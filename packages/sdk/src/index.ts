@@ -1,5 +1,5 @@
 /**
- * @schnsrw/casual-sheets — Casual Sheets SDK
+ * @casualoffice/sheets — Casual Sheets SDK
  *
  * Three surfaces:
  *   - `./signing` — anchored cell signatures (drawn / typed / uploaded).
@@ -8,7 +8,7 @@
  *
  * The `./styles` side-effect entry brings in the eager plugin CSS:
  *
- *   import '@schnsrw/casual-sheets/styles';
+ *   import '@casualoffice/sheets/styles';
  */
 
 export * from './signing';

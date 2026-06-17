@@ -7,7 +7,7 @@ import { defineConfig, type Plugin } from 'tsup';
  *
  * which is canonical Vite syntax but breaks for any consumer that
  * ships the compiled .mjs (the .ts source isn't in node_modules).
- * Same fix as @schnsrw/docx-js-editor@1.0.1: emit the worker as a
+ * Same fix as @casualoffice/docs@1.0.1: emit the worker as a
  * sibling .mjs in dist (via the entry below) and rewrite the runtime
  * URL in the compiled chunk so the consumer's bundler resolves it.
  */

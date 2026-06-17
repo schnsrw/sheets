@@ -82,7 +82,7 @@ Legend: `✅` survived · `⚠️` partial (present but shape differs) · `❌` 
 
 | Probe | Reference | Actual | Status |
 | --- | --- | --- | --- |
-| C2 → github.com/schnsrw/sheets | `"https://github.com/schnsrw/sheets"` | `"https://github.com/schnsrw/sheets"` | ✅ |
+| C2 → github.com/CasualOffice/sheets | `"https://github.com/CasualOffice/sheets"` | `"https://github.com/CasualOffice/sheets"` | ✅ |
 
 ## Comments
 

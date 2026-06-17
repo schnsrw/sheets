@@ -1,14 +1,14 @@
 name: Release (npm)
 
-# Changesets-driven npm release for @schnsrw/casual-sheets.
+# Changesets-driven npm release for @casualoffice/sheets.
 #
 # Push to main:
 #   - If .changeset/*.md is non-empty: open / update a release PR with
 #     version bumps + CHANGELOG entries.
 #   - If empty (i.e. release PR just merged): build + `changeset publish`
-#     under the @schnsrw scope using secrets.NODE_PASS as the npm token.
+#     under the @casualoffice scope using secrets.NODE_PASS as the npm token.
 #
-# secrets.NODE_PASS — npm automation token for the @schnsrw scope.
+# secrets.NODE_PASS — npm automation token for the @casualoffice scope.
 # secrets.NODE_USERNAME — informational only (npm token auth doesn't need it).
 
 on:
@@ -18,11 +18,11 @@ on:
   workflow_dispatch:
   # Also fire when an SDK-style tag is pushed (changesets-action
   # creates these automatically on publish, but a manual
-  # `git tag @schnsrw/casual-sheets@x.y.z && git push --tags`
+  # `git tag @casualoffice/sheets@x.y.z && git push --tags`
   # works too).
   push:
     tags:
-      - '@schnsrw/casual-sheets@*'
+      - '@casualoffice/sheets@*'
 
 concurrency:
   group: release-npm-${{ github.ref }}
@@ -76,7 +76,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build SDK
-        run: pnpm --filter @schnsrw/casual-sheets build
+        run: pnpm --filter @casualoffice/sheets build
 
       # Write ~/.npmrc explicitly so `changeset publish` (and the
       # `pnpm dlx` subshell under it) sees the auth token regardless

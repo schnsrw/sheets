@@ -28,7 +28,7 @@ test('Help → Report a bug opens GitHub issue form with env prefilled', async (
     return returnTo ? decodeURIComponent(returnTo) : raw;
   })();
 
-  expect(inspected).toContain('github.com/schnsrw/sheets/issues/new');
+  expect(inspected).toContain('github.com/CasualOffice/sheets/issues/new');
   expect(inspected).toContain('template=bug.yml');
   expect(inspected).toContain('env=');
   expect(inspected).toContain('url=');

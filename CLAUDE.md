@@ -28,7 +28,7 @@ A web-based **Excel-equivalent** with real-time collaborative editing, built on 
 
 ### `vendor/univer/` is our fork — modifiable, not yet wired into the build
 
-- It is a full clone of [`schnsrw/univer-revamp`](https://github.com/schnsrw/univer-revamp), our long-term fork of `dream-num/univer` (currently at v0.24.0).
+- It is a full clone of [`CasualOffice/univer-revamp`](https://github.com/CasualOffice/univer-revamp), our long-term fork of `dream-num/univer` (currently at v0.24.0).
 - **You may modify files under `vendor/univer/`** — commits land in the fork.
 - **Still not included in our build or workspace.** The app consumes `@univerjs/*` from npm (pinned, see `apps/web/package.json`). Until/unless we wire the fork via pnpm overrides or a republished scope, modifications here are upstream work, not local runtime changes.
 - Read it freely. Cite file paths and line numbers when explaining Univer internals; `vendor/univer/packages/.../file.ts:LINE` format still applies.
@@ -93,7 +93,7 @@ Subsequent phases (also shipped):
 ## Current status (2026-06-12)
 
 - **Released**: v0.3.1 (Docker image + pnpm packages). Single-user
-  demo live at https://sheet.schnsrw.live/.
+  demo live at https://sheet.casualoffice.org/.
 - **Recent UX wave** (UX_AUDIT.md, all shipped 2026-06-11/12): path
   router with `/home` file picker, mobile-responsive list, keyboard
   shortcuts dialog, SaveStatusPill, ActivityPill, collab name pre-

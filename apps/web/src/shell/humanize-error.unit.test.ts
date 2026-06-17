@@ -2,7 +2,7 @@
  * Pure-function tests for the open-file error humanizer. Every entry
  * below is a real-world error string we've actually seen — ExcelJS
  * messages, JSZip messages, fetch failures, gateway HTTP envelopes,
- * or the @schnsrw/core ods loader.
+ * or the @casualoffice/core ods loader.
  *
  * Run with: `pnpm test:unit`
  */

@@ -35,7 +35,7 @@ body:
     attributes:
       label: URL
       description: The URL of the page where it happened (e.g. the live demo or your local dev server).
-      placeholder: https://schnsrw.github.io/sheets/
+      placeholder: https://CasualOffice.github.io/sheets/
 
   - type: input
     id: env

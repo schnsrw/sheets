@@ -160,7 +160,7 @@ release bundle:
   + back-fills for v0.1.1 and v0.1.0; older v0.0.x via site +
   GitHub release pages.
 - Per-product changelog entries on
-  [schnsrw.live/changelog/](https://schnsrw.live/changelog/) —
+  [casualoffice.org/changelog/](https://casualoffice.org/changelog/) —
   back-filled the missing v0.1.1 entry + added v0.2.0.
 - Tagged `v0.2.0` + pushed; GitHub release created with the
   v0.2.0 CHANGELOG section as the body.

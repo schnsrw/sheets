@@ -1,6 +1,6 @@
 /**
  * EmbedHostTransport — the parent side of the embed iframe bridge for
- * the sheet SDK. Mirror of @schnsrw/docx-js-editor's host transport.
+ * the sheet SDK. Mirror of @casualoffice/docs's host transport.
  *
  * Wire shape: `docs/SDK_SIGNING_EMBED.md` (cross-link in the doc repo at
  * `docs/internal/13-iframe-protocol.md`) + `16-sdk-iframe-architecture.md`.

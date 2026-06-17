@@ -163,5 +163,5 @@ the body parser does.
 - [`docs/ENV.md`](../ENV.md) — every env var, every default.
 - [`docs/self-hosting/`](../self-hosting/) — running this in
   production: TLS, reverse proxy, scaling, backups.
-- [`apps/server/src/admin/`](https://github.com/schnsrw/sheets/tree/main/apps/server/src/admin) —
+- [`apps/server/src/admin/`](https://github.com/CasualOffice/sheets/tree/main/apps/server/src/admin) —
   the source if you want to read what the panel actually does.

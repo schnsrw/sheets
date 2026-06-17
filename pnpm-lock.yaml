@@ -182,7 +182,7 @@ importers:
       '@hocuspocus/provider':
         specifier: ^2.15.2
         version: 2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
-      '@schnsrw/casual-sheets':
+      '@casualoffice/sheets':
         specifier: workspace:*
         version: link:../../packages/sdk
       '@univerjs/core':

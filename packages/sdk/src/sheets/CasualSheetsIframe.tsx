@@ -1,6 +1,6 @@
 /**
  * CasualSheetsIframe — the iframe-mounting variant of `<CasualSheets>`.
- * Sheet sibling of `@schnsrw/docx-js-editor`'s `<CasualEditorIframe>`;
+ * Sheet sibling of `@casualoffice/docs`'s `<CasualEditorIframe>`;
  * see doc 16 in the parent repo.
  *
  * Differs from CasualEditorIframe in one place: the embed URL params

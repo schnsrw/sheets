@@ -126,7 +126,7 @@ const html = /* html */ `
       </svg>
     </span>
     <span class="brand">Casual Sheets</span>
-    <span class="domain">sheet.schnsrw.live</span>
+    <span class="domain">sheet.casualoffice.org</span>
   </div>
 
   <div class="main">
@@ -143,7 +143,7 @@ const html = /* html */ `
   </div>
 
   <div class="foot">
-    <span>by Sachin Sarwa · schnsrw.live</span>
+    <span>by Casual Office · casualoffice.org</span>
     <span class="badges">
       <span class="badge">357 e2e ✓</span>
       <span class="badge">v0.0.6</span>

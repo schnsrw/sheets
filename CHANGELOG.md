@@ -5,7 +5,7 @@ All notable changes per release. Format loosely follows
 [SemVer](https://semver.org/).
 
 Pre-v0.2.0 releases were tagged without a CHANGELOG file. The site
-(`https://schnsrw.live/changelog/`) carries longer-form release notes
+(`https://casualoffice.org/changelog/`) carries longer-form release notes
 for v0.1.0+; the GitHub Releases page links to the same content.
 
 ## [0.3.1] — 2026-06-11
@@ -335,11 +335,11 @@ passthrough (audit 54/54 pristine), full self-hosting +
 customization docs section. Mobile lane back-ported.
 
 Long-form notes:
-[schnsrw.live/changelog/sheets-v0.1.0/](https://schnsrw.live/changelog/sheets-v0.1.0/) ·
-[GitHub release](https://github.com/schnsrw/sheets/releases/tag/v0.1.0)
+[casualoffice.org/changelog/sheets-v0.1.0/](https://casualoffice.org/changelog/sheets-v0.1.0/) ·
+[GitHub release](https://github.com/CasualOffice/sheets/releases/tag/v0.1.0)
 
 ## [0.0.6] — 2026-05-23 and earlier
 
-See [`https://schnsrw.live/changelog/`](https://schnsrw.live/changelog/)
+See [`https://casualoffice.org/changelog/`](https://casualoffice.org/changelog/)
 for per-release notes:
 v0.0.6 / v0.0.5 / v0.0.4 / v0.0.3 / v0.0.2.

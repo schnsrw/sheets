@@ -216,7 +216,7 @@
 
 ### Minor Changes
 
-- Ships the xlsx **import** path as `@schnsrw/casual-sheets/xlsx` (Phase A of [#56](https://github.com/schnsrw/sheets/issues/56)).
+- Ships the xlsx **import** path as `@schnsrw/casual-sheets/xlsx` (Phase A of [#56](https://github.com/CasualOffice/sheets/issues/56)).
 
   ```ts
   import { xlsxToWorkbookData } from '@schnsrw/casual-sheets/xlsx';
@@ -244,7 +244,7 @@
 
   Out of scope this release: charts, drawings, pivots, sparklines,
   advanced borders (dashed/double), themes, and **export** — Phase B of
-  [#56](https://github.com/schnsrw/sheets/issues/56) handles export once
+  [#56](https://github.com/CasualOffice/sheets/issues/56) handles export once
   the outline / charts / pivots / sparklines extension-point design is
   settled.
 
@@ -269,7 +269,7 @@
 
   ### Drive unblock
 
-  [`schnsrw/drive`](https://github.com/schnsrw/drive) can now replace the
+  [`schnsrw/drive`](https://github.com/CasualOffice/drive) can now replace the
   `CasualSheetWorkspace` placeholder with a real loader:
 
   ```tsx

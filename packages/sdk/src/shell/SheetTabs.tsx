@@ -55,7 +55,9 @@ export function SheetTabs({ sheets, active, onSelect, onAdd, style }: SheetTabsP
         <Icon name="add" size="lg" />
       </button>
       <span style={{ width: 1, height: 18, background: 'var(--color-divider)' }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', flex: 1 }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', flex: 1 }}
+      >
         {sheets.map((s, i) => (
           <Tab
             key={`${i}-${s.name}`}

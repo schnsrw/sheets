@@ -29,6 +29,13 @@ export default defineConfig({
     '**/coedit-data-validation.spec.ts',
     '**/coedit-workbook-metadata.spec.ts',
     '**/coedit-drawings.spec.ts', // runs against prod stack via playwright.docker.config.ts
+    // coedit-compaction spawns its own Hocuspocus on :3060 and drives a heavy
+    // 220-mutation → op-log-compaction → joiner-replay flow. Against the cold
+    // Vite dev server under CI contention it times out even at 90s waits (it was
+    // the lone chronic e2e failure on main). Excluded here like its siblings;
+    // re-home it to the prod-stack docker job (playwright.docker.config.ts) where
+    // the fast built bundle makes the timing reliable.
+    '**/coedit-compaction.spec.ts',
     // Personal-mode (Mode 3) specs need a Fastify with
     // CASUAL_PERSONAL_MODE=single; they run via
     // playwright.personal.config.ts which manages its own server.

@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { CasualSheets } from '@casualoffice/sheets/sheets';
+import { CasualSheets, type CasualSheetsAPI } from '@casualoffice/sheets/sheets';
 import '@casualoffice/sheets/styles';
 import { emptyWorkbook } from '../snapshot';
 import { LOCALES } from '../locale';
-import type { FUniver } from '@univerjs/core/facade';
 
 /**
  * Dev-only harness that mounts the SDK's `<CasualSheets>` editor in isolation
@@ -25,7 +24,7 @@ export function SdkHarness() {
       <CasualSheets
         initialData={data}
         locales={LOCALES}
-        onReady={(api: FUniver) => {
+        onReady={(api: CasualSheetsAPI) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).__sdkHarnessAPI = api;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

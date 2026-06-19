@@ -35,8 +35,9 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
     const result = await page.evaluate(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const api = (window as any).__sdkHarnessAPI;
+      // `api.univer` is the FUniver escape hatch on CasualSheetsAPI.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ws: any = api.getActiveWorkbook().getActiveSheet();
+      const ws: any = api.univer.getActiveWorkbook().getActiveSheet();
       ws.getRange(0, 0).setValue({ f: '=1+2' });
       // Main-thread compute is near-synchronous, but poll to be safe.
       for (let i = 0; i < 100; i++) {
@@ -47,5 +48,42 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
       return ws.getRange(0, 0).getValue();
     });
     expect(Number(result)).toBe(3);
+  });
+
+  test('CasualSheetsAPI: snapshot round-trips through loadSnapshot', async ({ page }) => {
+    const out = await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const api = (window as any).__sdkHarnessAPI;
+      // Write a value via the facade, snapshot, reload into a fresh unit,
+      // and confirm the value survived the dispose/recreate round-trip.
+      api.univer.getActiveWorkbook().getActiveSheet().getRange(0, 0).setValue('hello');
+      const snap = api.getSnapshot();
+      api.loadSnapshot(snap);
+      for (let i = 0; i < 50; i++) {
+        const v = api.univer.getActiveWorkbook().getActiveSheet().getRange(0, 0).getValue();
+        if (v === 'hello') return { ok: true, v };
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return {
+        ok: false,
+        v: api.univer.getActiveWorkbook().getActiveSheet().getRange(0, 0).getValue(),
+      };
+    });
+    expect(out.ok).toBe(true);
+  });
+
+  test('CasualSheetsAPI: getSelection returns the active range', async ({ page }) => {
+    const sel = await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const api = (window as any).__sdkHarnessAPI;
+      api.univer.getActiveWorkbook().getActiveSheet().getRange(2, 3).activate();
+      // Selection commands settle on the next frame.
+      await new Promise((r) => setTimeout(r, 200));
+      return api.getSelection();
+    });
+    expect(sel).not.toBeNull();
+    expect(sel.range.startRow).toBe(2);
+    expect(sel.range.startColumn).toBe(3);
+    expect(typeof sel.sheetId).toBe('string');
   });
 });

@@ -3,8 +3,9 @@
  *
  * Boots Univer with the eager plugin set (render + formula engine +
  * UI + docs + sheets + sheets-ui + sheets-formula + numfmt), mounts a
- * single workbook unit from `initialData`, and surfaces the
- * `FUniver` API to the host via `onReady`.
+ * single workbook unit from `initialData`, and hands the host the
+ * `CasualSheetsAPI` imperative ref via `onReady` (raw FUniver facade
+ * available at `api.univer`).
  *
  * Intentionally NOT included (host can layer on top via FUniver):
  *   - Lazy plugin loading (conditional formatting, drawings, sort,
@@ -48,15 +49,18 @@ import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt';
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
+import { createCasualSheetsAPI, type CasualSheetsAPI } from './api';
+
 export interface CasualSheetsProps {
   /** Workbook snapshot to mount. Read once on initial mount; change
    *  the React `key` on this component to remount with a new
    *  workbook. */
   initialData: IWorkbookData;
-  /** Called after the workbook unit is created. The FUniver API is
-   *  how the host drives the sheet (read cells, mutate, listen for
-   *  events, register additional plugins). */
-  onReady?: (api: FUniver, univer: Univer) => void;
+  /** Called after the workbook unit is created. Hands back the
+   *  `CasualSheetsAPI` imperative ref — the SDK's stable integration
+   *  surface (snapshot I/O, xlsx import, selection, command dispatch).
+   *  The raw FUniver facade is on `api.univer` as the escape hatch. */
+  onReady?: (api: CasualSheetsAPI) => void;
   /** Locale identifier. Defaults to `LocaleType.EN_US`. */
   locale?: LocaleType;
   /** Locale string bundle. Optional — Univer's default English
@@ -143,8 +147,8 @@ export function CasualSheets({
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, initialData);
 
-    const api = FUniver.newAPI(univer);
-    onReady?.(api, univer);
+    const api = createCasualSheetsAPI(FUniver.newAPI(univer));
+    onReady?.(api);
 
     return () => {
       // Defer disposal off the React render phase — Univer owns its

@@ -231,6 +231,8 @@ function EmbeddedSheets({
         // dispatches. The command set is intentionally narrow — v0.6
         // ships the always-relevant operations, font / color / fill
         // land in v0.7 once we lock the cell-mutate payload shape.
+        // `api` is now the CasualSheetsAPI imperative ref: executeCommand is a
+        // first-class method, and the raw FUniver facade is on `api.univer`.
         // Cast through `unknown` — the FUniver type is augmented via
         // @univerjs/sheets/facade module augmentation (the side-effect
         // import above), but tsc doesn't always pick up the merged
@@ -238,7 +240,7 @@ function EmbeddedSheets({
         // a different module. The runtime behaviour is fine.
         const apiAny = api as unknown as {
           executeCommand(id: string, params?: object): Promise<unknown>;
-          getActiveWorkbook(): { getActiveSheet(): SheetLike | null } | null;
+          univer: { getActiveWorkbook(): { getActiveSheet(): SheetLike | null } | null };
         };
         transport.on({
           onCommandExecute: ({ command, args }) => {
@@ -262,7 +264,7 @@ function EmbeddedSheets({
         // own re-renders, so the wire stays cheap.
         const emit = () => {
           try {
-            const wb = apiAny.getActiveWorkbook();
+            const wb = apiAny.univer.getActiveWorkbook();
             const sheet = wb?.getActiveSheet();
             const range = sheet?.getActiveRange?.();
             if (!range) return;

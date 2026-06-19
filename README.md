@@ -62,11 +62,11 @@ Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) — the 
 
 ### File I/O
 
-| Format | Open | Save / Export |
-| --- | :---: | :---: |
-| `.xlsx` | ✅ | ✅ |
-| `.ods` | ✅ | ✅ |
-| `.csv` / `.tsv` | ✅ | ✅ |
+| Format          | Open | Save / Export |
+| --------------- | :--: | :-----------: |
+| `.xlsx`         |  ✅  |      ✅       |
+| `.ods`          |  ✅  |      ✅       |
+| `.csv` / `.tsv` |  ✅  |      ✅       |
 
 - Parsed and serialised entirely in **Web Workers** — the main thread never blocks on multi-MB files
 - ODS round-trip: styles, dimensions, freeze, hyperlinks, comments, defined names
@@ -161,52 +161,69 @@ For an admin without manual signup, set `CASUAL_BOOTSTRAP_USER=admin:hunter2` on
 
 ### API surface
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/` | Serves the built web app |
-| `GET` | `/r/:roomId` | Same SPA; bridges into the named Y.Doc |
-| `POST` | `/api/rooms` | Create a room; body `{password?}` |
-| `GET` | `/api/rooms/:id/info` | Pre-flight: `{needsPassword, hasSeed, hasSnapshot, clients}` |
-| `POST` | `/api/rooms/:id/seed` | Multipart `.xlsx` upload — the room's starting workbook |
-| `GET` | `/api/rooms/:id/seed` | Download the seed file |
-| `POST` | `/api/rooms/:id/snapshot` | Gzipped JSON snapshot — joiner fast-path upload |
-| `GET` | `/api/rooms/:id/snapshot` | Joiner snapshot fetch (immutable-cached) |
-| `GET` | `/api/rooms` | Diagnostic: live rooms + client counts |
-| `GET` | `/health` | Liveness probe — `{ok, ts, rooms}` |
-| `WS` | `/yjs` | Hocuspocus sync; `?room=<id>&p=<password>` |
+| Method | Path                      | Description                                                  |
+| ------ | ------------------------- | ------------------------------------------------------------ |
+| `GET`  | `/`                       | Serves the built web app                                     |
+| `GET`  | `/r/:roomId`              | Same SPA; bridges into the named Y.Doc                       |
+| `POST` | `/api/rooms`              | Create a room; body `{password?}`                            |
+| `GET`  | `/api/rooms/:id/info`     | Pre-flight: `{needsPassword, hasSeed, hasSnapshot, clients}` |
+| `POST` | `/api/rooms/:id/seed`     | Multipart `.xlsx` upload — the room's starting workbook      |
+| `GET`  | `/api/rooms/:id/seed`     | Download the seed file                                       |
+| `POST` | `/api/rooms/:id/snapshot` | Gzipped JSON snapshot — joiner fast-path upload              |
+| `GET`  | `/api/rooms/:id/snapshot` | Joiner snapshot fetch (immutable-cached)                     |
+| `GET`  | `/api/rooms`              | Diagnostic: live rooms + client counts                       |
+| `GET`  | `/health`                 | Liveness probe — `{ok, ts, rooms}`                           |
+| `WS`   | `/yjs`                    | Hocuspocus sync; `?room=<id>&p=<password>`                   |
 
 ### Configuration
 
 Copy `.env.example` to `.env`; `docker compose up` picks it up automatically.
 
-| Env var | Scope | Default | Description |
-| --- | --- | --- | --- |
-| `PORT` | server | `3000` | HTTP + WebSocket listen port |
-| `HOST` | server | `0.0.0.0` | Bind address |
-| `REDIS_URL` | server | _unset_ | Redis connection string; enables Y.Doc persistence with a 7-day TTL |
-| `ROOM_TTL_MIN` | server | `15` | Minutes a room stays alive after the last client leaves |
-| `MAX_UPLOAD_MB` | server | `100` | Upload cap for xlsx seed + gzipped snapshot |
-| `VITE_COLLAB_ENABLED` | build | `1` in image | Include co-edit code in the bundle |
-| `VITE_MAX_OPEN_MB` | build | `100` | Hard reject threshold for File → Open / drag-drop |
-| `VITE_SOFT_WARN_MB` | build | `25` | Shows a "large file" hint before opening |
+| Env var               | Scope  | Default      | Description                                                         |
+| --------------------- | ------ | ------------ | ------------------------------------------------------------------- |
+| `PORT`                | server | `3000`       | HTTP + WebSocket listen port                                        |
+| `HOST`                | server | `0.0.0.0`    | Bind address                                                        |
+| `REDIS_URL`           | server | _unset_      | Redis connection string; enables Y.Doc persistence with a 7-day TTL |
+| `ROOM_TTL_MIN`        | server | `15`         | Minutes a room stays alive after the last client leaves             |
+| `MAX_UPLOAD_MB`       | server | `100`        | Upload cap for xlsx seed + gzipped snapshot                         |
+| `VITE_COLLAB_ENABLED` | build  | `1` in image | Include co-edit code in the bundle                                  |
+| `VITE_MAX_OPEN_MB`    | build  | `100`        | Hard reject threshold for File → Open / drag-drop                   |
+| `VITE_SOFT_WARN_MB`   | build  | `25`         | Shows a "large file" hint before opening                            |
 
 `VITE_*` vars are baked in at build time. Pass them with `--build-arg` on `docker build`, or via the `args:` block in `docker-compose.yml`.
 
 The full env-var matrix (storage backends, networking, admin, JWT, webhooks, more) is documented in [`docs/ENV.md`](./docs/ENV.md) — that's the canonical reference the admin panel reads from too.
 
+### 🧩 Embed the editor (SDK)
+
+The editor ships as an npm package — `@casualoffice/sheets` — that you mount as a
+single React component. You own storage (the `onChange` snapshot stream), and
+collaboration is opt-in; no backend is required to embed.
+
+```tsx
+import { CasualSheets } from '@casualoffice/sheets/sheets';
+import '@casualoffice/sheets/styles';
+
+<CasualSheets initialData={snapshot} onChange={(snap) => persist(snap)} />;
+```
+
+Full guide — install, props, `CasualSheetsAPI`, xlsx import, opt-in collab:
+[`docs/INTEGRATION.md`](./docs/INTEGRATION.md). Sandboxed `<iframe>` / signed
+embeds: [`docs/SDK_SIGNING_EMBED.md`](./docs/SDK_SIGNING_EMBED.md).
+
 ### 📚 Self-hosting + customization docs
 
-| Topic | Lives on the site at | Source in this repo |
-|---|---|---|
-| **Self-hosting overview** | [casualoffice.org/docs/sheets/self-hosting/](https://casualoffice.org/docs/sheets/self-hosting/) | [`docs/self-hosting/overview.md`](./docs/self-hosting/overview.md) |
-| Reverse-proxy recipes (nginx · Caddy · Traefik) | [/docs/sheets/self-hosting-reverse-proxy/](https://casualoffice.org/docs/sheets/self-hosting-reverse-proxy/) | [`docs/self-hosting/reverse-proxy.md`](./docs/self-hosting/reverse-proxy.md) |
-| TLS + custom domain | [/docs/sheets/self-hosting-tls/](https://casualoffice.org/docs/sheets/self-hosting-tls/) | [`docs/self-hosting/tls.md`](./docs/self-hosting/tls.md) |
-| CORS | [/docs/sheets/self-hosting-cors/](https://casualoffice.org/docs/sheets/self-hosting-cors/) | [`docs/self-hosting/cors.md`](./docs/self-hosting/cors.md) |
-| Scaling | [/docs/sheets/self-hosting-scaling/](https://casualoffice.org/docs/sheets/self-hosting-scaling/) | [`docs/self-hosting/scaling.md`](./docs/self-hosting/scaling.md) |
-| Backups | [/docs/sheets/self-hosting-backups/](https://casualoffice.org/docs/sheets/self-hosting-backups/) | [`docs/self-hosting/backups.md`](./docs/self-hosting/backups.md) |
-| **Customization overview** | [/docs/sheets/customization/](https://casualoffice.org/docs/sheets/customization/) | [`docs/customization/overview.md`](./docs/customization/overview.md) |
-| Auth — JWT, roles, permissions, features | [/docs/sheets/customization-auth/](https://casualoffice.org/docs/sheets/customization-auth/) | [`docs/customization/auth.md`](./docs/customization/auth.md) |
-| Webhooks — events, payload, signature verification | [/docs/sheets/customization-webhooks/](https://casualoffice.org/docs/sheets/customization-webhooks/) | [`docs/customization/webhooks.md`](./docs/customization/webhooks.md) |
+| Topic                                              | Lives on the site at                                                                                         | Source in this repo                                                          |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **Self-hosting overview**                          | [casualoffice.org/docs/sheets/self-hosting/](https://casualoffice.org/docs/sheets/self-hosting/)             | [`docs/self-hosting/overview.md`](./docs/self-hosting/overview.md)           |
+| Reverse-proxy recipes (nginx · Caddy · Traefik)    | [/docs/sheets/self-hosting-reverse-proxy/](https://casualoffice.org/docs/sheets/self-hosting-reverse-proxy/) | [`docs/self-hosting/reverse-proxy.md`](./docs/self-hosting/reverse-proxy.md) |
+| TLS + custom domain                                | [/docs/sheets/self-hosting-tls/](https://casualoffice.org/docs/sheets/self-hosting-tls/)                     | [`docs/self-hosting/tls.md`](./docs/self-hosting/tls.md)                     |
+| CORS                                               | [/docs/sheets/self-hosting-cors/](https://casualoffice.org/docs/sheets/self-hosting-cors/)                   | [`docs/self-hosting/cors.md`](./docs/self-hosting/cors.md)                   |
+| Scaling                                            | [/docs/sheets/self-hosting-scaling/](https://casualoffice.org/docs/sheets/self-hosting-scaling/)             | [`docs/self-hosting/scaling.md`](./docs/self-hosting/scaling.md)             |
+| Backups                                            | [/docs/sheets/self-hosting-backups/](https://casualoffice.org/docs/sheets/self-hosting-backups/)             | [`docs/self-hosting/backups.md`](./docs/self-hosting/backups.md)             |
+| **Customization overview**                         | [/docs/sheets/customization/](https://casualoffice.org/docs/sheets/customization/)                           | [`docs/customization/overview.md`](./docs/customization/overview.md)         |
+| Auth — JWT, roles, permissions, features           | [/docs/sheets/customization-auth/](https://casualoffice.org/docs/sheets/customization-auth/)                 | [`docs/customization/auth.md`](./docs/customization/auth.md)                 |
+| Webhooks — events, payload, signature verification | [/docs/sheets/customization-webhooks/](https://casualoffice.org/docs/sheets/customization-webhooks/)         | [`docs/customization/webhooks.md`](./docs/customization/webhooks.md)         |
 
 The admin panel at **`/admin`** is the runtime UI for everything above — branding, storage backend selection, networking, room limits, auth providers (JWT live; OIDC + SAML stubbed for v0.2), webhook subscriptions, base path. Enable it by setting `CASUAL_ADMIN_USERNAME` + `CASUAL_ADMIN_PASSWORD` + `CASUAL_JWT_SECRET` on the container.
 
@@ -272,19 +289,19 @@ git clone git@github.com:CasualOffice/univer-revamp.git vendor/univer
 
 ## 🧱 Stack
 
-| Concern | Choice |
-| --- | --- |
+| Concern               | Choice                                                           |
+| --------------------- | ---------------------------------------------------------------- |
 | Grid + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.24.x) |
-| Frontend | React 18 + Vite + TypeScript (strict mode) |
-| Styling | Tailwind CSS + Material Symbols Outlined + Inter (Google Fonts) |
-| Lint / format | ESLint 9 flat config + Prettier |
-| xlsx I/O | ExcelJS in dedicated Web Workers |
-| ods / csv / tsv I/O | SheetJS Community (`@e965/xlsx`) |
-| E2E tests | Playwright (Chromium) |
-| Collab transport | Yjs (CRDT) + Hocuspocus over WebSocket |
-| Collab server | Fastify + raw `ws` (direct WS upgrade routing) |
-| Persistence | Redis — optional, 7-day TTL on Y.Doc binary updates |
-| Formula offload | `UniverRPCMainThreadPlugin` ↔ `UniverRPCWorkerThreadPlugin` |
+| Frontend              | React 18 + Vite + TypeScript (strict mode)                       |
+| Styling               | Tailwind CSS + Material Symbols Outlined + Inter (Google Fonts)  |
+| Lint / format         | ESLint 9 flat config + Prettier                                  |
+| xlsx I/O              | ExcelJS in dedicated Web Workers                                 |
+| ods / csv / tsv I/O   | SheetJS Community (`@e965/xlsx`)                                 |
+| E2E tests             | Playwright (Chromium)                                            |
+| Collab transport      | Yjs (CRDT) + Hocuspocus over WebSocket                           |
+| Collab server         | Fastify + raw `ws` (direct WS upgrade routing)                   |
+| Persistence           | Redis — optional, 7-day TTL on Y.Doc binary updates              |
+| Formula offload       | `UniverRPCMainThreadPlugin` ↔ `UniverRPCWorkerThreadPlugin`      |
 
 ---
 

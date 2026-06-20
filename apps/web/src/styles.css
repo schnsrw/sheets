@@ -151,11 +151,14 @@ button {
      `mobilebar` row collapses to 0 on desktop (`--mobile-bar-h: 0px`),
      so the strip is invisible there but the grid stays well-formed
      for the auto-placed React node. */
+  /* Toolbar + formula-bar tracks include their floating-card margins
+     (--space-2 top+bottom = --space-4 total) so the card content keeps its
+     full --toolbar-h / --formula-bar-h height. */
   grid-template-rows:
     var(--titlebar-h)
-    var(--toolbar-h)
+    calc(var(--toolbar-h) + var(--space-4))
     auto /* banner — autosave restore / preview; collapses to 0 when no banner is rendered */
-    var(--formula-bar-h)
+    calc(var(--formula-bar-h) + var(--space-4))
     minmax(0, 1fr)
     var(--mobile-bar-h, 0px)
     var(--sheet-tabs-h);
@@ -170,7 +173,10 @@ button {
   height: 100dvh;
   width: 100vw;
   overflow: hidden;
-  background: var(--color-bg);
+  /* The whole editor body is a "desk" — toolbar, formula bar, canvas, and
+     panels float on it as rounded cards. Titlebar + sheet tabs stay flush. */
+  background: var(--editor-desk);
+  --editor-desk: color-mix(in srgb, var(--color-surface-strip), var(--color-text) 7%);
   /* App-scoped: taller formula bar than the DS default (26px) — at 26 the
      bar reads cramped and a floating treatment would backfire. Scoped to
      .app so the shared DS token (and the SDK) are untouched. */
@@ -180,7 +186,7 @@ button {
 .app--no-formula-bar {
   grid-template-rows:
     var(--titlebar-h)
-    var(--toolbar-h)
+    calc(var(--toolbar-h) + var(--space-4))
     auto /* banner row — same as above */
     minmax(0, 1fr)
     var(--mobile-bar-h, 0px)
@@ -270,9 +276,11 @@ button {
   height: var(--toolbar-h);
   background: var(--color-surface-alt);
   padding: 0;
-  box-shadow:
-    inset 0 1px 0 rgba(0, 0, 0, 0.04),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  /* Floating card on the desk — matches the canvas + panels (Phase 4). */
+  margin: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
   z-index: 2;
   /* As a CSS Grid row of `.app`, default `min-width: auto` keeps this
      element at the min-content size of its descendants — which on a
@@ -1183,6 +1191,12 @@ button {
   align-items: stretch;
   height: var(--formula-bar-h);
   background: var(--color-surface);
+  /* Floating card on the desk, consistent with the toolbar + canvas. */
+  margin: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
   z-index: 2;
 }
 
@@ -1386,8 +1400,13 @@ button {
      The desk is mixed a touch darker than the chrome strip so the white
      cards clearly lift off it (a near-white desk read as seams, not float). */
   gap: var(--space-4);
-  padding: var(--space-4);
-  background: color-mix(in srgb, var(--color-surface-strip), var(--color-text) 7%);
+  /* Top gap is smaller — the formula-bar card above already adds its own
+     bottom margin, so the canvas card sits an even --space-4 below it. */
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  background: var(
+    --editor-desk,
+    color-mix(in srgb, var(--color-surface-strip), var(--color-text) 7%)
+  );
 }
 
 /* ── Right-edge panel rail ──────────────────────────────────────────

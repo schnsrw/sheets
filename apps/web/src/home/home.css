@@ -383,7 +383,7 @@
   justify-content: center;
   background: color-mix(in srgb, var(--tpl-accent) 14%, transparent);
   color: var(--tpl-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 .tpl-card__icon .icon {
@@ -410,7 +410,7 @@
 
 .tpl-thumb {
   position: relative;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-bg);
   border: 1px solid color-mix(in srgb, var(--tpl-accent) 14%, var(--color-divider));

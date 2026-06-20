@@ -1276,7 +1276,7 @@ button {
   color: var(--color-text-secondary);
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1469,8 +1469,8 @@ button {
   color: var(--color-accent);
 }
 .panel-rail__btn:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--glow-accent);
 }
 
 /* Grid host — zone 0 (white). The grey sheet-tabs strip below provides
@@ -1707,7 +1707,7 @@ button {
   font-size: var(--text-xs);
   border: 1px solid var(--color-border-strong);
   background: var(--color-surface);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--color-text);
 }
@@ -1738,7 +1738,7 @@ button {
   padding: 2px;
   display: inline-flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .tables-panel__close:hover {
@@ -1851,7 +1851,7 @@ button {
   width: 22px;
   height: 22px;
   border: 1px solid var(--color-divider);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   padding: 0;
 }
@@ -1868,7 +1868,7 @@ button {
   color: var(--color-text-secondary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   align-self: start;
 }
 
@@ -1971,7 +1971,7 @@ button {
   padding: 6px 10px;
   background: transparent;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -1999,7 +1999,7 @@ button {
   font: inherit;
   padding: 6px 8px;
   border: 1px solid var(--color-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
 }
 
@@ -2035,7 +2035,7 @@ button {
   padding: 2px;
   display: inline-flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .charts-panel__close:hover {
   background: var(--color-surface-strip);
@@ -2150,7 +2150,7 @@ button {
   color: var(--color-text-secondary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   align-self: start;
 }
 .charts-panel__delete:hover {
@@ -2699,7 +2699,7 @@ button {
   position: relative;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 60%, transparent);
   cursor: pointer;
   padding: 0;
@@ -2755,7 +2755,7 @@ button {
   justify-content: center;
   width: 56px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 60%, transparent);
   background: var(--color-surface);
   cursor: pointer;
@@ -3281,7 +3281,7 @@ button {
   padding: 7px 10px;
   border: 0;
   background: transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -4578,7 +4578,7 @@ button {
   border-left: 3px solid var(--color-border);
   padding: 4px 8px;
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .collab-indicator__popover-item[data-classification='transient'] {
   border-left-color: #e7a851;
@@ -4670,7 +4670,7 @@ button {
   font-size: 12px;
   padding: 1px 5px;
   background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .collab-banner__body a {
   color: #fff;
@@ -4791,7 +4791,7 @@ button {
   font-weight: 600;
   color: var(--color-accent);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .toast__action:hover {
   background: var(--color-surface-strip);
@@ -4804,7 +4804,7 @@ button {
   height: 24px;
   color: var(--color-text-secondary);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 18px;
   line-height: 1;
   display: inline-flex;
@@ -5152,7 +5152,7 @@ button {
   padding: 2px;
   display: inline-flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .outline-panel__close:hover {
@@ -5209,7 +5209,7 @@ button {
   padding: 2px 4px;
   display: inline-flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -5244,7 +5244,7 @@ button {
   font-size: 12px;
   font-weight: var(--weight-medium, 500);
   line-height: 1.3;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
@@ -5362,7 +5362,7 @@ button {
 .autosave-banner__btn {
   font: inherit;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid #fdba74;
   background: transparent;
   color: #7c2d12;
@@ -5403,7 +5403,7 @@ button {
 .preview-banner__btn {
   font: inherit;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid #93c5fd;
   background: transparent;
   color: #1e3a8a;
@@ -6039,4 +6039,21 @@ button {
 .dialog input[type='checkbox'],
 .dialog input[type='radio'] {
   accent-color: var(--color-accent);
+}
+
+/* Auth form fields → design-system Input look (Phase 4). Scoped to the auth
+   card (app-only; never reaches the SDK or the Univer canvas). */
+.auth-card__field input,
+.auth-card__field select {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.auth-card__field input:focus,
+.auth-card__field select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--glow-accent);
 }

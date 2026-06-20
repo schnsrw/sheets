@@ -1491,6 +1491,9 @@ button {
    grid, same tint as Univer's built-in sidebars so the surfaces feel
    consistent. */
 .tables-panel {
+  /* Design-system panel motion (Phase 4, §04/§05): docked panels slide in
+     from the right edge over --motion-slow; exit is instant (no reverse). */
+  animation: cs-slide-in-right var(--motion-slow) var(--ease-out) both;
   width: 320px;
   flex: 0 0 320px;
   background: var(--color-surface-alt);
@@ -1504,6 +1507,7 @@ button {
 /* Live session-history side panel — same chrome as the other right-rail
    panels so the visual rhythm is consistent. */
 .side-panel {
+  animation: cs-slide-in-right var(--motion-slow) var(--ease-out) both;
   width: 320px;
   flex: 0 0 320px;
   background: var(--color-surface-alt);
@@ -1889,6 +1893,7 @@ button {
    Same chrome as the Tables panel for visual coherence; only the row
    layout differs (chart name + icon + meta + delete, no theme swatches). */
 .charts-panel {
+  animation: cs-slide-in-right var(--motion-slow) var(--ease-out) both;
   width: 320px;
   flex: 0 0 320px;
   background: var(--color-surface-alt);
@@ -2845,12 +2850,14 @@ button {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.36);
+  /* Design-system scrim (Phase 4, §02/§05): tokenised colour (auto-deepens in
+     dark) + fast scrim-in, so the dialog rise reads against a settled backdrop. */
+  background: var(--color-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  animation: backdrop-in 140ms var(--ease-out);
+  animation: cs-scrim-in var(--motion-fast) var(--ease-out) both;
 }
 
 @keyframes backdrop-in {
@@ -4959,6 +4966,7 @@ button {
    matched set when both are open.
    ───────────────────────────────────────────────────────────────────────── */
 .outline-panel {
+  animation: cs-slide-in-right var(--motion-slow) var(--ease-out) both;
   width: 280px;
   flex: 0 0 280px;
   background: var(--color-surface-alt);
@@ -5811,8 +5819,13 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .menu,
   .dialog,
+  .dialog-backdrop,
   .formula-suggestions,
-  .statbar-customise {
+  .statbar-customise,
+  .tables-panel,
+  .side-panel,
+  .charts-panel,
+  .outline-panel {
     animation: none;
   }
 }

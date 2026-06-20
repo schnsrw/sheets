@@ -1121,3 +1121,92 @@
     padding-right: var(--space-6);
   }
 }
+
+/* ── Home sidebar production polish (Phase 4) ──────────────────────────── */
+/* Override the leftover hero .home__brand (uppercase eyebrow) — the sidebar
+   wordmark is a normal-case display lockup beside the mark. */
+.home__sidebar .home__brand {
+  text-transform: none;
+  letter-spacing: var(--tracking-tight, -0.01em);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold, 700);
+  color: var(--color-text);
+  margin-bottom: 0;
+}
+
+.home__sidebar {
+  background: var(--color-surface);
+}
+
+/* Account chip pinned at the foot, above a hairline. */
+.home__sidebar-foot {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+.home__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.home__account:hover {
+  background: var(--color-hover);
+}
+.home__account--on {
+  background: var(--color-selected);
+}
+.home__account-avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.home__account-avatar .icon {
+  font-size: 19px;
+}
+.home__account-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.home__account-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+.home__account-sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home__account > .icon {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: 18px;
+}
+.home--collapsed .home__account {
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+.home--collapsed .home__account-text,
+.home--collapsed .home__account > .icon {
+  display: none;
+}

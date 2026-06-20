@@ -253,7 +253,23 @@ export function HomeScreen({
         </nav>
 
         <div className="home__sidebar-foot">
-          {navButton({ id: 'account', label: 'Account', icon: 'account_circle' })}
+          <button
+            type="button"
+            className={`home__account${view === 'account' ? ' home__account--on' : ''}`}
+            onClick={() => setView('account')}
+            title="Account"
+            aria-current={view === 'account' ? 'page' : undefined}
+            data-testid="home-nav-account"
+          >
+            <span className="home__account-avatar" aria-hidden>
+              <Icon name="person" />
+            </span>
+            <span className="home__account-text">
+              <span className="home__account-name">Account</span>
+              <span className="home__account-sub">Preferences &amp; sign-in</span>
+            </span>
+            <Icon name="chevron_right" />
+          </button>
         </div>
       </aside>
 

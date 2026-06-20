@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@schnsrw/design-system': link:../design-system
+  '@schnsrw/design-system': link:vendor/design-system
   '@univerjs/action-recorder': link:vendor/univer-revamp/packages/action-recorder
   '@univerjs/core': link:vendor/univer-revamp/packages/core
   '@univerjs/data-validation': link:vendor/univer-revamp/packages/data-validation
@@ -189,8 +189,8 @@ importers:
         specifier: ^2.15.2
         version: 2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@schnsrw/design-system':
-        specifier: link:../../../design-system
-        version: link:../../../design-system
+        specifier: link:../../vendor/design-system
+        version: link:../../vendor/design-system
       '@univerjs/core':
         specifier: link:../../vendor/univer-revamp/packages/core
         version: link:../../vendor/univer-revamp/packages/core

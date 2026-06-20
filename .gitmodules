@@ -1,3 +1,6 @@
 [submodule "vendor/univer-revamp"]
 	path = vendor/univer-revamp
 	url = git@github.com:CasualOffice/univer-revamp.git
+[submodule "vendor/design-system"]
+	path = vendor/design-system
+	url = git@github.com:CasualOffice/design-book.git

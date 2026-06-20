@@ -646,14 +646,14 @@
   background: var(--color-hover);
 }
 .home__pin--reconnect {
-  border-color: #fdba74;
-  background: #fff7ed;
-  color: #7c2d12;
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 [data-theme='dark'] .home__pin--reconnect {
-  border-color: #b45309;
-  background: rgba(180, 83, 9, 0.16);
-  color: #fed7aa;
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 .home__pin--granted {
   border-color: var(--color-accent);

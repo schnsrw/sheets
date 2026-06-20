@@ -114,22 +114,17 @@ The CI builds and publishes the **full rolling-tag set** on every release. Pick 
 | ----------- | ------------------ | ----------------------------------------- |
 | `latest`    | The newest release | Local dev / "I want the bleeding edge"    |
 | `0`         | Latest 0.x.y       | Reserved — bumps once v1.0.0 ships        |
-| `0.1`       | Latest 0.1.x       | Patch updates only — recommended for prod |
-| `0.1.0`     | Pinned exact       | Tightest production pin                   |
+| `0.3`       | Latest 0.3.x       | Patch updates only — recommended for prod |
+| `0.3.3`     | Pinned exact       | Tightest production pin                   |
 
 Multi-arch manifest: `linux/amd64` + `linux/arm64`. SBOM + provenance attestations ride along in the OCI manifest for `trivy` / `snyk` / GitHub dep-graph consumers.
 
-### Recent release versions
+### Release notes
 
-| Tag     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0.1.1` | Patch — fix **formula cells render blank on template load** (force initial recalc on workbook mount + swap), fix **autosave-restore banner clipped by `.app` grid overflow** (explicit grid-area), Excel-style typed-input parser ($1,234 · 15% · €99 · 15% · (500) → numbers) in the formula bar                                                                                                                                                                        |
-| `0.1.0` | **WOPI host integration** (memory · local · S3 · Postgres backends) — **JWT auth** with role + permission + feature claims — **admin panel** at `/admin` (branding · base path · storage · networking · room limits · auth providers · webhooks) — **webhook dispatcher** with HMAC-SHA256 signing — **complex pivot cache passthrough** (audit 54/54 pristine) — **OCI image labels** + rolling-tag scheme — full self-hosting + customization docs on casualoffice.org |
-| `0.0.6` | Excel-parity wave — Pivots P1 + drill-down, Sparklines, Goal Seek, Name Manager, Flash Fill, Show Formulas, dark theme, Google-Docs title bar, inline SVG icons, server-side view-only enforcement, recent files, 357 e2e tests                                                                                                                                                                                                                                          |
-| `0.0.5` | Co-edit fidelity pass — charts, pivots, CF/DV/drawings sync, autosave, 337 e2e tests                                                                                                                                                                                                                                                                                                                                                                                     |
-| `0.0.4` | Co-edit polish + large-file pipeline                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `0.0.3` | CI stability fix                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `0.0.2` | Co-editing + initial Docker image                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+Per-release changelog (newest first) lives in the repo:
+[**CHANGELOG.md**](https://github.com/CasualOffice/sheets/blob/main/CHANGELOG.md) ·
+[GitHub Releases](https://github.com/CasualOffice/sheets/releases). Latest line is
+**0.3.x** (single-image web + Hocuspocus + Fastify, WOPI / personal / collab modes).
 
 ---
 

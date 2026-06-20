@@ -381,7 +381,12 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
     await input.fill('=SU');
     await expect(page.getByTestId('cs-formula-suggestions')).toBeVisible();
     await expect(page.getByTestId('cs-formula-suggestion-SUM')).toBeVisible();
-    await page.getByTestId('cs-formula-suggestion-SUM').click();
+    // Complete via keyboard (ArrowDown to SUM, then Enter). Keyboard-driven so
+    // it's deterministic under suite load — clicking the item is flaky while the
+    // chrome re-renders from background idle-plugin-load command bursts.
+    // Suggestions for "=SU" are [SUBSTITUTE, SUM, …]; ArrowDown once → SUM.
+    await input.press('ArrowDown');
+    await input.press('Enter');
     await expect(input).toHaveValue('=SUM(');
   });
 

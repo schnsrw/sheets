@@ -1,5 +1,68 @@
 # @casualoffice/sheets
 
+## 0.9.0
+
+### Minor Changes
+
+- 652068f: `CasualSheetsAPI.setTheme('light' | 'dark')` — imperative light/dark switch, the
+  API equivalent of the reactive `appearance` prop. Flips Univer's
+  `ThemeService.setDarkMode` (canvas colours + the `univer-dark` class Univer
+  applies to the document root) via `api.setTheme(...)`, for hosts that drive the
+  editor through the ref rather than re-rendering with a prop.
+- f93fa6c: `<CasualSheets appearance="light" | "dark">` — reactive light/dark mode.
+
+  Flipping it re-themes the live editor via Univer's `ThemeService.setDarkMode`
+  (canvas colours, notifications, and Univer's `univer-dark` class). Distinct from
+  the existing `theme` prop, which sets the Univer colour-theme object. Defaults to
+  light. Note: Univer applies its dark CSS class to the document root, so dark mode
+  is page-global by Univer's design.
+
+- d3f9be6: SDK editor: working formula engine + a stable `CasualSheetsAPI` imperative ref.
+  - **Formula engine now runs in embedding hosts.** The library entries
+    (`index`/`sheets`/`xlsx`/`embed`/`univer`) externalise `@univerjs` so a host
+    that already ships Univer no longer gets a second redi copy (which previously
+    threw `[redi] loading scripts of redi more than once` and disabled the formula
+    plugins). `<CasualSheets>` registers the formula engine + sheets-formula +
+    numfmt and computes on the main thread.
+  - **New `CasualSheetsAPI` imperative ref** handed to the host via
+    `onReady(api)` — the SDK's stable integration surface:
+    `getSnapshot()`, `loadSnapshot(data)`, `getSelection()`,
+    `executeCommand(id, params?)`, and `api.univer` (the FUniver escape hatch,
+    not covered by semver). `createCasualSheetsAPI` and the `CasualSheetsAPI` /
+    `RangeRef` types are exported from `@casualoffice/sheets/sheets`.
+
+  **Breaking:** `onReady` now receives a single `CasualSheetsAPI` argument
+  instead of `(api: FUniver, univer: Univer)`. Migrate `onReady={(api) => …}`
+  calls that used FUniver methods to `api.univer.<method>` (or the new
+  first-class API methods where they exist, e.g. `api.executeCommand`).
+
+  Deferred to follow-up batches: `importXlsx`/`exportXlsx` (xlsx-I/O batch),
+  `setTheme` (runtime theme switch), `attachCollab` (collab adapter phase).
+
+- 1da029e: `<CasualSheets>` now lazy-loads the feature plugins by default (`lazyPlugins`,
+  default `true`): conditional formatting, data validation, hyperlinks, notes,
+  tables, comments, drawings, sort, filter, and find/replace.
+
+  Plugins whose data already lives in `initialData` (CF rules, tables, hyperlinks,
+  …) load eagerly _before_ the workbook mounts, so opening a file never silently
+  drops them; everything else idle-loads after first paint. This brings the SDK
+  editor to feature parity with the app's grid without bloating the initial
+  chunk — `@univerjs` feature packages stay external and load on demand.
+
+  Pass `lazyPlugins={false}` for the minimal editor (render + formula + numfmt
+  only); the embed-iframe runtime sets this to remain a single self-contained
+  bundle.
+
+- 2381fb4: `<CasualSheets onChange>` — a debounced stream of `IWorkbookData` snapshots.
+
+  The "host persists it" half of the Excalidraw model: the editor stays
+  storage-unaware and the host writes each snapshot wherever it likes
+  (localStorage, server, …). Driven by Univer's mutation hook
+  (`onMutationExecutedForCollab`), not UI events, so it captures every edit
+  including programmatic ones. Debounce window is configurable via
+  `onChangeDebounceMs` (default 400). Subscribed after the unit is created so
+  the initial mount mutations don't emit a spurious first snapshot.
+
 ## 0.8.0
 
 ### Minor Changes

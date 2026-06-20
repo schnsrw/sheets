@@ -6006,3 +6006,37 @@ button {
   box-shadow: var(--shadow-2);
   overflow: hidden;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Dialog form fields → design-system Input / Select look (Phase 4).
+   Applied scoped to .dialog so every dialog's text/number/search inputs and
+   selects get the exact DS field treatment — --radius-md corners,
+   --color-border-strong hairline, and the DS focus signature (accent border
+   + soft 3px accent-soft glow) — without rewriting each dialog's markup to
+   <Input>/<Select>. `.dialog <el>` outspecs the bespoke per-dialog classes.
+   ───────────────────────────────────────────────────────────────────────── */
+.dialog input[type='text'],
+.dialog input[type='number'],
+.dialog input[type='search'],
+.dialog input:not([type]),
+.dialog select {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.dialog input[type='text']:focus,
+.dialog input[type='number']:focus,
+.dialog input[type='search']:focus,
+.dialog input:not([type]):focus,
+.dialog select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+/* Checkboxes / radios pick up the accent (DS Checkbox uses --color-accent). */
+.dialog input[type='checkbox'],
+.dialog input[type='radio'] {
+  accent-color: var(--color-accent);
+}

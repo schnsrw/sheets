@@ -74,6 +74,46 @@ const GROUPS: ToolbarAction[][] = [
       params: { value: 3 },
     },
   ],
+  [
+    {
+      id: 'merge',
+      label: 'Merge cells',
+      command: 'sheet.command.add-worksheet-merge-all',
+      icon: 'cell_merge',
+    },
+    {
+      id: 'unmerge',
+      label: 'Unmerge cells',
+      command: 'sheet.command.remove-worksheet-merge',
+      icon: 'splitscreen_vertical_add',
+    },
+  ],
+  [
+    {
+      id: 'currency',
+      label: 'Currency format',
+      command: 'sheet.command.numfmt.set.currency',
+      icon: 'attach_money',
+    },
+    {
+      id: 'percent',
+      label: 'Percent format',
+      command: 'sheet.command.numfmt.set.percent',
+      icon: 'percent',
+    },
+    {
+      id: 'decimal-increase',
+      label: 'Increase decimals',
+      command: 'sheet.command.numfmt.add.decimal.command',
+      icon: 'decimal_increase',
+    },
+    {
+      id: 'decimal-decrease',
+      label: 'Decrease decimals',
+      command: 'sheet.command.numfmt.subtract.decimal.command',
+      icon: 'decimal_decrease',
+    },
+  ],
 ];
 
 const BAR_STYLE: CSSProperties = {

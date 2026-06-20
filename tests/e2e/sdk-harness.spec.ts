@@ -269,6 +269,36 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
     await expect(page.locator('[data-stat="average"]')).toHaveText('Average: 2');
   });
 
+  test('chrome toolbar: Merge cells merges the selection', async ({ page }) => {
+    await page.goto('/sdk-harness?chrome=minimal');
+    await page.waitForFunction(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      () => (window as any).__sdkHarnessReady === true,
+      null,
+      { timeout: 30_000 },
+    );
+    await expect(page.locator('[data-action="merge"]')).toBeVisible();
+    await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const api = (window as any).__sdkHarnessAPI;
+      api.univer.getActiveWorkbook().getActiveSheet().getRange('A1:B2').activate();
+      await new Promise((r) => setTimeout(r, 150));
+    });
+    await page.locator('[data-action="merge"]').click();
+    const merges = await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const api = (window as any).__sdkHarnessAPI;
+      for (let i = 0; i < 20; i++) {
+        const snap = api.getSnapshot();
+        const sheet = snap?.sheets?.[Object.keys(snap.sheets)[0]];
+        if ((sheet?.mergeData?.length ?? 0) > 0) return sheet.mergeData.length;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return 0;
+    });
+    expect(merges).toBeGreaterThan(0);
+  });
+
   test('chrome flips to dark with appearance="dark"', async ({ page }) => {
     await page.goto('/sdk-harness?chrome=minimal&appearance=dark');
     await page.waitForFunction(

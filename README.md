@@ -15,11 +15,21 @@
 
 [**Live Demo →**](https://sheet.casualoffice.org/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/casualoffice/sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Embed / SDK →](./docs/SDK_ARCHITECTURE.md) &nbsp;·&nbsp; [Comparisons →](https://casualoffice.org/vs/)
 
+<br/>
+
+[![Casual Sheets — the editor with a populated budget](./docs/media/hero.png)](https://sheet.casualoffice.org/)
+
 </div>
 
 ---
 
-Casual Sheets is a **self-hostable, browser-based spreadsheet** that looks and behaves like Microsoft Excel — ribbon UI, formula bar, file-centric workflow — with **real-time multi-user co-editing** built in. Upload an `.xlsx` file, share a link, and edit together instantly. **No accounts, no Microsoft / Google login, no lock-in.** One Docker container, runs on a $5/mo VPS, scales to ~5 000 concurrent users on a $48/mo box (numbers [measured](./docs/LOAD_TEST.md), not hand-waved).
+Casual Sheets is a **self-hostable, browser-based spreadsheet** that looks and behaves like Microsoft Excel — ribbon UI, formula bar, file-centric workflow — with **real-time multi-user co-editing** built in. Upload an `.xlsx` file, share a link, and edit together instantly. **No accounts, no Microsoft / Google login, no lock-in** — your data stays on your own server, in one Docker container.
+
+### Who is this for?
+
+Teams that need a **self-hosted spreadsheet editor embedded inside their own product** — an intranet, file manager, LMS, CRM, or private cloud — without sending data to Google or Microsoft. Use it as a standalone app or [embed the editor as an SDK](./docs/SDK_ARCHITECTURE.md).
+
+> **Maturity** — `0.x`: production-ready for small / self-hosted deployments; still evolving for enterprise-scale workloads. One box scales to thousands of concurrent editors ([load-tested](./docs/LOAD_TEST.md)); see the [CHANGELOG](./CHANGELOG.md) for what's stable.
 
 **Compares to:**
 [Google Sheets](https://casualoffice.org/vs/sheets-vs-google-sheets/) ·
@@ -32,7 +42,7 @@ Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) — the 
 
 ## ✨ What's Inside
 
-### Spreadsheet Engine
+### Core editor
 
 - **Google-Docs-style title bar** — logo + filename + classic menus (File / Edit / View / Insert / Format / Data) in a single chrome strip, right-edge **panel rail** for Tables / Charts / Outline / Comments / History
 - **Formula bar** with an editable Name Box (jump to any cell by typing its address)
@@ -43,6 +53,9 @@ Built on [Univer OSS](https://github.com/dream-num/univer) (Apache-2.0) — the 
 - **Sort** (single and multi-column dialog), **Filter** (AutoFilter + re-apply), **Tables** (Format as Table, named tables panel)
 - **Comments** with corner indicator markers
 - **Conditional formatting**, **data validation**, **drawings** — fully round-tripped and co-edit synced
+
+### Charts, pivots & analysis
+
 - **Charts** — 8 types, drag-to-resize, format dialog with **trendlines**, **date-axis detection**, **per-series colour overrides**; collab-synced; PNG embed in `.xlsx`
 - **Pivot tables** — group-by + multi-aggregations, **filter fields**, **Refresh PivotTables**, **drill-down to source rows** (Ctrl+Shift+D), Insert dialog
 - **Sparklines** — in-cell mini-charts (line / column / win-loss) via Insert → Sparkline, persist through the `__casual_sheets_sparklines__` resource
@@ -93,6 +106,17 @@ Available in the Docker image. Single-user on the hosted demo.
 - **Joiner fast-path** — gzip-streamed pre-parsed snapshot from the server; joiners skip the xlsx parse entirely
 
 See [`docs/CO-EDITING.md`](./docs/CO-EDITING.md) for the full architecture.
+
+---
+
+## 🔒 Security model
+
+- **Your data stays on your server.** No third-party calls, no telemetry, no Google / Microsoft account required. Files live in your container / volume (or Redis when persistence is on).
+- **Co-editing rooms** are password-gated: **SHA-256** hashing with a constant-time compare; a wrong password fails the WebSocket upgrade with HTTP 401 (never a partial join).
+- **View-only is enforced at the Univer engine layer**, not just the UI — view-only joiners physically cannot mutate the workbook.
+- **Personal mode** (multi-user) uses a **bcrypt** users table (SQLite) with per-user file scoping and an admin panel — see [`docs/self-hosting/personal-mode.md`](./docs/self-hosting/personal-mode.md).
+- **WOPI mode** verifies host **JWT** tokens and honours Lock/Unlock + token refresh — see [`docs/STORAGE_MODES.md`](./docs/STORAGE_MODES.md).
+- Apache-2.0, fully auditable; built only on Univer **OSS** (never the closed Pro package).
 
 ---
 

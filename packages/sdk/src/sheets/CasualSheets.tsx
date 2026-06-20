@@ -33,6 +33,7 @@ import {
   ICommandService,
   LocaleType,
   LogLevel,
+  ThemeService,
   Univer,
   UniverInstanceType,
   type ICommandInfo,
@@ -102,8 +103,17 @@ export interface CasualSheetsProps {
     footer?: boolean;
     contextMenu?: boolean;
   };
-  /** Override the theme. Defaults to Univer's `defaultTheme`. */
+  /** Override the Univer theme object (colour palette). Defaults to
+   *  Univer's `defaultTheme`. Distinct from `appearance` (light/dark). */
   theme?: typeof defaultTheme;
+  /** Light or dark mode. Reactive — flipping it re-themes the live
+   *  editor via `ThemeService.setDarkMode` (canvas colours, notifications,
+   *  and Univer's own `univer-dark` class). Defaults to light.
+   *  Note: Univer's Workbench applies the `univer-dark` class to the
+   *  document root (`<html>`) itself, so dark mode is page-global by
+   *  Univer's design — a host that embeds the editor inside a light page
+   *  should scope the editor or accept the global dark CSS. */
+  appearance?: 'light' | 'dark';
   /** Container style. Default fills the parent. */
   style?: CSSProperties;
   /** Container className for additional styling hooks. */
@@ -136,6 +146,7 @@ export function CasualSheets({
   logLevel = LogLevel.WARN,
   ui,
   theme = defaultTheme,
+  appearance = 'light',
   style,
   className,
   testId = 'casual-sheets',
@@ -147,6 +158,9 @@ export function CasualSheets({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const hasOnChange = useRef(!!onChange).current;
+  // The live FUniver facade, captured at mount so the reactive appearance
+  // effect can reach Univer's ThemeService without re-running boot.
+  const apiRef = useRef<CasualSheetsAPI | null>(null);
 
   useEffect(() => {
     const container = hostRef.current;
@@ -203,6 +217,11 @@ export function CasualSheets({
       univer.createUnit(UniverInstanceType.UNIVER_SHEET, initialData);
 
       const api = createCasualSheetsAPI(FUniver.newAPI(univer));
+      apiRef.current = api;
+      // Apply the initial appearance now that the editor exists (the reactive
+      // effect below also runs on mount, but apiRef may not be set yet when it
+      // first fires — this guarantees dark mode from the first paint).
+      applyAppearance(api, container, appearance);
       onReady?.(api);
 
       // Debounced snapshot stream → onChange. Subscribed AFTER createUnit so the
@@ -239,6 +258,7 @@ export function CasualSheets({
       cancelled = true;
       if (changeTimer) clearTimeout(changeTimer);
       changeSub?.dispose();
+      apiRef.current = null;
       if (lazyPlugins) setUniverForLazyLoad(null);
       // Defer disposal off the React render phase — Univer owns its
       // own React root, and a synchronous unmount mid-render warns
@@ -252,6 +272,15 @@ export function CasualSheets({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reactive appearance. Runs after the boot effect (apiRef populated on first
+  // mount) and re-runs whenever `appearance` flips, re-theming the live editor.
+  useEffect(() => {
+    const api = apiRef.current;
+    const container = hostRef.current;
+    if (!api || !container) return;
+    applyAppearance(api, container, appearance);
+  }, [appearance]);
+
   return (
     <div
       ref={hostRef}
@@ -260,4 +289,31 @@ export function CasualSheets({
       data-testid={testId}
     />
   );
+}
+
+/**
+ * Apply light/dark to a live editor. `ThemeService.setDarkMode` is the source of
+ * truth — it flips the canvas colours, the internals that subscribe to
+ * `darkMode$` (notifications, message containers), AND Univer's Workbench toggles
+ * the `univer-dark` class on the document root for its compiled dark CSS. We also
+ * mirror the class onto the editor container as race-insurance (the Workbench
+ * effect can land a frame after ours). Mirrors the app's ThemeBridge.
+ */
+function applyAppearance(
+  api: CasualSheetsAPI,
+  container: HTMLElement,
+  appearance: 'light' | 'dark',
+): void {
+  const dark = appearance === 'dark';
+  container.classList.toggle('univer-dark', dark);
+  try {
+    const injector = (api.univer as unknown as { _injector?: { get(t: unknown): unknown } })
+      ._injector;
+    const themeService = injector?.get(ThemeService) as
+      | { setDarkMode(b: boolean): void; darkMode: boolean }
+      | undefined;
+    if (themeService && themeService.darkMode !== dark) themeService.setDarkMode(dark);
+  } catch {
+    /* ThemeService unavailable — the class toggle still themes visible chrome */
+  }
 }

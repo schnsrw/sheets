@@ -5,6 +5,7 @@ import { TitleBar } from './shell/TitleBar';
 import { Toolbar } from './shell/Toolbar';
 import { FormulaBar } from './shell/FormulaBar';
 import { SheetTabs } from './shell/SheetTabs';
+import { StatusBar } from './shell/StatusBar';
 import { TablesPanel } from './shell/TablesPanel';
 import { UniverSheet } from './UniverSheet';
 import { emptyWorkbook } from './snapshot';
@@ -498,6 +499,7 @@ export function App() {
                                             </div>
                                             <MobileActionBar />
                                             <SheetTabs />
+                                            <StatusBar />
                                             <PanelMutex />
                                             {shareRoomOpen && (
                                               <CreateRoomDialog

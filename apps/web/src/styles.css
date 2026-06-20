@@ -161,7 +161,8 @@ button {
     var(--formula-bar-h)
     minmax(0, 1fr)
     var(--mobile-bar-h, 0px)
-    var(--sheet-tabs-h);
+    var(--sheet-tabs-h)
+    var(--statusbar-h);
   grid-template-areas:
     'titlebar'
     'toolbar'
@@ -169,7 +170,8 @@ button {
     'formulabar'
     'gridrow'
     'mobilebar'
-    'sheettabs';
+    'sheettabs'
+    'statusbar';
   height: 100dvh;
   width: 100vw;
   overflow: hidden;
@@ -190,14 +192,16 @@ button {
     auto /* banner row — same as above */
     minmax(0, 1fr)
     var(--mobile-bar-h, 0px)
-    var(--sheet-tabs-h);
+    var(--sheet-tabs-h)
+    var(--statusbar-h);
   grid-template-areas:
     'titlebar'
     'toolbar'
     'banner'
     'gridrow'
     'mobilebar'
-    'sheettabs';
+    'sheettabs'
+    'statusbar';
 }
 
 .app > .titlebar {
@@ -1393,9 +1397,9 @@ button {
      The desk is mixed a touch darker than the chrome strip so the white
      cards clearly lift off it (a near-white desk read as seams, not float). */
   gap: var(--space-4);
-  /* Top gap is smaller — the formula-bar card above already adds its own
-     bottom margin, so the canvas card sits an even --space-4 below it. */
-  padding: var(--space-2) var(--space-4) var(--space-4);
+  /* Uniform gap on all four sides so the canvas card sits the same distance
+     from the formula bar above and the sheet-tabs/status below. */
+  padding: var(--space-4);
   background: var(
     --editor-desk,
     color-mix(in srgb, var(--color-surface-strip), var(--color-text) 7%)
@@ -2497,74 +2501,59 @@ button {
   color: var(--color-text);
 }
 
-/* Status bar — zone 2 (warm grey), continuous with the sheet tabs above. */
+/* Status bar — dedicated strip below the sheet tabs (StatusBar.tsx). Stats on
+   the left, collab + undo/redo + zoom pinned right; hairline top separator. */
 .statusbar {
+  grid-area: statusbar;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
   height: var(--statusbar-h);
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-4);
   background: var(--color-surface-strip);
+  border-top: 1px solid var(--color-divider);
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
   user-select: none;
   z-index: 2;
 }
-
-.statusbar__spacer {
+.statusbar__ready {
   flex: 1;
 }
-
-.statusbar__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  display: inline-block;
-  margin-right: var(--space-2);
-}
-
 .statusbar__stats {
+  position: relative;
   display: inline-flex;
-  gap: var(--space-6);
-  margin-right: var(--space-6);
+  align-items: center;
+  gap: var(--space-7);
+  flex: 1;
   font-variant-numeric: tabular-nums;
+  cursor: context-menu;
 }
-
-.statusbar__zoom {
+.statusbar__right {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  margin-left: auto;
+  flex-shrink: 0;
 }
-
-.statusbar__zoom-btn {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
+.statusbar__action {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
 }
-
-.statusbar__zoom-btn:hover {
-  background: var(--color-hover);
-  color: var(--color-text);
-}
-
-.statusbar__zoom input[type='range'] {
-  width: 96px;
+.statusbar__sep {
+  display: inline-block;
+  width: 1px;
   height: 14px;
+  background: var(--color-divider);
+  margin: 0 var(--space-2);
+}
+.statusbar__zoom-slider {
+  width: 96px;
+  height: 16px;
   cursor: pointer;
   accent-color: var(--color-accent);
 }
-
-.statusbar__zoom-label-btn {
+.statusbar__zoom-label {
   min-width: 40px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -2574,10 +2563,9 @@ button {
   border: 0;
   padding: 0 var(--space-2);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
 }
-
-.statusbar__zoom-label-btn:hover {
+.statusbar__zoom-label:hover {
   background: var(--color-hover);
   color: var(--color-text);
 }

@@ -4369,24 +4369,41 @@ button {
   color: var(--color-text-secondary);
 }
 
+/* .btn-primary / .btn-secondary render exactly like the UI-kit Button
+   (design-system Button: gradient + radius-md + soft depth, brightness/glow
+   hover, press lift). Applied class-side so every call site matches the kit
+   without swapping each to <Button>. */
 .btn-primary {
   height: 28px;
   padding: 0 var(--space-5);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm);
+  background: var(--accent-gradient, var(--color-accent));
+  color: var(--color-accent-fg, var(--color-text-on-accent));
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-out);
+  transition:
+    transform var(--motion-base) var(--ease-spring),
+    filter var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out);
 }
-
-.btn-primary:hover {
-  background: var(--color-accent-hover);
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06) saturate(1.05);
+  box-shadow:
+    0 4px 12px -2px color-mix(in srgb, var(--color-accent) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
-.btn-primary:active {
-  background: var(--color-accent-active);
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-secondary {
@@ -4395,15 +4412,26 @@ button {
   background: var(--color-surface);
   color: var(--color-text);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-out);
+  transition:
+    transform var(--motion-base) var(--ease-spring),
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
 }
-
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: var(--color-hover);
+  border-color: var(--color-text-secondary);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

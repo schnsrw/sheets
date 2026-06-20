@@ -116,6 +116,36 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
     expect(has).toBe(true);
   });
 
+  test('appearance="dark" flips Univer dark mode + container class', async ({ page }) => {
+    await page.goto('/sdk-harness?appearance=dark');
+    await page.waitForFunction(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      () => (window as any).__sdkHarnessReady === true,
+      null,
+      { timeout: 30_000 },
+    );
+    const dark = await page.evaluate(async () => {
+      for (let i = 0; i < 30; i++) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((window as any).__sdkHarnessIsDark?.()) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (window as any).__sdkHarnessIsDark?.();
+    });
+    expect(dark).toBe(true);
+    // We mirror the class onto the editor container; Univer's Workbench also
+    // applies it to <html> (its dark CSS is page-global by design).
+    await expect(page.locator('[data-testid="casual-sheets"].univer-dark')).toHaveCount(1);
+  });
+
+  test('default appearance is light (no dark mode, no dark class)', async ({ page }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dark = await page.evaluate(() => (window as any).__sdkHarnessIsDark?.());
+    expect(dark).toBe(false);
+    await expect(page.locator('.univer-dark')).toHaveCount(0);
+  });
+
   test('CasualSheetsAPI: getSelection returns the active range', async ({ page }) => {
     const sel = await page.evaluate(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

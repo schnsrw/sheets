@@ -88,7 +88,8 @@ Import `@casualoffice/sheets/styles` **once** at app boot.
 | `locales`             | `ILocales`                                     | Univer defaults                                   | String bundles. Required if you use locale-dependent UI (e.g. the formula range selector) in a non-default language.  |
 | `logLevel`            | `LogLevel`                                     | `WARN`                                            |                                                                                                                       |
 | `ui`                  | `{ header?; toolbar?; footer?; contextMenu? }` | header/toolbar/footer **off**, contextMenu **on** | Univer chrome toggles. The embedded shape hides Univer's own ribbon; build your own around the grid.                  |
-| `theme`               | Univer theme                                   | `defaultTheme`                                    | Mount-time theme. (Runtime `setTheme` is on the roadmap.)                                                             |
+| `theme`               | Univer theme                                   | `defaultTheme`                                    | Univer colour-theme **object**. Distinct from `appearance`.                                                           |
+| `appearance`          | `'light' \| 'dark'`                            | `'light'`                                         | Reactive light/dark mode (`ThemeService.setDarkMode`). Univer applies its dark CSS to `<html>`, so it's page-global.  |
 | `style` / `className` | —                                              | fills parent                                      | Container styling hooks.                                                                                              |
 | `testId`              | `string`                                       | `casual-sheets`                                   |                                                                                                                       |
 
@@ -185,7 +186,8 @@ appear here, not on `CasualSheetsAPI`:
 
 - `importXlsx` / `exportXlsx` on the API (today: use `@casualoffice/sheets/xlsx`
   - `loadSnapshot`; export converter is being lifted out of the host app).
-- `setTheme(theme)` — runtime light/dark switch (today: the `theme` prop).
+- `setTheme(theme)` on the API — imperative light/dark switch (today: the
+  reactive `appearance` prop already does runtime light/dark).
 - `attachCollab({ room, server })` — wire collab from the API (today: the
   `apps/server` integration above).
 - `chrome="full" | "minimal" | "none"` + slotted Office chrome — the full

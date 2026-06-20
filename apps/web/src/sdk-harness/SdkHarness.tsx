@@ -3,7 +3,7 @@ import { CasualSheets, type CasualSheetsAPI } from '@casualoffice/sheets/sheets'
 import '@casualoffice/sheets/styles';
 import { emptyWorkbook } from '../snapshot';
 import { LOCALES } from '../locale';
-import { ICommandService, type IWorkbookData } from '@univerjs/core';
+import { ICommandService, ThemeService, type IWorkbookData } from '@univerjs/core';
 
 /**
  * Dev-only harness that mounts the SDK's `<CasualSheets>` editor in isolation
@@ -21,11 +21,15 @@ import { ICommandService, type IWorkbookData } from '@univerjs/core';
  */
 export function SdkHarness() {
   const [data] = useState(() => emptyWorkbook());
+  // `?appearance=dark` mounts the editor in dark mode so the spec can verify it.
+  const appearance =
+    new URLSearchParams(window.location.search).get('appearance') === 'dark' ? 'dark' : 'light';
   return (
     <div data-testid="sdk-harness" style={{ position: 'fixed', inset: 0 }}>
       <CasualSheets
         initialData={data}
         locales={LOCALES}
+        appearance={appearance}
         onReady={(api: CasualSheetsAPI) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).__sdkHarnessAPI = api;
@@ -39,6 +43,14 @@ export function SdkHarness() {
               | { hasCommand(id: string): boolean }
               | undefined;
             return svc?.hasCommand(id) ?? false;
+          };
+          // Expose Univer's dark-mode flag so the appearance spec can assert it.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as any).__sdkHarnessIsDark = () => {
+            const injector = (api.univer as unknown as { _injector?: { get(t: unknown): unknown } })
+              ._injector;
+            const svc = injector?.get(ThemeService) as { darkMode: boolean } | undefined;
+            return svc?.darkMode ?? false;
           };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).__sdkHarnessReady = true;

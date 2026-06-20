@@ -1,163 +1,36 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Design tokens — Office-inspired. Centralised so the whole UI restyles
-   from this file alone.
+   Design tokens — sourced from @schnsrw/design-system (Phase 4).
+   `@schnsrw/design-system/tokens.css` is imported at the app entry
+   (apps/web/src/main.tsx) BEFORE this file, installing every colour /
+   surface / spacing / radius / shadow / motion / typography token on
+   :root, plus the dark ramp under [data-theme="dark"] and the
+   `.cs-anim-*` motion utilities. The whole UI now restyles from the
+   design-system — this file no longer redeclares those tokens (doing so
+   shadowed the system and kept the app on its own local values).
+
+   Layout-height tokens (--titlebar-h 64 / --toolbar-h 66 / --formula-bar-h
+   26 / --sheet-tabs-h 28 / --statusbar-h 24) are IDENTICAL in the design-
+   system, so adopting it causes no layout shift — only the colour / radius
+   (4→6 px controls) / motion / shadow "feel" updates land. `--menubar-h`
+   is intentionally not declared (the menu bar lives inline in the title
+   bar); kept as a note so a search for it lands here.
+
+   App-local tokens the design-system intentionally doesn't own are defined
+   where they're used: --titlebar-row-pad (below), --mobile-bar-h (mobile
+   media query), the --admin-* set (admin panel), and runtime collab /
+   template vars (--cols, --name-color, --presence-color, --tpl-accent).
    ───────────────────────────────────────────────────────────────────────── */
-:root {
-  /* Brand */
-  --color-accent: #0e7490; /* deep teal-cyan */
-  --color-accent-hover: #0c627a;
-  --color-accent-active: #0a5266;
-  --color-accent-fg: #ffffff;
-  --color-accent-soft: #e2f0f4;
-
-  /* Neutrals — three-tone layering scale.
-       zone 0 (white) — content surfaces (titlebar + menubar + formula bar + grid)
-       zone 1 (cool grey) — tool strips (toolbar)
-       zone 2 (warmer grey) — chrome strips (sheet tabs + status bar)
-     Each zone is visually distinct without needing hard borders. */
-  --color-bg: #ffffff;
-  --color-surface: #ffffff; /* zone 0 */
-  --color-surface-alt: #eef0f4; /* zone 1 — clearly visible vs white */
-  --color-surface-strip: #e8eaed; /* zone 2 — distinct chrome strip */
-  --color-surface-raised: #ffffff;
-  --color-border: #d2d6dc;
-  --color-border-strong: #b9bec5;
-  --color-divider: #dadce0;
-
-  --color-text: #201f1e;
-  --color-text-secondary: #605e5c;
-  /* Disabled body text. Past value #a19f9d sat at 3.06:1 contrast on
-     white — disabled controls are exempt from WCAG 4.5:1 but several
-     of our icons (especially the formula bar ✓/× actions) became hard
-     to *see at all* when paired with opacity reductions. Darkened to
-     #8a8886 (3.55:1) so the disabled state still reads as "off" but
-     icon glyphs remain legible without opacity tricks. */
-  --color-text-disabled: #8a8886;
-  --color-text-on-accent: #ffffff;
-
-  --color-hover: rgba(0, 0, 0, 0.05);
-  --color-pressed: rgba(0, 0, 0, 0.1);
-  --color-focus-ring: #0e7490;
-  --color-selected: rgba(14, 116, 144, 0.12);
-  --color-selected-strong: rgba(14, 116, 144, 0.22);
-
-  /* Toolbar pill — neutral grey, matches Google's tint */
-  --color-toolbar-pill: #f1f3f4;
-
-  /* Spacing scale (4px base) */
-  --space-0: 0;
-  --space-1: 2px;
-  --space-2: 4px;
-  --space-3: 6px;
-  --space-4: 8px;
-  --space-5: 12px;
-  --space-6: 16px;
-  --space-7: 20px;
-  --space-8: 24px;
-
-  /* Typography */
-  --font-sans:
-    'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-
-  --leading-tight: 1.2;
-  --leading-normal: 1.4;
-
-  --weight-regular: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-
-  /* Shape — keep two scales only, used consistently:
-     --radius-md for all interactive controls (buttons, selects, inputs),
-     --radius-lg for containers (dialogs, popovers, menus). */
-  --radius-sm: 4px; /* alias for backwards compat */
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-pill: 20px;
-
-  /* Elevation */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04);
-  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-3: 0 8px 16px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
-
-  /* Layout — title bar now hosts the menu bar inline (Google Docs
-     pattern), so the two strips collapse into one 64 px chrome layer:
-     ~36 px for filename + actions on top, 28 px for menu items below.
-     `--menubar-h` is intentionally not declared anymore — kept as a
-     comment so a future search for it finds the explanation here. */
-  --titlebar-h: 64px;
-  /* Single-row 2-row-group toolbar — 28 px button row × 2 + 2 px gap +
-     8 px padding = 66 px. */
-  --toolbar-h: 66px;
-  --formula-bar-h: 26px;
-  --sheet-tabs-h: 28px;
-  --statusbar-h: 24px;
-
-  /* Motion */
-  --motion-fast: 80ms;
-  --motion-base: 140ms;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Accent on muted/quiet text — only used in a couple places, define
-     here so the dark override can shift it. */
-  --color-text-muted: #8a8886;
-}
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Dark theme — manual opt-in, applied to <html data-theme="dark">.
-   Overrides only the colour tokens; the rest of the system (spacing,
-   typography, motion) is theme-agnostic and inherits from :root.
-   Surfaces dropped a notch: zone 0 (canvas-adjacent chrome) ~#1f2024,
-   zone 1 (toolbar) ~#26282d, zone 2 (sheet tabs / status) ~#2e3036.
-   Picked to keep the three-layer hierarchy readable in low-light.
+   Dark theme — the colour ramp is owned by the design-system
+   ([data-theme="dark"] in tokens.css), applied to <html data-theme="dark">
+   by apps/web/src/theme.ts. We only set color-scheme here so native form
+   controls / scrollbars switch; component-level dark overrides that use
+   hardcoded warm/cool tones (banners etc.), not the neutral tokens, follow
+   below.
    ───────────────────────────────────────────────────────────────────────── */
 html[data-theme='dark'] {
   color-scheme: dark;
-}
-html[data-theme='dark'] :root,
-[data-theme='dark'] {
-  /* Brand — brighter cyan on dark surfaces so it reads as vibrant
-     without buzzing; soft is a transparent cyan tint readable on
-     near-black bg. */
-  --color-accent: #22d3ee;
-  --color-accent-hover: #3ddff5;
-  --color-accent-active: #1cb8d4;
-  --color-accent-fg: #ffffff;
-  --color-accent-soft: rgba(34, 211, 238, 0.18);
-
-  --color-bg: #1a1b1f;
-  --color-surface: #1f2024;
-  --color-surface-alt: #26282d;
-  --color-surface-strip: #2e3036;
-  --color-surface-raised: #2a2c31;
-  --color-border: #3a3c42;
-  --color-border-strong: #4a4d54;
-  --color-divider: #2a2c31;
-
-  --color-text: #e6e6e6;
-  --color-text-secondary: #b0b3ba;
-  --color-text-disabled: #6b6e75;
-  --color-text-on-accent: #0e0f12;
-  --color-text-muted: #8d9098;
-
-  --color-hover: rgba(255, 255, 255, 0.06);
-  --color-pressed: rgba(255, 255, 255, 0.12);
-  --color-focus-ring: #22d3ee;
-  --color-selected: rgba(34, 211, 238, 0.2);
-  --color-selected-strong: rgba(34, 211, 238, 0.34);
-
-  --color-toolbar-pill: #2a2c31;
-
-  /* Stronger shadows to read on near-black */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
-  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-3: 0 8px 16px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.35);
 }
 
 /* Banner palettes get explicit dark variants — they use hardcoded

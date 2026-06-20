@@ -8,9 +8,9 @@
 [![Deploy](https://github.com/CasualOffice/sheets/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/CasualOffice/sheets/actions/workflows/deploy-pages.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/casualoffice/sheets?logo=docker)](https://hub.docker.com/r/casualoffice/sheets)
 [![Image Size](https://img.shields.io/docker/image-size/casualoffice/sheets/latest?logo=docker&label=image)](https://hub.docker.com/r/casualoffice/sheets)
-[![E2E Tests](https://img.shields.io/badge/e2e-357%20passing-brightgreen?logo=playwright)](./tests/e2e)
-[![Unit Tests](https://img.shields.io/badge/unit-145%20passing-brightgreen)](./apps)
-[![Version](https://img.shields.io/badge/version-v0.3.1-blue)](./CHANGELOG.md)
+[![E2E Tests](https://img.shields.io/badge/e2e-398%20passing-brightgreen?logo=playwright)](./tests/e2e)
+[![Unit Tests](https://img.shields.io/badge/unit-235%20passing-brightgreen)](./apps)
+[![Version](https://img.shields.io/badge/version-v0.3.2-blue)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
 [**Live Demo →**](https://sheet.casualoffice.org/) &nbsp;·&nbsp; [Docker Hub →](https://hub.docker.com/r/casualoffice/sheets) &nbsp;·&nbsp; [Architecture →](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Embed / SDK →](./docs/SDK_ARCHITECTURE.md) &nbsp;·&nbsp; [Comparisons →](https://casualoffice.org/vs/)
@@ -272,7 +272,7 @@ Then open `http://127.0.0.1:5273/r/<any-room-id>` in two tabs.
 │   ├── CO-EDITING.md            # op-log + presence design
 │   ├── LARGE_FILE_PIPELINE.md   # staged perf plan
 │   └── RESEARCH.md              # Univer technical brief
-├── vendor/univer/               # our univer-revamp fork (v0.24.0, gitignored, full clone for source-level edits)
+├── vendor/univer-revamp/        # our Univer fork (v0.25.0 submodule, wired via pnpm.overrides)
 ├── Dockerfile                   # multi-stage build (deps → build-web → runtime)
 ├── docker-compose.yml           # app + Redis
 ├── PLAN.md                      # phased build plan
@@ -291,7 +291,7 @@ git clone git@github.com:CasualOffice/univer-revamp.git vendor/univer
 
 | Concern               | Choice                                                           |
 | --------------------- | ---------------------------------------------------------------- |
-| Grid + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.24.x) |
+| Grid + formula engine | Univer OSS (`@univerjs/core` + sheets plugins, pinned to 0.25.x) |
 | Frontend              | React 18 + Vite + TypeScript (strict mode)                       |
 | Styling               | Tailwind CSS + Material Symbols Outlined + Inter (Google Fonts)  |
 | Lint / format         | ESLint 9 flat config + Prettier                                  |

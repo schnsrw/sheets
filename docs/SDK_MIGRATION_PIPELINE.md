@@ -20,14 +20,15 @@ Univer **0.25 first** (Phase 0).
 
 ---
 
-## Phase 0 — Univer fork 0.24 → 0.25  *(blocking)*
+## Phase 0 — Univer fork 0.24 → 0.25  *(✅ done)*
 
-The vendored submodule `vendor/univer-revamp` (remote `CasualOffice/univer-revamp`) sits
-on `casual-sheets/0.24` with **six** custom commits on top of the `v0.24.0` release and
-**no 0.25 anywhere**. Upstream `dream-num/univer` tags `v0.25.0` (`36a3884c`). We upgrade
-the fork *before* restructuring so the SDK extraction lands on the version we ship.
+**Done.** The vendored submodule `vendor/univer-revamp` (remote `CasualOffice/univer-revamp`)
+now sits on `casual-sheets/0.25`, at the `v0.25.0` release with the **six** custom commits
+cherry-picked on top. Every `@univerjs/*` pin is `0.25.0` (apps/web + packages/sdk) and the
+`pnpm.overrides` block links to the fork. The steps below are kept as the recipe for the
+*next* upgrade (e.g. 0.26).
 
-The six custom commits (range `0bcc094b8..HEAD`):
+The six custom commits:
 - 2 feature: paste-merge formula/row-property preservation; filtered-dropdown visibility.
 - 4 perf (see `UNIVER_FORK_PERF.md`): font-measure cache LRU; merge-range row-bucket
   index; header hit-test row/column index; setStylesCache visible-span walk.

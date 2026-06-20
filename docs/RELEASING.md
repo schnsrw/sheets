@@ -12,13 +12,13 @@ the project at?" confusion — read this before cutting or citing a release.
 | Lives in | `apps/web` + `apps/server` | `packages/sdk` |
 | Versioned by | `vX.Y.Z` **git tags** | **Changesets** |
 | Workflow | `.github/workflows/docker-publish.yml` | `.github/workflows/release-npm.yml` |
-| Release tag form | `v0.3.1` | `@casualoffice/sheets@0.8.0` |
+| Release tag form | `v0.3.2` | `@casualoffice/sheets@0.8.0` |
 | Shows up as | a Docker Hub tag | an npm version **+ a GitHub Release** |
-| **Latest** | **0.3.1** | **0.8.0** |
+| **Latest** | **0.3.2** | **0.8.0** |
 
 > The **GitHub Releases page tracks the SDK line** (Changesets creates a release
 > per npm publish). The **Docker image follows the `vX.Y.Z` git tags**. So the
-> Releases page reading `0.8.0` while the Docker image is `0.3.1` is expected —
+> Releases page reading `0.8.0` while the Docker image is `0.3.2` is expected —
 > they are different things.
 
 ---
@@ -51,18 +51,19 @@ Docker image, and a Docker app release does **not** require an npm bump.
 
 ## Current state & in-progress cleanup (2026-06)
 
-The project is mid-rename from the `schnsrw` scope to `casualoffice`; until it
-settles, registries are split:
+The project is mid-rename from the `schnsrw` scope to `casualoffice`. The Docker
+line has finished migrating; the npm line has not:
 
-- **Docker app — latest `0.3.1`.** Historically published as
-  `schnsrw/casual-sheets` (`:0.3.1` / `:latest` still live and pullable).
-  Migrating to `casualoffice/sheets`; the **next release publishes under
-  `casualoffice/sheets`**. There is no `0.4.x` / `0.5.x` Docker image — those
-  numbers belong to the SDK line, not the app (see [#57](https://github.com/CasualOffice/sheets/issues/57)).
-- **SDK — latest `0.8.0`.** Currently on npm under the old scope
-  `@schnsrw/casual-sheets`. The first `@casualoffice/sheets` npm publish is
-  **pending** (the new scope 404s until then).
+- **Docker app — latest `0.3.2`, published under `casualoffice/sheets`.**
+  (`:0.3.2`, `:0.3`, `:0`, `:latest` all live.) The old `schnsrw/casual-sheets`
+  tags (`:0.3.1` / `:latest`) remain live but are frozen. There is no `0.4.x` /
+  `0.5.x` Docker image — those numbers belong to the SDK line, not the app
+  (see [#57](https://github.com/CasualOffice/sheets/issues/57)).
+- **SDK — latest `0.8.0`, still on npm under the old scope
+  `@schnsrw/casual-sheets`.** The package is already renamed to
+  `@casualoffice/sheets` in `packages/sdk`, but the first `@casualoffice/sheets`
+  npm publish is **pending** (the new scope 404s until then).
 
-**Until the migration completes:** self-hosters should pull
-`schnsrw/casual-sheets:latest`; integrators should depend on
-`@schnsrw/casual-sheets` until `@casualoffice/sheets` is published.
+**Until the npm publish lands:** integrators depending on the package today must
+use `@schnsrw/casual-sheets`; docs reference the going-forward name
+`@casualoffice/sheets`. Self-hosters pull `casualoffice/sheets:latest`.

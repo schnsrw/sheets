@@ -53,7 +53,7 @@ Work in **small batches (3–4 commits) → push → wait for green CI** before 
 
 ## Univer fork
 
-The fork is the git submodule `vendor/univer-revamp` (`schnsrw/univer-revamp`). The app
+The fork is the git submodule `vendor/univer-revamp` (`CasualOffice/univer-revamp`). The app
 consumes `@univerjs/*` via `pnpm.overrides` pointing at the fork — every imported
 `@univerjs/*` (direct + transitive) must be listed in the overrides block or it resolves
 to npm and DI breaks.

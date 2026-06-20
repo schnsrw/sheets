@@ -12,6 +12,12 @@ For the architecture and rationale, see [`SDK_ARCHITECTURE.md`](./SDK_ARCHITECTU
 
 ## Install
 
+> **Note:** `@casualoffice/sheets` is the package's going-forward name (used
+> throughout this guide), but its first publish under that scope is still
+> pending. Until it lands, install the currently-published
+> `@schnsrw/casual-sheets@0.8.0` (same package, old scope). See
+> [`RELEASING.md`](./RELEASING.md).
+
 The library entries externalise `@univerjs/*` and `react` — your app provides a
 single copy of each (bundling a second `@univerjs` copy breaks Univer's DI with
 a duplicate-`redi` error). Pin **every** `@univerjs/*` package to the same

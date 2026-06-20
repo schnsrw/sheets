@@ -8,6 +8,33 @@ Pre-v0.2.0 releases were tagged without a CHANGELOG file. The site
 (`https://casualoffice.org/changelog/`) carries longer-form release notes
 for v0.1.0+; the GitHub Releases page links to the same content.
 
+## [0.3.2] — 2026-06-20
+
+Docker app refresh — rebuilds and republishes the image (so
+`docker pull casualoffice/sheets:latest` works again, #57) and folds in
+the editor + branding work that landed since 0.3.1.
+
+### Added
+
+- **Excel active-cell crosshair highlight** and a **zen (full-screen)
+  cell editor**, wired from Univer OSS via context-menu triggers.
+
+### Changed
+
+- **Univer fork upgraded 0.24 → 0.25** under the hood.
+- **Renamed to the CasualOffice org** — Docker image
+  `casualoffice/sheets`, npm scope `@casualoffice/*`, in-app URLs, and the
+  `sheet.casualoffice.org` subdomain.
+
+### Fixed
+
+- Republished the Docker image so the `latest` / `0.3` / `0` tags pull
+  cleanly (#57).
+- Gave the co-edit compaction e2e generous CI timeouts to stop flaky
+  failures.
+
+[GitHub release](https://github.com/CasualOffice/sheets/releases/tag/v0.3.2)
+
 ## [0.3.1] — 2026-06-11
 
 Patch release — fixes the docker image so personal mode (Phase C)

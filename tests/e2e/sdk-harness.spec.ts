@@ -368,6 +368,23 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
     expect(bg).toBe('rgb(42, 46, 53)');
   });
 
+  test('chrome formula bar: function autocomplete completes', async ({ page }) => {
+    await page.goto('/sdk-harness?chrome=minimal');
+    await page.waitForFunction(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      () => (window as any).__sdkHarnessReady === true,
+      null,
+      { timeout: 30_000 },
+    );
+    const input = page.getByTestId('casual-sheets-formula-input');
+    await input.click();
+    await input.fill('=SU');
+    await expect(page.getByTestId('cs-formula-suggestions')).toBeVisible();
+    await expect(page.getByTestId('cs-formula-suggestion-SUM')).toBeVisible();
+    await page.getByTestId('cs-formula-suggestion-SUM').click();
+    await expect(input).toHaveValue('=SUM(');
+  });
+
   test('chrome toolbar: wrap text applies', async ({ page }) => {
     await page.goto('/sdk-harness?chrome=minimal');
     await page.waitForFunction(

@@ -1254,9 +1254,9 @@ button {
   margin-left: 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: #6b4f00;
-  background: #fff4ce;
-  border: 1px solid #f1d17a;
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -2326,7 +2326,7 @@ button {
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-accent-fg);
   font-size: 10px;
@@ -2934,12 +2934,12 @@ button {
 }
 
 .loading-overlay__card--error {
-  border-top: 3px solid #d93025;
+  border-top: 3px solid var(--color-danger);
 }
 
 .loading-overlay__icon--error {
-  background: color-mix(in srgb, #d93025 14%, transparent);
-  color: #d93025;
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
 }
 .loading-overlay__icon--error .material-symbols-outlined {
   font-size: 22px;
@@ -4476,11 +4476,11 @@ button {
 }
 
 .collab-indicator--offline {
-  color: #d93025;
-  border-color: color-mix(in srgb, #d93025 35%, transparent);
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
 }
 .collab-indicator--offline .collab-indicator__dot {
-  background: #d93025;
+  background: var(--color-danger);
 }
 
 /* Sync-health warning: WS is "live" but our Y.Doc state vector
@@ -4584,7 +4584,7 @@ button {
   border-left-color: #e7a851;
 }
 .collab-indicator__popover-item[data-classification='permanent'] {
-  border-left-color: #d93025;
+  border-left-color: var(--color-danger);
 }
 
 .collab-indicator__popover-row {
@@ -4613,7 +4613,7 @@ button {
   color: #8a5300;
 }
 .collab-indicator__popover-chip--permanent {
-  background: color-mix(in srgb, #d93025 22%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 22%, transparent);
   color: #a11d15;
 }
 

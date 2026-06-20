@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUniverAPI } from '../use-univer';
 import { useSheets, type SheetSummary } from '../hooks/useSheets';
-import { useActiveCellState } from '../hooks/useActiveCellState';
 import {
   addSheet,
   deleteSheetById,
@@ -12,58 +11,27 @@ import {
   showSheet,
   switchToSheet,
 } from './sheet-actions';
-import { redo, undo } from './home-tab-actions';
-import { setZoom } from './tab-actions';
+import { undo } from './home-tab-actions';
 import { Icon } from './Icon';
 import { Tooltip } from './Tooltip';
-import { CollabIndicator } from './CollabIndicator';
 import { useToast } from './toast/toast-context';
-import { STAT_LABELS, useStatPrefs, type StatKey } from './use-statbar-prefs';
-
-const NUM = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
-const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 200, 300, 400];
 
 /**
- * Bottom strip — combines:
- *   • the sheet-tabs list with hover-X delete + drag reorder + add button
- *   • selection stats (count / sum / avg, multi-cell only)
- *   • undo / redo
- *   • zoom slider with − / + steppers and a click-to-reset 100%% label
- *
- * Replaces the previous separate status bar. Status info that isn't
- * actionable (e.g. "Ready") was dropped — empty signal isn't worth a row.
+ * Sheet-tabs strip — the tabs list (hover-X delete + drag reorder), add
+ * button, and hidden-sheets menu. Selection stats, undo/redo and zoom now
+ * live in the dedicated StatusBar strip below (so many tabs can scroll
+ * without crowding the stats).
  */
 export function SheetTabs() {
   const api = useUniverAPI();
   const toast = useToast();
   const { sheets, activeSheetId, ready } = useSheets();
-  const { stats } = useActiveCellState();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [tabMenu, setTabMenu] = useState<{ sheetId: string; x: number; y: number } | null>(null);
-
-  // Zoom — synced from set-zoom-ratio command params, accurate.
-  const [zoomPct, setZoomPct] = useState(100);
-  useEffect(() => {
-    if (!api) return;
-    const d = api.addEvent(api.Event.CommandExecuted, (e) => {
-      const info = e as { id?: string; params?: { zoomRatio?: number } };
-      if (info.id === 'sheet.command.set-zoom-ratio' && typeof info.params?.zoomRatio === 'number') {
-        setZoomPct(Math.round(info.params.zoomRatio * 100));
-      }
-    });
-    return () => d.dispose();
-  }, [api]);
-
-  const applyZoom = (pct: number) => {
-    if (!api) return;
-    const clamped = Math.max(25, Math.min(400, pct));
-    setZoomPct(clamped);
-    setZoom(api, clamped / 100);
-  };
 
   const startRename = (id: string, currentName: string) => {
     setEditingId(id);
@@ -203,9 +171,7 @@ export function SheetTabs() {
             }}
             onDragStart={() => setDraggingId(s.id)}
             onDragOverIndex={() => setDragOverIndex(i)}
-            onDragLeaveIndex={() =>
-              setDragOverIndex((prev) => (prev === i ? null : prev))
-            }
+            onDragLeaveIndex={() => setDragOverIndex((prev) => (prev === i ? null : prev))}
             onDrop={() => {
               if (api && draggingId && draggingId !== s.id) {
                 // Translate the visible-row index to a global sheet
@@ -225,90 +191,6 @@ export function SheetTabs() {
             }}
           />
         ))}
-      </div>
-
-      {stats && stats.cellCount > 0 && <SheetTabsStats stats={stats} />}
-
-      <div className="sheet-tabs__right">
-        <CollabIndicator />
-        <span className="sheet-tabs__sep" aria-hidden="true" />
-        <Tooltip label="Undo (Ctrl+Z)" side="top">
-          <button
-            type="button"
-            className="sheet-tabs__action btn btn--icon"
-            data-testid="qat-undo"
-            aria-label="Undo (Ctrl+Z)"
-            disabled={!ready || !api}
-            onClick={() => api && undo(api)}
-          >
-            <Icon name="undo" size="sm" />
-          </button>
-        </Tooltip>
-        <Tooltip label="Redo (Ctrl+Y)" side="top">
-          <button
-            type="button"
-            className="sheet-tabs__action btn btn--icon"
-            data-testid="qat-redo"
-            aria-label="Redo (Ctrl+Y)"
-            disabled={!ready || !api}
-            onClick={() => api && redo(api)}
-          >
-            <Icon name="redo" size="sm" />
-          </button>
-        </Tooltip>
-
-        <span className="sheet-tabs__sep" aria-hidden="true" />
-
-        <Tooltip label="Zoom out" side="top">
-          <button
-            type="button"
-            className="sheet-tabs__action btn btn--icon"
-            data-testid="statusbar-zoom-out"
-            aria-label="Zoom out"
-            onClick={() => {
-              const prev = [...ZOOM_STEPS].reverse().find((s) => s < zoomPct);
-              applyZoom(prev ?? 25);
-            }}
-          >
-            <Icon name="zoom_out" size="sm" />
-          </button>
-        </Tooltip>
-        <input
-          type="range"
-          min={25}
-          max={400}
-          step={5}
-          value={zoomPct}
-          data-testid="statusbar-zoom-slider"
-          aria-label="Zoom slider"
-          className="sheet-tabs__zoom-slider"
-          onChange={(e) => applyZoom(Number(e.target.value))}
-        />
-        <Tooltip label="Zoom in" side="top">
-          <button
-            type="button"
-            className="sheet-tabs__action btn btn--icon"
-            data-testid="statusbar-zoom-in"
-            aria-label="Zoom in"
-            onClick={() => {
-              const next = ZOOM_STEPS.find((s) => s > zoomPct);
-              applyZoom(next ?? 400);
-            }}
-          >
-            <Icon name="zoom_in" size="sm" />
-          </button>
-        </Tooltip>
-        <Tooltip label="Reset to 100%" side="top">
-          <button
-            type="button"
-            className="sheet-tabs__zoom-label"
-            data-testid="statusbar-zoom-label"
-            aria-label="Reset zoom to 100%"
-            onClick={() => applyZoom(100)}
-          >
-            {zoomPct}%
-          </button>
-        </Tooltip>
       </div>
 
       {tabMenu && (
@@ -637,89 +519,6 @@ function SheetTabItem({
             </button>
           </Tooltip>
         </>
-      )}
-    </div>
-  );
-}
-
-/**
- * Status-bar selection stats with Excel-style right-click
- * customisation. Each enabled stat renders in canonical Excel order;
- * right-click on the strip pops a small checklist letting the user
- * hide / show each item. Preferences persist via `useStatPrefs`.
- */
-function SheetTabsStats({
-  stats,
-}: {
-  stats: NonNullable<ReturnType<typeof useActiveCellState>['stats']>;
-}) {
-  const { prefs, toggle } = useStatPrefs();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const stripRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: PointerEvent) => {
-      if (!stripRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [menuOpen]);
-
-  // Each stat has a render guard (the data must be present) AND a
-  // pref guard (the user hasn't hidden it).
-  const items: Array<{ key: StatKey; node: React.ReactNode }> = [];
-  if (prefs.avg && stats.avg !== null) {
-    items.push({ key: 'avg', node: <span data-testid="stat-avg">Average: {NUM.format(stats.avg)}</span> });
-  }
-  if (prefs.count) {
-    items.push({ key: 'count', node: <span data-testid="stat-count">Count: {stats.cellCount}</span> });
-  }
-  if (prefs.numCount && stats.count !== stats.cellCount) {
-    items.push({ key: 'numCount', node: <span data-testid="stat-num-count">Numerical Count: {stats.count}</span> });
-  }
-  if (prefs.min && stats.min !== null) {
-    items.push({ key: 'min', node: <span data-testid="stat-min">Min: {NUM.format(stats.min)}</span> });
-  }
-  if (prefs.max && stats.max !== null) {
-    items.push({ key: 'max', node: <span data-testid="stat-max">Max: {NUM.format(stats.max)}</span> });
-  }
-  if (prefs.sum) {
-    items.push({ key: 'sum', node: <span data-testid="stat-sum">Sum: {NUM.format(stats.sum)}</span> });
-  }
-
-  return (
-    <div
-      ref={stripRef}
-      className="sheet-tabs__stats"
-      data-testid="sheet-tabs-stats"
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setMenuOpen((v) => !v);
-      }}
-      title="Right-click to choose which stats appear"
-    >
-      {items.map((it) => (
-        <span key={it.key}>{it.node}</span>
-      ))}
-      {menuOpen && (
-        <div className="statbar-customise" role="menu" data-testid="statbar-customise">
-          <div className="statbar-customise__heading">Customise Status Bar</div>
-          {(Object.keys(STAT_LABELS) as StatKey[]).map((key) => (
-            <label
-              key={key}
-              className="statbar-customise__item"
-              data-testid={`statbar-customise-${key}`}
-            >
-              <input
-                type="checkbox"
-                checked={prefs[key]}
-                onChange={() => toggle(key)}
-              />
-              <span>{STAT_LABELS[key]}</span>
-            </label>
-          ))}
-        </div>
       )}
     </div>
   );

@@ -5,7 +5,10 @@ import { useUniverAPI } from '../use-univer';
 import { useCollab } from '../collab/collab-context';
 import { AvatarStack } from '../collab/AvatarStack';
 import { useTheme } from '../theme';
-import { Icon } from './Icon';
+// Design-system primitives (Phase 4) — the title-bar action cluster now uses
+// the shared Button / IconButton / Badge instead of hand-rolled buttons, so
+// the accent gradient, hover spring, and pill tones match the system.
+import { Badge, Button, IconButton } from '@schnsrw/design-system';
 import { BusyPill } from './BusyPill';
 import { SaveStatusPill } from './SaveStatusPill';
 import { ActivityPill } from './ActivityPill';
@@ -13,6 +16,9 @@ import { MenuBar } from './MenuBar';
 import { NamePill } from './NamePill';
 import { AccountMenu } from '../auth/AccountMenu';
 import { navigate } from '../router';
+// Suite brand mark from the shared design system (Phase 4) — one logo across
+// sheet/doc/slides/drive. Vite resolves the SVG import to a URL.
+import sheetsMark from '@schnsrw/design-system/assets/casual-sheets-mark.svg';
 
 /**
  * Title bar — Google-Docs-style two-row chrome.
@@ -112,9 +118,8 @@ export function TitleBar() {
         title="Casual Sheets"
       >
         <img
-          // Prefix with Vite's BASE_URL so the path resolves under
-          // /sheets/ on GitHub Pages and stays at / in local dev.
-          src={`${import.meta.env.BASE_URL}brand.svg`}
+          // Shared design-system suite mark (Phase 4).
+          src={sheetsMark}
           alt="Casual Sheets"
           className="titlebar__brand-icon"
           width={28}
@@ -159,35 +164,32 @@ export function TitleBar() {
         <AvatarStack />
         {collab.roomId && <NamePill />}
         {collab.roomId ? (
-          <span
-            className="titlebar__roompill"
+          <Badge
+            tone="accent"
+            icon="group"
             data-testid="titlebar-roompill"
             title={`Joined room ${collab.roomId}`}
           >
-            <Icon name="group" size="sm" />
-            <span>In room</span>
-          </span>
+            In room
+          </Badge>
         ) : (
-          <button
-            type="button"
-            className="titlebar__share btn-primary"
+          <Button
+            variant="primary"
+            size="sm"
+            icon="group_add"
             data-testid="titlebar-share"
             onClick={() => ui.openShareRoom()}
           >
-            <Icon name="group_add" size="sm" />
-            <span>Share</span>
-          </button>
+            Share
+          </Button>
         )}
-        <button
-          type="button"
-          className="titlebar__icon-btn"
+        <IconButton
+          size="md"
+          icon={theme === 'dark' ? 'light_mode' : 'dark_mode'}
+          label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           data-testid="titlebar-theme-toggle"
-          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           onClick={toggleTheme}
-        >
-          <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="sm" />
-        </button>
+        />
         <AccountMenu />
       </div>
     </header>

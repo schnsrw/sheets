@@ -37,6 +37,10 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # `.dockerignore` strips src/, node_modules/, and other dev-only
 # bits from the build context to keep the image small.
 COPY vendor/univer-revamp vendor/univer-revamp
+# Shared design system, vendored as a git submodule + resolved via the
+# `link:vendor/design-system` override. Its built dist/ is committed, so it's
+# copied in as-is (no build step) before pnpm install can resolve the link.
+COPY vendor/design-system vendor/design-system
 
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
@@ -104,6 +108,10 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # + lib/ outputs at vendor/univer-revamp/packages/* so the override
 # `link:` paths resolve at server start.
 COPY vendor/univer-revamp vendor/univer-revamp
+# Shared design system, vendored as a git submodule + resolved via the
+# `link:vendor/design-system` override. Its built dist/ is committed, so it's
+# copied in as-is (no build step) before pnpm install can resolve the link.
+COPY vendor/design-system vendor/design-system
 
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/

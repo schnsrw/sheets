@@ -11,6 +11,7 @@
 # checked-out source for one-off study — stays ignored.
 vendor/*
 !vendor/univer-revamp
+!vendor/design-system
 
 # Dependencies
 node_modules/

@@ -34,6 +34,12 @@ playwright-report
 # main/exports to the lib shape before docker build kicks in.
 vendor
 !vendor/univer-revamp
+# Shared design-system submodule — keep it AND its committed dist/ (the app
+# resolves `link:vendor/design-system`; the `**/dist` rule above would
+# otherwise strip the built output it needs).
+!vendor/design-system
+!vendor/design-system/**
+vendor/design-system/.git
 
 # Trim only the parts the build truly doesn't read: .git metadata,
 # upstream examples / e2e / mock fixtures, turbo caches. KEEP the

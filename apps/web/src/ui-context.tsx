@@ -3,12 +3,21 @@ import { createContext } from 'react';
 export type UICtxValue = {
   formulaBarVisible: boolean;
   toggleFormulaBar: () => void;
+  /** Compact ribbon view (View → Compact ribbon) — Google-Sheets-style
+   *  single-row toolbar. Opt-in, persisted; Full (2-row) is the default. */
+  ribbonCompact: boolean;
+  toggleRibbonCompact: () => void;
   tablesPanelVisible: boolean;
   toggleTablesPanel: () => void;
   outlinePanelVisible: boolean;
   toggleOutlinePanel: () => void;
   chartsPanelVisible: boolean;
   toggleChartsPanel: () => void;
+  /** Comments task pane — our React panel that indexes thread comments on
+   *  the active sheet (replaces Univer's bespoke comment sidebar so it
+   *  shares the shared `.side-panel` shell + motion). */
+  commentsPanelVisible: boolean;
+  toggleCommentsPanel: () => void;
   /** Live session-history panel — read-only list of every mutation in
    *  the active room's Yjs op-log, who issued it, and when. */
   historyPanelVisible: boolean;

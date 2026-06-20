@@ -42,6 +42,26 @@ export function SaveStatusPill() {
     title = status.message;
   }
 
+  // Design-system Pill tones (height 22 / 0 9px / pill radius), tokenised so
+  // they auto-theme — matches the DS Pill used elsewhere.
+  const TONE: Record<typeof tone, { bg: string; fg: string; bd: string }> = {
+    success: {
+      bg: 'var(--color-success-soft)',
+      fg: 'var(--color-success)',
+      bd: 'color-mix(in srgb, var(--color-success) 30%, transparent)',
+    },
+    error: {
+      bg: 'var(--color-danger-soft)',
+      fg: 'var(--color-danger)',
+      bd: 'color-mix(in srgb, var(--color-danger) 30%, transparent)',
+    },
+    neutral: {
+      bg: 'var(--color-toolbar-pill)',
+      fg: 'var(--color-text-secondary)',
+      bd: 'var(--color-border)',
+    },
+  };
+
   return (
     <span
       className={`save-status-pill save-status-pill--${tone}`}
@@ -53,19 +73,15 @@ export function SaveStatusPill() {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 6,
-        padding: '4px 10px',
-        borderRadius: 6,
-        fontSize: 12,
-        fontWeight: 500,
-        background:
-          tone === 'success'
-            ? 'rgba(34,197,94,0.10)'
-            : tone === 'error'
-              ? 'rgba(239,68,68,0.10)'
-              : 'rgba(100,116,139,0.10)',
-        color:
-          tone === 'success' ? '#15803d' : tone === 'error' ? '#b91c1c' : '#475569',
+        gap: 5,
+        height: 22,
+        padding: '0 9px',
+        borderRadius: 'var(--radius-pill)',
+        fontSize: 'var(--text-sm)',
+        fontWeight: 'var(--weight-medium)',
+        background: TONE[tone].bg,
+        color: TONE[tone].fg,
+        border: `1px solid ${TONE[tone].bd}`,
       }}
     >
       {status.kind === 'saving' && (

@@ -30,8 +30,8 @@ Upload `.xlsx` → open in browser → multiple users edit together, anonymously
 
 > **Active direction (2026-06-19):** the next body of work is the **SDK-first
 > restructure** — promote the full editor into `@casualoffice/sheets`, make
-> storage/collab opt-in adapters, slim `apps/web` to a thin host (the Excalidraw model),
-> behind a Univer 0.24→0.25 fork upgrade. Plan: [`docs/SDK_ARCHITECTURE.md`](./docs/SDK_ARCHITECTURE.md)
+> storage/collab opt-in adapters, slim `apps/web` to a thin host (the Excalidraw model).
+> The Univer 0.24→0.25 fork upgrade that gated it is complete. Plan: [`docs/SDK_ARCHITECTURE.md`](./docs/SDK_ARCHITECTURE.md)
 > + [`docs/SDK_MIGRATION_PIPELINE.md`](./docs/SDK_MIGRATION_PIPELINE.md). The phases below
 > are the shipped product history.
 
@@ -156,7 +156,7 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full diagram and da
 
 | Concern | Pick |
 | --- | --- |
-| Grid + formula engine | Univer OSS 0.24.x |
+| Grid + formula engine | Univer OSS 0.25.x |
 | Frontend | React 18 + Vite + TypeScript strict |
 | Collab | Yjs + Hocuspocus over WebSocket |
 | xlsx I/O | ExcelJS + JSZip in Web Workers (with OOXML passthrough for VBA + pivots) |

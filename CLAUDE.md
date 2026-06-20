@@ -26,34 +26,34 @@ A web-based **Excel-equivalent** with real-time collaborative editing, built on 
 4. [`docs/SDK_MIGRATION_PIPELINE.md`](./docs/SDK_MIGRATION_PIPELINE.md) — phased path to that target (Phase 0 = Univer 0.25).
 5. [`docs/RESEARCH.md`](./docs/RESEARCH.md) — Univer technical brief with file path references.
 6. [`SKILLS.md`](./SKILLS.md) — build/test/verify/release/fork workflows. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution + verification gate.
-7. [`docs/RELEASING.md`](./docs/RELEASING.md) — the **two independent release lines**: Docker app (`casualoffice/sheets`, `vX.Y.Z` tags, latest 0.3.1) vs npm SDK (`@casualoffice/sheets`, Changesets, latest 0.8.0). They version separately — don't conflate them.
+7. [`docs/RELEASING.md`](./docs/RELEASING.md) — the **two independent release lines**: Docker app (`casualoffice/sheets`, `vX.Y.Z` tags, latest 0.3.2) vs npm SDK (`@casualoffice/sheets`, Changesets, latest 0.8.0). They version separately — don't conflate them.
 
 ## Hard rules
 
-### `vendor/univer/` is our fork — modifiable, not yet wired into the build
+### `vendor/univer-revamp/` is our fork — modifiable AND wired into the build
 
-- It is a full clone of [`CasualOffice/univer-revamp`](https://github.com/CasualOffice/univer-revamp), our long-term fork of `dream-num/univer` (currently at v0.24.0).
-- **You may modify files under `vendor/univer/`** — commits land in the fork.
-- **Still not included in our build or workspace.** The app consumes `@univerjs/*` from npm (pinned, see `apps/web/package.json`). Until/unless we wire the fork via pnpm overrides or a republished scope, modifications here are upstream work, not local runtime changes.
-- Read it freely. Cite file paths and line numbers when explaining Univer internals; `vendor/univer/packages/.../file.ts:LINE` format still applies.
+- It is a git submodule of [`CasualOffice/univer-revamp`](https://github.com/CasualOffice/univer-revamp), our long-term fork of `dream-num/univer` (currently v0.25.0, branch `casual-sheets/0.25`).
+- **You may modify files under `vendor/univer-revamp/`** — commits land in the fork.
+- **It IS wired into the build.** The root `package.json` `pnpm.overrides` block `link:`s every `@univerjs/*` package to `vendor/univer-revamp/packages/*`, so the app + SDK resolve Univer to the fork, not npm. Edits here are real local runtime changes — rebuild the fork (`pnpm fork:setup`, which builds + swaps the package.jsons to `lib/`) for them to take effect. (`vendor/univer.stale/` is an old pre-submodule clone — ignore it.)
+- Read it freely. Cite file paths and line numbers when explaining Univer internals; `vendor/univer-revamp/packages/.../file.ts:LINE` format applies.
 - Active perf plan lives at [`docs/UNIVER_FORK_PERF.md`](./docs/UNIVER_FORK_PERF.md).
 
 ### Pin Univer version
 
 - Per the research brief, Univer's `IWorkbookData` shape and plugin contracts change across minor versions, with strict version validation between plugins.
-- Pin **all** `@univerjs/*` packages to the exact same version. Never mix. Current pin: **0.24.0** (`apps/web/package.json` + `packages/sdk/package.json`).
-- **0.25 upgrade (Phase 0, in progress):** the vendored submodule `vendor/univer-revamp` (remote `CasualOffice/univer-revamp`) sits on branch `casual-sheets/0.24` with **six** custom commits on top of the `v0.24.0` release — 2 feature (paste-merge preservation, filtered-dropdown visibility) + 4 perf (font-cache LRU, merge-range row-bucket index, header hit-test index, setStylesCache span). No 0.25 exists in the fork. Upstream `dream-num/univer` tags `v0.25.0` (`36a3884c`). Upgrade = branch `casual-sheets/0.25` from upstream `v0.25.0`, cherry-pick the six commits, bump every pin `0.24.0 → 0.25.0`, re-audit the `pnpm.overrides` block, retest. See `docs/SDK_MIGRATION_PIPELINE.md` Phase 0.
+- Pin **all** `@univerjs/*` packages to the exact same version. Never mix. Current pin: **0.25.0** (`apps/web/package.json` + `packages/sdk/package.json`).
+- **0.25 upgrade (Phase 0): ✅ done.** The vendored submodule `vendor/univer-revamp` (remote `CasualOffice/univer-revamp`) sits on branch `casual-sheets/0.25`, at the `v0.25.0` release with **six** custom commits on top — 2 feature (paste-merge preservation, filtered-dropdown visibility) + 4 perf (font-cache LRU, merge-range row-bucket index, header hit-test index, setStylesCache span). Every `@univerjs/*` pin is `0.25.0` and the `pnpm.overrides` block links to the fork packages. When upgrading again (e.g. 0.26): branch `casual-sheets/0.26` from the upstream tag, cherry-pick the six commits, bump every pin, re-audit `pnpm.overrides`, retest. See `docs/SDK_MIGRATION_PIPELINE.md` Phase 0.
 
 ### Use the collab hook Univer designed for it
 
 - Do **not** hook into UI events to capture changes.
-- Subscribe to `ICommandService.onMutationExecutedForCollab` (`vendor/univer/packages/core/src/services/command/command.service.ts:404`). This is the only correct hook — it fires for `CommandType.MUTATION` only and includes `syncOnly` mutations.
+- Subscribe to `ICommandService.onMutationExecutedForCollab` (`vendor/univer-revamp/packages/core/src/services/command/command.service.ts:404`). This is the only correct hook — it fires for `CommandType.MUTATION` only and includes `syncOnly` mutations.
 - Use `IExecutionOptions.fromCollab` when applying remote mutations so they don't re-broadcast (echo loop prevention).
 - Respect `params.__splitChunk__` for large mutations (paste large range, copy worksheet).
 
 ### Headless seeding caveats
 
-- Server-side xlsx → snapshot conversion runs in Node. Use the plugin set from `vendor/univer/examples/src/node/sdk/index.ts:42` as the known-safe Node baseline.
+- Server-side xlsx → snapshot conversion runs in Node. Use the plugin set from `vendor/univer-revamp/examples/src/node/sdk/index.ts:42` as the known-safe Node baseline.
 - Formula evaluation may be async when offloaded to a worker — if seeding, await calc before snapshotting.
 
 ### Don't reach for Univer Pro
@@ -78,7 +78,7 @@ If you find a feature is missing (charts, pivots, xlsx import/export), the answe
 
 - Match the existing tight, decision-oriented tone of `PLAN.md` and the docs/ files when adding to them.
 - Don't bloat docs with marketing language. State decisions and tradeoffs.
-- When citing Univer source, use `vendor/univer/packages/.../file.ts:LINE` format.
+- When citing Univer source, use `vendor/univer-revamp/packages/.../file.ts:LINE` format.
 
 ## Phase awareness
 
@@ -102,8 +102,15 @@ Subsequent phases (also shipped):
 
 ## Current status (2026-06-12)
 
-- **Released**: v0.3.1 (Docker image + pnpm packages). Single-user
-  demo live at https://sheet.casualoffice.org/.
+- **Released**: Docker app **v0.3.2** (`casualoffice/sheets:0.3.2` /
+  `latest`, live). Single-user demo live at https://sheet.casualoffice.org/.
+- **SDK — two lines, restructure half-done.** The **old** SDK is published as
+  `@schnsrw/casual-sheets@0.8.0` (pre-restructure: minimal editor + xlsx import).
+  The **new** `@casualoffice/sheets` is the in-progress Excalidraw-model
+  restructure (full editor, formula engine, `CasualSheetsAPI`, `onChange`, lazy
+  plugins, light/dark) landing on `main` — **not yet published** (first publish
+  ships it as `0.9.0+`). The new API is **not** in `@schnsrw/casual-sheets@0.8.0`.
+  See `docs/INTEGRATION.md` + `docs/RELEASING.md`.
 - **Recent UX wave** (UX_AUDIT.md, all shipped 2026-06-11/12): path
   router with `/home` file picker, mobile-responsive list, keyboard
   shortcuts dialog, SaveStatusPill, ActivityPill, collab name pre-

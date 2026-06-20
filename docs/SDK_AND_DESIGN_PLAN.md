@@ -101,14 +101,18 @@ Working rules from [`SDK_MIGRATION_PIPELINE.md`](./SDK_MIGRATION_PIPELINE.md) ap
 3–4 commits → green CI; no semver break without a changeset; UI changes
 Playwright-gated.
 
-### Phase 0 — Univer fork 0.24 → 0.25 *(blocking — gates BOTH tracks)*
+### Phase 0 — Univer fork 0.24 → 0.25 *(✅ done — was the gate for BOTH tracks)*
 
-This is the true gate. `packages/sdk/package.json` and `apps/web/package.json` pin
-`0.25.0`, but the **actual install is 0.24.0** (`node_modules/.pnpm/@univerjs+*@0.24.0`,
-vendor symlinks → `vendor/univer-revamp` on `casual-sheets/0.24`). The DI work in
-Batch 2 must be validated on the version actually installed. Finish the
-0.24→0.25 fork upgrade (see `SDK_MIGRATION_PIPELINE.md` Phase 0) before any
-restructure or DS chrome work lands.
+> **Completed.** `vendor/univer-revamp` is on `casual-sheets/0.25` at `v0.25.0` with
+> the six custom commits; both `apps/web` and `packages/sdk` resolve `@univerjs/*`
+> `0.25.0` through `pnpm.overrides`. The original analysis is kept below for context.
+
+This was the true gate. `packages/sdk/package.json` and `apps/web/package.json` pinned
+`0.25.0`, but the **actual install was 0.24.0** at the time of writing
+(`node_modules/.pnpm/@univerjs+*@0.24.0`, vendor symlinks → `vendor/univer-revamp` on
+`casual-sheets/0.24`). The DI work in Batch 2 had to be validated on the version
+actually installed, so the 0.24→0.25 fork upgrade (see `SDK_MIGRATION_PIPELINE.md`
+Phase 0) landed before any restructure or DS chrome work.
 
 **Exit:** `vendor/univer-revamp` on `casual-sheets/0.25`, the six custom commits
 cherry-picked, install resolves to 0.25.0, app builds and smoke-passes on 0.25.

@@ -8,6 +8,15 @@ This guide covers the **React component** path. For the sandboxed `<iframe>` pat
 (cross-origin hosts, signed embeds), see [`SDK_SIGNING_EMBED.md`](./SDK_SIGNING_EMBED.md).
 For the architecture and rationale, see [`SDK_ARCHITECTURE.md`](./SDK_ARCHITECTURE.md).
 
+> ⚠️ **Status: in active development, not yet published.** `@casualoffice/sheets`
+> is the **new** editor SDK — the Excalidraw-model restructure (full editor,
+> `CasualSheetsAPI`, `onChange`, lazy plugins, …). It is **not on npm yet**; this
+> guide documents the API as it lands on `main`. The **older**
+> `@schnsrw/casual-sheets@0.8.0` is published but is a **different, pre-restructure
+> line** — it does **not** have the API below. Don't install `@schnsrw` expecting
+> this guide to work. The first `@casualoffice/sheets` publish ships the surface
+> documented here. See [`RELEASING.md`](./RELEASING.md).
+
 ---
 
 ## Install

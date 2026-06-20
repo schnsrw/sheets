@@ -24,7 +24,7 @@
 
 services:
   app:
-    image: casualoffice/sheets:0.3.1
+    image: casualoffice/sheets:0.3.2
     build:
       context: .
       dockerfile: Dockerfile

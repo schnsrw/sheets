@@ -898,7 +898,7 @@ button {
   gap: 6px;
   padding: 4px 12px 4px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
   font-size: 12px;
   font-weight: var(--weight-medium, 500);

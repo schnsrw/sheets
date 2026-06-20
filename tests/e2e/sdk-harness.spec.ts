@@ -280,8 +280,8 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
     const bg = await page
       .getByTestId('casual-sheets-toolbar')
       .evaluate((el) => getComputedStyle(el).backgroundColor);
-    // Dark chrome bg is #1f2329 → rgb(31, 35, 41), not the light #f8f9fa.
-    expect(bg).toBe('rgb(31, 35, 41)');
+    // Dark chrome bg is the design-system surface-strip #2a2e35 → rgb(42, 46, 53).
+    expect(bg).toBe('rgb(42, 46, 53)');
   });
 
   test('CasualSheetsAPI: getSelection returns the active range', async ({ page }) => {

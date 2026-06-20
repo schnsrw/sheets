@@ -318,13 +318,16 @@ export function CasualSheets({
   // vars (with light fallbacks). Set them on the wrapper so the toolbar / formula
   // bar / status bar flip with `appearance` — reactive via the prop. (Hosts can
   // still override any of these vars themselves.)
+  // Values from @schnsrw/design-system tokens (surface-strip / text / border)
+  // — adopted directly (not as a package dep) so the chrome matches the suite.
   const dark = appearance === 'dark';
   const chromeVars = {
-    '--cs-chrome-bg': dark ? '#1f2329' : '#f8f9fa',
-    '--cs-chrome-fg': dark ? '#e5e7eb' : '#1f2329',
-    '--cs-chrome-muted': dark ? '#9ca3af' : '#6b7280',
-    '--cs-chrome-border': dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
-    '--cs-chrome-input-bg': dark ? '#2a2e35' : '#ffffff',
+    '--cs-chrome-bg': dark ? '#2a2e35' : '#eef1f5',
+    '--cs-chrome-fg': dark ? '#e6e6e6' : '#201f1e',
+    '--cs-chrome-muted': dark ? '#b0b3ba' : '#605e5c',
+    '--cs-chrome-border': dark ? '#32363d' : '#e6e9ee',
+    '--cs-chrome-input-bg': dark ? '#23262c' : '#ffffff',
+    '--cs-chrome-hover': dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
   } as CSSProperties;
 
   return (

@@ -87,21 +87,25 @@ Import `@casualoffice/sheets/styles` **once** at app boot.
 
 ## Props
 
-| Prop                  | Type                                           | Default                                           | Notes                                                                                                                 |
-| --------------------- | ---------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `initialData`         | `IWorkbookData`                                | —                                                 | Mounted **once**. To swap workbooks, change the React `key` to force a remount.                                       |
-| `onReady`             | `(api: CasualSheetsAPI) => void`               | —                                                 | Fires after the workbook unit is created. Hands back the imperative API.                                              |
-| `onChange`            | `(snapshot: IWorkbookData) => void`            | —                                                 | Debounced snapshot stream after edits settle. Driven by Univer's mutation hook, so it catches programmatic edits too. |
-| `onChangeDebounceMs`  | `number`                                       | `400`                                             | Debounce window for `onChange`.                                                                                       |
-| `locale`              | `LocaleType`                                   | `EN_US`                                           |                                                                                                                       |
-| `locales`             | `ILocales`                                     | Univer defaults                                   | String bundles. Required if you use locale-dependent UI (e.g. the formula range selector) in a non-default language.  |
-| `logLevel`            | `LogLevel`                                     | `WARN`                                            |                                                                                                                       |
-| `chrome`              | `'none' \| 'minimal' \| 'full'`                | `'none'`                                          | Built-in Office shell around the grid (see **Built-in chrome** below). `'none'` = bare grid (bring your own).         |
-| `ui`                  | `{ header?; toolbar?; footer?; contextMenu? }` | header/toolbar/footer **off**, contextMenu **on** | Univer chrome toggles. The embedded shape hides Univer's own ribbon; build your own around the grid.                  |
-| `theme`               | Univer theme                                   | `defaultTheme`                                    | Univer colour-theme **object**. Distinct from `appearance`.                                                           |
-| `appearance`          | `'light' \| 'dark'`                            | `'light'`                                         | Reactive light/dark mode (`ThemeService.setDarkMode`). Univer applies its dark CSS to `<html>`, so it's page-global.  |
-| `style` / `className` | —                                              | fills parent                                      | Container styling hooks.                                                                                              |
-| `testId`              | `string`                                       | `casual-sheets`                                   |                                                                                                                       |
+| Prop                  | Type                                           | Default                                           | Notes                                                                                                                  |
+| --------------------- | ---------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `initialData`         | `IWorkbookData`                                | —                                                 | Mounted **once**. To swap workbooks, change the React `key` to force a remount.                                        |
+| `onReady`             | `(api: CasualSheetsAPI) => void`               | —                                                 | Fires after the workbook unit is created. Hands back the imperative API.                                               |
+| `onChange`            | `(snapshot: IWorkbookData) => void`            | —                                                 | Debounced snapshot stream after edits settle. Driven by Univer's mutation hook, so it catches programmatic edits too.  |
+| `onChangeDebounceMs`  | `number`                                       | `400`                                             | Debounce window for `onChange`.                                                                                        |
+| `onSave`              | `(snapshot: IWorkbookData) => void`            | —                                                 | Fires on Ctrl/Cmd+S inside the editor (the browser dialog is suppressed). The host persists the snapshot.              |
+| `onExit`              | `(snapshot: IWorkbookData) => void`            | —                                                 | Fires once on unmount with the final snapshot — the host's last chance to persist.                                     |
+| `formula`             | `{ worker?: Worker \| string }`                | main-thread                                       | Off-main compute: pass a Web Worker to move formula calc off-thread (needs `@univerjs/rpc`). See **Off-main formula**. |
+| `onBeforeCreateUnit`  | `(univer: Univer) => void`                     | —                                                 | Power-host escape hatch: register extra plugins before the unit mounts. NOT semver-covered. See **Power-host hooks**.  |
+| `locale`              | `LocaleType`                                   | `EN_US`                                           |                                                                                                                        |
+| `locales`             | `ILocales`                                     | Univer defaults                                   | String bundles. Required if you use locale-dependent UI (e.g. the formula range selector) in a non-default language.   |
+| `logLevel`            | `LogLevel`                                     | `WARN`                                            |                                                                                                                        |
+| `chrome`              | `'none' \| 'minimal' \| 'full'`                | `'none'`                                          | Built-in Office shell around the grid (see **Built-in chrome** below). `'none'` = bare grid (bring your own).          |
+| `ui`                  | `{ header?; toolbar?; footer?; contextMenu? }` | header/toolbar/footer **off**, contextMenu **on** | Univer chrome toggles. The embedded shape hides Univer's own ribbon; build your own around the grid.                   |
+| `theme`               | Univer theme                                   | `defaultTheme`                                    | Univer colour-theme **object**. Distinct from `appearance`.                                                            |
+| `appearance`          | `'light' \| 'dark'`                            | `'light'`                                         | Reactive light/dark mode (`ThemeService.setDarkMode`). Univer applies its dark CSS to `<html>`, so it's page-global.   |
+| `style` / `className` | —                                              | fills parent                                      | Container styling hooks.                                                                                               |
+| `testId`              | `string`                                       | `casual-sheets`                                   |                                                                                                                        |
 
 ---
 
@@ -133,6 +137,55 @@ Theming: every chrome part reads `--cs-chrome-*` CSS variables (set on the edito
 container) and follows `appearance` for light/dark — override the variables to
 match your host. `"minimal"` and `"full"` currently render the same shell;
 `"full"` is where richer panels (find/replace, charts) will land.
+
+The chrome is **lazy-loaded** (a `@casualoffice/sheets/chrome` chunk imported only
+when `chrome !== 'none'`), so bare-grid consumers never bundle it — `chrome="none"`
+pays nothing.
+
+---
+
+## Off-main formula
+
+By default the formula engine computes on the main thread — fine for typical
+sheets, zero setup. For large workbooks where paste / sort / fill would jank the
+UI, move compute to a Web Worker:
+
+```tsx
+const worker = new Worker(new URL('./formula.worker.ts', import.meta.url), { type: 'module' });
+<CasualSheets initialData={data} formula={{ worker }} />;
+```
+
+The SDK then registers the formula plugins with `notExecuteFormula` and wires
+`UniverRPCMainThreadPlugin` to your worker. **You** own the worker (the SDK never
+bundles one — brittle across bundlers) and must install `@univerjs/rpc`. The
+worker script is the standard Univer formula worker (see the reference app's
+`apps/web/src/univer/formula-worker.ts`).
+
+## Power-host hooks
+
+For hosts that want the SDK editor **core** but bring their own extra Univer
+plugins (the reference `apps/web` does exactly this — it renders `chrome="none"`
+
+- its own shell), `onBeforeCreateUnit` hands you the raw `Univer` after the SDK's
+  plugins register but before the unit mounts:
+
+```tsx
+<CasualSheets
+  initialData={data}
+  chrome="none"
+  onBeforeCreateUnit={(univer) => {
+    univer.registerPlugin(UniverSheetsCrosshairHighlightPlugin);
+    univer.registerPlugin(UniverSheetsZenEditorPlugin);
+  }}
+  onReady={(api) => {
+    /* layer paste hooks / dev tools / etc. on api.univer here */
+  }}
+/>
+```
+
+Register-time plugins (anything that must be present when the unit inits) go in
+`onBeforeCreateUnit`; everything else can layer in `onReady` via `api.univer`.
+This hook is **not** semver-covered — it exposes the raw Univer instance.
 
 ---
 

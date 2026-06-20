@@ -22,9 +22,26 @@
 import * as Y from 'yjs';
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
 import type { IWorkbookData } from '@univerjs/core';
+import type { FUniver } from '@univerjs/core/facade';
 import type { CasualSheetsAPI } from '../sheets/api';
 import { startBridge, type BridgeHandle } from './bridge';
 import { buildWsUrl } from './ws-url';
+
+/** Either the SDK's imperative API (`onReady`) or the bare FUniver facade.
+ *  Collab only needs the facade, so a host that holds the raw FUniver (the
+ *  reference app does) can attach without constructing a CasualSheetsAPI. */
+export type CollabAttachable = CasualSheetsAPI | FUniver;
+
+/** Pull the FUniver facade out of whichever attachable form was passed.
+ *  FUniver exposes `getActiveWorkbook` directly; CasualSheetsAPI wraps the
+ *  facade on `.univer`. Discriminating on the method (not on `'univer' in …`)
+ *  is unambiguous either way. */
+function resolveFacade(api: CollabAttachable): FUniver {
+  const maybe = api as Partial<FUniver> & Partial<CasualSheetsAPI>;
+  return typeof maybe.getActiveWorkbook === 'function'
+    ? (api as FUniver)
+    : (maybe.univer as FUniver);
+}
 
 /** `write` peers broadcast their edits; `view` peers only receive. The
  *  client-side gate is belt-and-braces — real enforcement is the server's
@@ -78,7 +95,8 @@ export interface CollabHandle {
  * Returns a {@link CollabHandle}; call `.detach()` to leave the room
  * (and always before the editor unmounts).
  */
-export function attachCollab(api: CasualSheetsAPI, opts: AttachCollabOptions): CollabHandle {
+export function attachCollab(api: CollabAttachable, opts: AttachCollabOptions): CollabHandle {
+  const facade = resolveFacade(api);
   const role: CollabRole = opts.role ?? 'write';
 
   const doc = new Y.Doc();
@@ -97,7 +115,7 @@ export function attachCollab(api: CasualSheetsAPI, opts: AttachCollabOptions): C
     token: opts.token ?? 'anon',
   });
 
-  const bridge = startBridge(api.univer, doc, {
+  const bridge = startBridge(facade, doc, {
     role,
     awareness: provider.awareness ?? undefined,
     onSnapshotReceived: opts.onSnapshot,

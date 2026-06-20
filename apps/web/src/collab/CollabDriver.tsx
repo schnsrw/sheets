@@ -1,14 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as Y from 'yjs';
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
+import type { HocuspocusProvider } from '@hocuspocus/provider';
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
 import { useLoading } from '../loading-context';
 import { useToast } from '../shell/toast/toast-context';
 import { xlsxToWorkbookData } from '../xlsx';
-import { startBridge, type BridgeHandle } from './bridge';
-import type { ReplayFailureRecord } from './replay-retry';
-import { CollabContext, type CollabRole, type CollabStatus, type SyncHealth } from './collab-context';
+// Phase 3 (thin host): the app no longer hand-rolls the Yjs doc + provider +
+// bridge — it calls the SDK's one-shot `attachCollab` and layers its own host
+// concerns (presence, charts, password re-prompt, divergence) on the returned
+// provider/doc.
+import {
+  attachCollab,
+  type BridgeHandle,
+  type CollabHandle,
+  type ReplayFailureRecord,
+} from '@casualoffice/sheets/collab';
+import {
+  CollabContext,
+  type CollabRole,
+  type CollabStatus,
+  type SyncHealth,
+} from './collab-context';
 import { viteEnv, windowStringGlobal } from '../univer-facade';
 import { useCharts } from '../charts/charts-context';
 import type { ChartModel } from '../charts/types';
@@ -54,6 +67,10 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   // Returns null when not signed in (Mode 1 / Mode 2 / WOPI / anon
   // share) — the existing whimsical fallback takes over.
   const currentUser = useCurrentUser();
+  // `collabRef` owns the SDK collab session (doc + provider + bridge +
+  // detach). `handleRef` keeps pointing at the bridge so the existing
+  // replay-failure subscriptions below stay unchanged.
+  const collabRef = useRef<CollabHandle | null>(null);
   const handleRef = useRef<BridgeHandle | null>(null);
   const docRef = useRef<Y.Doc | null>(null);
   // Cleanup for the charts ↔ Yjs bridge wired up when a doc connects.
@@ -75,7 +92,11 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   const [status, setStatus] = useState<CollabStatus>('off');
   // Password prompt state: needs to render an input the user can submit.
   // `null` = no prompt; an object = open with this room id pending.
-  const [passwordPrompt, setPasswordPrompt] = useState<{ roomId: string; role: CollabRole; error?: string } | null>(null);
+  const [passwordPrompt, setPasswordPrompt] = useState<{
+    roomId: string;
+    role: CollabRole;
+    error?: string;
+  } | null>(null);
   // The actual password (kept in memory only) once the user has provided
   // one — needed to retry on reconnect after a transient drop.
   const passwordRef = useRef<string>('');
@@ -204,10 +225,9 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
           if (info.hasSnapshot && typeof DecompressionStream !== 'undefined') {
             snapshotAttempted = true;
             try {
-              const res = await fetch(
-                `/api/rooms/${encodeURIComponent(id)}/snapshot`,
-                { headers: authHeader },
-              );
+              const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/snapshot`, {
+                headers: authHeader,
+              });
               if (res.ok) {
                 loading.set({ phase: 'mounting' });
                 data = (await res.json()) as import('@univerjs/core').IWorkbookData;
@@ -216,7 +236,11 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
               } else if (!info.hasSeed) {
                 throw new Error(`Server returned ${res.status} fetching room snapshot.`);
               } else {
-                console.warn('[collab] snapshot fast-path returned', res.status, '— falling back to xlsx');
+                console.warn(
+                  '[collab] snapshot fast-path returned',
+                  res.status,
+                  '— falling back to xlsx',
+                );
               }
             } catch (err) {
               if (!info.hasSeed) throw err;
@@ -225,10 +249,9 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
           }
 
           if (!data && info.hasSeed) {
-            const res = await fetch(
-              `/api/rooms/${encodeURIComponent(id)}/seed`,
-              { headers: authHeader },
-            );
+            const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/seed`, {
+              headers: authHeader,
+            });
             if (res.status === 401) {
               throw new Error('Password rejected by server.');
             }
@@ -285,172 +308,132 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
     [],
   );
 
-  const join = useCallback((id: string, joinRole: CollabRole, password: string): void => {
-    if (!api) return;
-    teardown();
-    passwordRef.current = password;
-    setStatus('connecting');
-
-    const baseWs = wsUrl();
-    const sep = baseWs.includes('?') ? '&' : '?';
-    // Hocuspocus reads the document name from its own handshake; we put
-    // the same name in the query string so the server's upgrade handler
-    // can validate the password against the right room BEFORE the
-    // protocol handshake completes.
-    //
-    // `role` rides on the URL too so the server's `onAuthenticate`
-    // hook can flip the Connection to read-only for view joiners.
-    // The client-side `applyViewOnlyMode` still does its thing for
-    // immediate-UI feedback; the server-side flag is the real gate
-    // against a crafted client that bypasses Univer's permission check.
-    const url =
-      `${baseWs}${sep}room=${encodeURIComponent(id)}` +
-      `${password ? `&p=${encodeURIComponent(password)}` : ''}` +
-      `&role=${encodeURIComponent(joinRole)}`;
-
-    const doc = new Y.Doc();
-    // Drop messageReconnectTimeout from the default 30 s to 10 s so a
-    // dropped WebSocket flips us to `status === 'offline'` (→
-    // "Waiting to reconnect to server" banner) within ~10 s of the
-    // last server message instead of waiting half a minute. Provider's
-    // internal ping check fires every messageReconnectTimeout/10 = 1 s,
-    // and awareness updates (sv broadcast every 5 s + selection moves
-    // on every cursor change) keep the connection demonstrably alive
-    // so we don't false-positive on quiet rooms.
-    const ws = new HocuspocusProviderWebsocket({
-      url,
-      messageReconnectTimeout: 10_000,
-    });
-    const next = new HocuspocusProvider({
-      websocketProvider: ws,
-      name: id,
-      document: doc,
-      // Hocuspocus enters auth-required mode the moment `onAuthenticate`
-      // is configured on the server (used for view-role enforcement).
-      // The provider only sends the auth submessage when `token` is
-      // truthy — without one, the server keeps the connection in the
-      // pre-auth queue and awareness never propagates. Anonymous rooms
-      // don't need a real secret here; the server hook only reads the
-      // `role` query param. Send a placeholder so the handshake
-      // completes.
-      token: 'anon',
-    });
-    const handle = startBridge(api, doc, {
-      role: joinRole,
-      awareness: next.awareness ?? undefined,
-      // When a peer's compaction snapshot lands, replace our local
-      // workbook with it — same path File→Open uses. Without this,
-      // late joiners + restored sessions miss the workbook state.
-      //
-      // The bridge AWAITS this — return a promise that resolves after
-      // Univer's async unit swap has had a chance to wire into the
-      // facade. Without the frame await, the bridge's next replay
-      // rewrites unitId against the OLD workbook (see Issue 2 in
-      // docs/COLLAB-FIXES.md).
-      onSnapshotReceived: async (wb) => {
-        workbook.replaceWorkbook(wb, 'xlsx');
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        // The swap created a new unit id — re-apply the view-only
-        // permission against it. The previous permission point was
-        // tied to the old unit id and is now stale.
-        if (joinRole === 'view' && api) {
-          const next = api.getActiveWorkbook();
-          if (next) {
-            viewModeDisposeRef.current?.();
-            viewModeDisposeRef.current = applyViewOnlyMode(api, next.getId());
-          }
-        }
-      },
-    });
-
-    const onStatus = (ev: { status: string }) => {
-      if (ev.status === 'connected') setStatus('live');
-      else if (ev.status === 'connecting') setStatus('connecting');
-      else setStatus('offline');
-    };
-    next.on('status', onStatus);
-    // Auth-failure routing. The server now completes the WS upgrade and
-    // then closes the socket with code 4401 when the password is wrong
-    // (see apps/server/src/yjs.ts) — that way the browser surfaces it
-    // as a real CloseEvent we can switch on, rather than a 1006 that
-    // looks indistinguishable from a network drop.
-    //
-    // The forwarded close event from Hocuspocus is a plain CloseEvent;
-    // `event` is the underlying browser CloseEvent.
-    const handleDeniedClose = () => {
-      // Tear down THIS provider so the underlying provider's auto-reconnect
-      // doesn't keep hammering the server with the wrong password.
+  const join = useCallback(
+    (id: string, joinRole: CollabRole, password: string): void => {
+      if (!api) return;
       teardown();
-      setStatus('denied');
-      // Re-prompt for the password. On submit, the resolver fires
-      // `join(id, joinRole, pw)` again via the connect flow — but we
-      // need to drive that directly from here since we're not in the
-      // main connect promise anymore.
-      void promptForPassword(id, joinRole, 'Incorrect password — try again.').then(
-        (pw) => join(id, joinRole, pw),
-        () => setStatus('off'),
-      );
-    };
-    // Hocuspocus `close` payload is `{ event: CloseEvent }`.
-    next.on('close', (payload: { event?: { code?: number } } | undefined) => {
-      const code = payload?.event?.code;
-      if (code === 4401 || code === 1008) handleDeniedClose();
-    });
-    // Belt-and-braces: Hocuspocus also emits `authenticationFailed` when
-    // its own onAuthenticate hook rejects. We don't use that hook today,
-    // but wiring this means a future auth hook just works.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (next as any).on?.('authenticationFailed', handleDeniedClose);
+      passwordRef.current = password;
+      setStatus('connecting');
 
-    docRef.current = doc;
-    handleRef.current = handle;
-    setProvider(next);
-    setDoc(doc);
-    // Expose for e2e diagnostics / browser-devtools poking. Same
-    // policy as __univerAPI — no secrets, but invaluable when a real
-    // user reports "the sync looks broken" and we need to inspect
-    // the live Yjs document state without rebuilding.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).__hocuspocusProvider = next;
-
-    // Charts ride a dedicated Y.Map keyed by chart id. The bridge's
-    // op-log only carries Univer mutations (cell writes, structural
-    // edits); our chart state lives in React, so we sync it
-    // out-of-band. Single map + observe means inserts/updates/removes
-    // converge in one round-trip just like cell edits.
-    chartsSyncDisposeRef.current = wireChartsSync(doc, charts, joinRole);
-
-    // View-only joiners get Univer's WorkbookEditablePermission flipped
-    // to false. The editor refuses to open and edit menu items go
-    // disabled — the bridge's role-gate (which drops outbound
-    // mutations) becomes belt-and-braces rather than the only line of
-    // defence. Apply after the first frame so the workbook unit is
-    // wired into the facade.
-    if (joinRole === 'view' && api) {
-      requestAnimationFrame(() => {
-        const wb = api.getActiveWorkbook();
-        if (!wb) return;
-        viewModeDisposeRef.current?.();
-        viewModeDisposeRef.current = applyViewOnlyMode(api, wb.getId());
+      // Hand the room to the SDK. `attachCollab` builds the WS URL (room +
+      // password + role onto the base — the server's upgrade handler validates
+      // the password against the right room and flips view joiners to read-only
+      // BEFORE the protocol handshake), creates the Yjs doc + Hocuspocus
+      // provider (10 s reconnect timeout so a drop surfaces as `offline` fast),
+      // and starts the mutation bridge. We layer presence / charts / close
+      // handling / divergence onto the returned provider + doc below.
+      const collab = attachCollab(api, {
+        room: id,
+        server: wsUrl(),
+        password: password || undefined,
+        role: joinRole,
+        // Map the SDK's coarse status onto our richer CollabStatus (which also
+        // carries 'off' / 'denied', driven elsewhere in this component).
+        onStatus: (s) => setStatus(s),
+        // When a peer's compaction snapshot lands, replace our local workbook —
+        // same path File→Open uses. The bridge AWAITS this so its next replay
+        // rewrites unitId against the NEW workbook (docs/COLLAB-FIXES.md issue
+        // 2). The swap creates a fresh unit id, so re-apply the view-only
+        // permission against it (the prior permission point is now stale).
+        onSnapshot: async (wb) => {
+          workbook.replaceWorkbook(wb, 'xlsx');
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          if (joinRole === 'view' && api) {
+            const swapped = api.getActiveWorkbook();
+            if (swapped) {
+              viewModeDisposeRef.current?.();
+              viewModeDisposeRef.current = applyViewOnlyMode(api, swapped.getId());
+            }
+          }
+        },
       });
-    }
+      const doc = collab.doc;
+      const next = collab.provider;
+      const handle = collab.bridge;
 
-    console.info('[collab] joined room', id, 'as', joinRole);
-  }, [api, charts]);
+      // Auth-failure routing. The server now completes the WS upgrade and
+      // then closes the socket with code 4401 when the password is wrong
+      // (see apps/server/src/yjs.ts) — that way the browser surfaces it
+      // as a real CloseEvent we can switch on, rather than a 1006 that
+      // looks indistinguishable from a network drop.
+      //
+      // The forwarded close event from Hocuspocus is a plain CloseEvent;
+      // `event` is the underlying browser CloseEvent.
+      const handleDeniedClose = () => {
+        // Tear down THIS provider so the underlying provider's auto-reconnect
+        // doesn't keep hammering the server with the wrong password.
+        teardown();
+        setStatus('denied');
+        // Re-prompt for the password. On submit, the resolver fires
+        // `join(id, joinRole, pw)` again via the connect flow — but we
+        // need to drive that directly from here since we're not in the
+        // main connect promise anymore.
+        void promptForPassword(id, joinRole, 'Incorrect password — try again.').then(
+          (pw) => join(id, joinRole, pw),
+          () => setStatus('off'),
+        );
+      };
+      // Hocuspocus `close` payload is `{ event: CloseEvent }`.
+      next.on('close', (payload: { event?: { code?: number } } | undefined) => {
+        const code = payload?.event?.code;
+        if (code === 4401 || code === 1008) handleDeniedClose();
+      });
+      // Belt-and-braces: Hocuspocus also emits `authenticationFailed` when
+      // its own onAuthenticate hook rejects. We don't use that hook today,
+      // but wiring this means a future auth hook just works.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (next as any).on?.('authenticationFailed', handleDeniedClose);
+
+      collabRef.current = collab;
+      docRef.current = doc;
+      handleRef.current = handle;
+      setProvider(next);
+      setDoc(doc);
+      // Expose for e2e diagnostics / browser-devtools poking. Same
+      // policy as __univerAPI — no secrets, but invaluable when a real
+      // user reports "the sync looks broken" and we need to inspect
+      // the live Yjs document state without rebuilding.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__hocuspocusProvider = next;
+
+      // Charts ride a dedicated Y.Map keyed by chart id. The bridge's
+      // op-log only carries Univer mutations (cell writes, structural
+      // edits); our chart state lives in React, so we sync it
+      // out-of-band. Single map + observe means inserts/updates/removes
+      // converge in one round-trip just like cell edits.
+      chartsSyncDisposeRef.current = wireChartsSync(doc, charts, joinRole);
+
+      // View-only joiners get Univer's WorkbookEditablePermission flipped
+      // to false. The editor refuses to open and edit menu items go
+      // disabled — the bridge's role-gate (which drops outbound
+      // mutations) becomes belt-and-braces rather than the only line of
+      // defence. Apply after the first frame so the workbook unit is
+      // wired into the facade.
+      if (joinRole === 'view' && api) {
+        requestAnimationFrame(() => {
+          const wb = api.getActiveWorkbook();
+          if (!wb) return;
+          viewModeDisposeRef.current?.();
+          viewModeDisposeRef.current = applyViewOnlyMode(api, wb.getId());
+        });
+      }
+
+      console.info('[collab] joined room', id, 'as', joinRole);
+    },
+    [api, charts],
+  );
 
   const teardown = (): void => {
     chartsSyncDisposeRef.current?.();
     chartsSyncDisposeRef.current = null;
     viewModeDisposeRef.current?.();
     viewModeDisposeRef.current = null;
-    handleRef.current?.dispose();
-    setProvider((p) => {
-      p?.destroy();
-      return null;
-    });
-    docRef.current?.destroy();
+    // One call tears down the bridge + provider + doc (idempotent).
+    collabRef.current?.detach();
+    collabRef.current = null;
     handleRef.current = null;
     docRef.current = null;
+    setProvider(null);
     setDoc(null);
   };
 
@@ -495,7 +478,12 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
       // older readings are stale (peer might have disconnected, idle
       // tab throttled by browser, etc.) and would false-positive.
       const now = Date.now();
-      const fresh = peers.filter((p) => typeof p.sv === 'string' && typeof p.svAt === 'number' && now - (p.svAt as number) < 30_000);
+      const fresh = peers.filter(
+        (p) =>
+          typeof p.sv === 'string' &&
+          typeof p.svAt === 'number' &&
+          now - (p.svAt as number) < 30_000,
+      );
       if (fresh.length === 0) {
         setSyncHealth('in-sync');
         firstDisagreeAtRef.current = 0;
@@ -550,18 +538,14 @@ export function CollabDriver({ children }: { children?: ReactNode }) {
   // > 0. See v0.1 audit finding #2: failed replays were silently
   // logged to console.warn with no user-facing surface.
   const [replayFailures, setReplayFailures] = useState(0);
-  const [replayDeadLetter, setReplayDeadLetter] = useState<
-    readonly ReplayFailureRecord[]
-  >([]);
+  const [replayDeadLetter, setReplayDeadLetter] = useState<readonly ReplayFailureRecord[]>([]);
   useEffect(() => {
     const handle = handleRef.current;
     if (!handle) return;
     setReplayFailures(handle.getReplayFailures());
     setReplayDeadLetter(handle.getReplayDeadLetter());
     const off = handle.subscribeReplayFailures((n) => setReplayFailures(n));
-    const offDl = handle.subscribeReplayDeadLetter((entries) =>
-      setReplayDeadLetter(entries),
-    );
+    const offDl = handle.subscribeReplayDeadLetter((entries) => setReplayDeadLetter(entries));
     return () => {
       off();
       offDl();
@@ -718,9 +702,12 @@ function SelfHostBanner() {
   return (
     <div className="collab-banner" data-testid="collab-banner" role="status">
       <div className="collab-banner__body">
-        <strong>Co-editing requires self-hosting.</strong>{' '}
-        The hosted demo at <code>sheet.casualoffice.org</code> is single-user. Run
-        Casual Sheets with Docker to get rooms — <a href="https://casualoffice.org/#work" rel="noopener">how to self-host →</a>
+        <strong>Co-editing requires self-hosting.</strong> The hosted demo at{' '}
+        <code>sheet.casualoffice.org</code> is single-user. Run Casual Sheets with Docker to get
+        rooms —{' '}
+        <a href="https://casualoffice.org/#work" rel="noopener">
+          how to self-host →
+        </a>
       </div>
       <button
         type="button"
@@ -738,11 +725,14 @@ function SelfHostBanner() {
  *  edits aren't propagating. */
 function ViewOnlyBanner() {
   return (
-    <div className="collab-banner collab-banner--neutral" data-testid="view-only-banner" role="status">
+    <div
+      className="collab-banner collab-banner--neutral"
+      data-testid="view-only-banner"
+      role="status"
+    >
       <div className="collab-banner__body">
-        <strong>View only.</strong>{' '}
-        You're joined as a viewer — your edits stay local and don't sync to others.
-        Ask the owner for the edit link if you need to change the sheet.
+        <strong>View only.</strong> You're joined as a viewer — your edits stay local and don't sync
+        to others. Ask the owner for the edit link if you need to change the sheet.
       </div>
     </div>
   );
@@ -845,8 +835,8 @@ function PasswordPrompt({
             aria-label="Your display name for this room"
           />
           <p style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.5 }}>
-            Room <code>{state.roomId}</code> is password-protected.
-            Enter the password the owner shared with you.
+            Room <code>{state.roomId}</code> is password-protected. Enter the password the owner
+            shared with you.
           </p>
           <input
             autoFocus
@@ -894,7 +884,12 @@ function PasswordPrompt({
 
 async function fetchRoomInfo(
   id: string,
-): Promise<{ needsPassword: boolean; hasSeed: boolean; hasSnapshot: boolean; clients: number } | null> {
+): Promise<{
+  needsPassword: boolean;
+  hasSeed: boolean;
+  hasSnapshot: boolean;
+  clients: number;
+} | null> {
   try {
     const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/info`);
     if (!res.ok) return null;
@@ -1030,4 +1025,3 @@ function wireChartsSync(
     map.unobserve(onRemote);
   };
 }
-

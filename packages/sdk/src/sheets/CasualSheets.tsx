@@ -128,12 +128,17 @@ export interface CasualSheetsProps {
    *  Univer's design — a host that embeds the editor inside a light page
    *  should scope the editor or accept the global dark CSS. */
   appearance?: 'light' | 'dark';
-  /** Office chrome level rendered around the grid:
+  /** Office chrome rendered around the grid:
    *  - `'none'` (default): bare grid — the host supplies its own chrome.
-   *  - `'minimal'` / `'full'`: a built-in toolbar (undo/redo/bold/italic/
-   *    underline). The rich Office shell (formula bar, menus, status bar) is
-   *    being lifted from the app behind `'full'`; until then both render the
-   *    minimal toolbar. See SDK_MIGRATION_PIPELINE Phase 1 step 2. */
+   *  - `'minimal'` / `'full'`: the built-in Office shell — a menu bar
+   *    (Edit/Insert/Format/Data/View), a formatting toolbar (font family/size,
+   *    bold/italic/underline/strike, text & fill colour, borders, h/v align,
+   *    wrap, merge, number formats, clear format, AutoSum), a formula bar with a
+   *    name box + function autocomplete, a worksheet tab strip (switch/add/
+   *    rename/delete), and a status bar (Average/Count/Numerical Count/Min/Max/
+   *    Sum + zoom). All driven through the facade, themed via `--cs-chrome-*`
+   *    (light/dark). `'minimal'` and `'full'` currently render the same shell;
+   *    `'full'` is where richer panels (find/replace, charts, …) will land. */
   chrome?: 'none' | 'minimal' | 'full';
   /** Container style. Default fills the parent. */
   style?: CSSProperties;

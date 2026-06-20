@@ -96,11 +96,43 @@ Import `@casualoffice/sheets/styles` **once** at app boot.
 | `locale`              | `LocaleType`                                   | `EN_US`                                           |                                                                                                                       |
 | `locales`             | `ILocales`                                     | Univer defaults                                   | String bundles. Required if you use locale-dependent UI (e.g. the formula range selector) in a non-default language.  |
 | `logLevel`            | `LogLevel`                                     | `WARN`                                            |                                                                                                                       |
+| `chrome`              | `'none' \| 'minimal' \| 'full'`                | `'none'`                                          | Built-in Office shell around the grid (see **Built-in chrome** below). `'none'` = bare grid (bring your own).         |
 | `ui`                  | `{ header?; toolbar?; footer?; contextMenu? }` | header/toolbar/footer **off**, contextMenu **on** | Univer chrome toggles. The embedded shape hides Univer's own ribbon; build your own around the grid.                  |
 | `theme`               | Univer theme                                   | `defaultTheme`                                    | Univer colour-theme **object**. Distinct from `appearance`.                                                           |
 | `appearance`          | `'light' \| 'dark'`                            | `'light'`                                         | Reactive light/dark mode (`ThemeService.setDarkMode`). Univer applies its dark CSS to `<html>`, so it's page-global.  |
 | `style` / `className` | —                                              | fills parent                                      | Container styling hooks.                                                                                              |
 | `testId`              | `string`                                       | `casual-sheets`                                   |                                                                                                                       |
+
+---
+
+## Built-in chrome
+
+By default (`chrome="none"`) the SDK renders a **bare grid** and you bring your own
+toolbar/menus. Set `chrome="full"` (or `"minimal"`) to render the built-in Office
+shell instead — useful for a quick full editor without building UI:
+
+```tsx
+<CasualSheets initialData={data} chrome="full" />
+```
+
+What the shell provides (all driven through the facade, no host wiring):
+
+- **Menu bar** — Edit / Insert / Format / Data / View.
+- **Toolbar** — font family + size, bold / italic / underline / strikethrough,
+  text & fill colour, **borders**, horizontal & vertical align, wrap, merge /
+  unmerge, number formats (currency / percent / decimals), clear formatting,
+  **AutoSum** (Sum / Average / Count / Max / Min). Toggles reflect the active cell.
+- **Formula bar** — name box (A1 ref + go-to + defined names) and an input with
+  **function autocomplete** (`=SU` → SUM, SUMIF, …).
+- **Sheet tabs** — switch (click), add (+), rename (double-click), delete
+  (right-click). Last visible sheet is protected.
+- **Status bar** — selection aggregates (Average / Count / Numerical Count / Min /
+  Max / Sum) and a **zoom** control (− / level / +, click to reset).
+
+Theming: every chrome part reads `--cs-chrome-*` CSS variables (set on the editor
+container) and follows `appearance` for light/dark — override the variables to
+match your host. `"minimal"` and `"full"` currently render the same shell;
+`"full"` is where richer panels (find/replace, charts) will land.
 
 ---
 

@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type * as Y from 'yjs';
-import type { ReplayFailureRecord } from './replay-retry';
+import type { ReplayFailureRecord } from '@casualoffice/sheets/collab';
 
 export type CollabStatus = 'off' | 'connecting' | 'live' | 'offline' | 'denied';
 export type CollabRole = 'view' | 'write';

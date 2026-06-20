@@ -25,15 +25,8 @@ import { Tooltip } from './Tooltip';
  * count. See docs/PRODUCTION_PIPELINE.md → Stream A2.
  */
 export function CollabIndicator() {
-  const {
-    status,
-    roomId,
-    syncHealth,
-    peerCount,
-    queuedLocal,
-    replayFailures,
-    replayDeadLetter,
-  } = useCollab();
+  const { status, roomId, syncHealth, peerCount, queuedLocal, replayFailures, replayDeadLetter } =
+    useCollab();
   const failed = status === 'live' && replayFailures > 0;
   const diverged = !failed && status === 'live' && syncHealth === 'diverged';
   const effectiveStatus = failed || diverged ? 'diverged' : status;
@@ -144,21 +137,15 @@ export function CollabIndicator() {
   );
 
   return (
-    <span
-      className="collab-indicator__wrap"
-      ref={containerRef}
-      data-testid="collab-indicator-wrap"
-    >
+    <span className="collab-indicator__wrap" ref={containerRef} data-testid="collab-indicator-wrap">
       {pill}
-      {expanded && hasDetail && (
-        <ReplayFailurePopover entries={replayDeadLetter} />
-      )}
+      {expanded && hasDetail && <ReplayFailurePopover entries={replayDeadLetter} />}
     </span>
   );
 }
 
 interface PopoverProps {
-  entries: readonly import('../collab/replay-retry').ReplayFailureRecord[];
+  entries: readonly import('@casualoffice/sheets/collab').ReplayFailureRecord[];
 }
 
 /**
@@ -199,9 +186,7 @@ function ReplayFailurePopover({ entries }: PopoverProps) {
             data-classification={entry.classification}
           >
             <div className="collab-indicator__popover-row">
-              <code className="collab-indicator__popover-id">
-                {shortenMutationId(entry.id)}
-              </code>
+              <code className="collab-indicator__popover-id">{shortenMutationId(entry.id)}</code>
               <span
                 className={`collab-indicator__popover-chip collab-indicator__popover-chip--${entry.classification}`}
               >
@@ -218,8 +203,7 @@ function ReplayFailurePopover({ entries }: PopoverProps) {
         ))}
       </ol>
       <footer className="collab-indicator__popover-footer">
-        Refresh usually recovers. If failures persist, copy a sample and
-        file an issue.
+        Refresh usually recovers. If failures persist, copy a sample and file an issue.
       </footer>
     </div>
   );

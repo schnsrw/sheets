@@ -13,6 +13,7 @@
 export {
   attachCollab,
   type AttachCollabOptions,
+  type CollabAttachable,
   type CollabHandle,
   type CollabRole,
   type CollabConnectionStatus,

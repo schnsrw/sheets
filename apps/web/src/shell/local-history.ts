@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ICommandService, type ICommandInfo, type IExecutionOptions } from '@univerjs/core';
 import type { FUniver } from '@univerjs/core/facade';
 import { SetRangeValuesUndoMutationFactory } from '@univerjs/sheets';
-import { REVERTABLE_MUTATIONS, SYNCED_MUTATIONS } from '../collab/bridge';
+import { REVERTABLE_MUTATIONS, SYNCED_MUTATIONS } from '@casualoffice/sheets/collab';
 
 /**
  * Single-user version-history feed. The collab bridge already keeps a
@@ -42,17 +42,15 @@ export function useLocalHistory(api: FUniver | null): LocalHistoryEntry[] {
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const injector = (api as any)._injector as
-      | { get: (token: unknown) => unknown }
-      | undefined;
+    const injector = (api as any)._injector as { get: (token: unknown) => unknown } | undefined;
     if (!injector) return;
     const cmdSvc = injector.get(ICommandService) as {
       onMutationExecutedForCollab: (
         l: (info: ICommandInfo, options?: IExecutionOptions) => void,
       ) => { dispose: () => void };
-      beforeCommandExecuted: (
-        l: (info: ICommandInfo, options?: IExecutionOptions) => void,
-      ) => { dispose: () => void };
+      beforeCommandExecuted: (l: (info: ICommandInfo, options?: IExecutionOptions) => void) => {
+        dispose: () => void;
+      };
     };
 
     // Same before-hook trick as the collab bridge: capture undo params

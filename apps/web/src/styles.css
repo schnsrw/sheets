@@ -1349,7 +1349,7 @@ button {
   list-style: none;
   margin: 0;
   padding: var(--space-2);
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
@@ -2313,10 +2313,10 @@ button {
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-2);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
   padding: 6px 4px;
   min-width: 200px;
   z-index: 30;
@@ -2496,7 +2496,9 @@ button {
      and a clip on the parent would hide them. Long menus run their natural
      length; if anything overflows the viewport we'll add bottom-anchor
      positioning logic instead of scroll.) */
-  background: var(--color-surface);
+  /* Raised surface so floating menus read as a distinct layer above the
+     chrome (matches the DS Menu; clearest in dark where raised > surface). */
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);

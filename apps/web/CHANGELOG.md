@@ -1,5 +1,47 @@
 # @sheet/web
 
+## 0.4.0
+
+### Minor Changes
+
+- 4fd30c5: apps/web shares the SDK editor core (Phase 3 step 1)
+
+  `apps/web` no longer hand-rolls its Univer bootstrap — `UniverSheet.tsx` now
+  renders `<CasualSheets chrome="none">` from `@casualoffice/sheets`, sharing the
+  SDK's Univer boot, plugin set, formula engine, and snapshot/API. The app keeps
+  its rich shell (ribbon, charts, pivots, panels, dialogs) and layers its extras
+  on top: crosshair-highlight + zen-editor + Merge/Unmerge context menu via
+  `onBeforeCreateUnit`, off-main compute via `formula={{ worker }}`, and the
+  paste-merge hook / dev helpers / zoom-shortcut override via `onReady`. One Univer
+  bootstrap now serves both the app and third-party SDK hosts.
+
+### Patch Changes
+
+- Updated dependencies [49a3215]
+- Updated dependencies [5256f3d]
+- Updated dependencies [7f42243]
+- Updated dependencies [29744e8]
+- Updated dependencies [ce87187]
+- Updated dependencies [99b617f]
+- Updated dependencies [f6b1b24]
+- Updated dependencies [67e0d55]
+- Updated dependencies [7816a5d]
+- Updated dependencies [1495444]
+- Updated dependencies [838ce1b]
+- Updated dependencies [3d9d0b5]
+- Updated dependencies [35abbab]
+- Updated dependencies [91ff777]
+- Updated dependencies [f8b05b4]
+- Updated dependencies [a090e65]
+- Updated dependencies [65124b4]
+- Updated dependencies [53b87fe]
+- Updated dependencies [ea014be]
+- Updated dependencies [f0d5779]
+- Updated dependencies [c007f64]
+- Updated dependencies [161aa91]
+- Updated dependencies [3c5a990]
+  - @casualoffice/sheets@0.10.0
+
 ## 0.3.13
 
 ### Patch Changes

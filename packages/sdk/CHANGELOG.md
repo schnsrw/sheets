@@ -1,5 +1,202 @@
 # @casualoffice/sheets
 
+## 0.10.0
+
+### Minor Changes
+
+- 49a3215: feat(collab): opt-in real-time co-editing via `@casualoffice/sheets/collab`
+
+  The editor ships collab-unaware. A host enables co-editing with one call after
+  `onReady`:
+
+  ```ts
+  import { attachCollab } from '@casualoffice/sheets/collab';
+
+  const handle = attachCollab(api, { room: 'doc-42', server: 'wss://host/yjs' });
+  // …later
+  handle.detach();
+  ```
+
+  - `attachCollab(api, { room, server, password?, role?, token?, onSnapshot?, onStatus? })`
+    spins up the Yjs doc + Hocuspocus provider + mutation bridge and returns a
+    `CollabHandle` (`doc`, `provider`, `bridge`, `status()`, `detach()`).
+  - The mutation bridge (`startBridge`) and replay machinery moved into the SDK —
+    the non-negotiable Univer hooks (`onMutationExecutedForCollab`, `fromCollab`
+    echo guard, `__splitChunk__`) travel with it.
+  - `yjs` and `@hocuspocus/provider` are **peer dependencies** (optional) so the
+    host provides a single Yjs copy — two copies break `Y.Doc` identity.
+
+  Yjs/Hocuspocus is the realtime transport only; authoritative persistence stays
+  host-side (WOPI / backend) via the save/exit event contract.
+
+- 5256f3d: feat(chrome): AutoSum dropdown in the toolbar
+
+  The built-in chrome toolbar gains an Excel-style AutoSum control (Σ): Sum /
+  Average / Count numbers / Max / Min. Picking one inserts `=FN(<selection>)` one
+  row below a multi-cell selection (and activates that cell), or `=FN()` into a
+  single active cell. Pure facade — no Univer UI dependency — so it works in the
+  embedded mount.
+
+- 7f42243: feat(chrome): borders dropdown in the toolbar
+
+  The built-in chrome toolbar gains a borders control (next to the colour pickers):
+  a dropdown with All / Outside / Inside / Top / Bottom / Left / Right / No border.
+  Each dispatches `sheet.command.set-border-position` against the active selection
+  using Univer's current border style/colour. Closes a common formatting gap
+  between the SDK chrome and a real spreadsheet editor.
+
+- 29744e8: Chrome: the built-in toolbar / formula bar / status bar now flip to dark with
+  `appearance="dark"`. `CasualSheets` sets the `--cs-chrome-*` CSS vars on the
+  chrome wrapper from the appearance prop (hosts can still override them).
+- ce87187: feat(chrome): custom Find & Replace dialog
+
+  `<CasualSheets chrome>` now has Find & Replace, opened with Ctrl/Cmd+F (find) or
+  Ctrl/Cmd+H (replace): match count + next/prev navigation (Enter / Shift+Enter),
+  match-case toggle, Replace / Replace All. It's a custom, facade-driven dialog —
+  search reads the active sheet's cells from `getSnapshot()`, navigation activates
+  the matching cell, replace writes via `setValue` — because Univer's own
+  find-replace UI doesn't render in the SDK's headless mount. Closes the last core
+  chrome gap.
+
+- 99b617f: Chrome toolbar: add font family and font size dropdowns. Apply on change via the
+  Univer set-range-font-family / set-range-fontsize commands, design-token styled.
+- f6b1b24: Chrome: add a minimal formula bar to `<CasualSheets chrome="minimal" | "full">`.
+
+  Sits below the toolbar: a name box showing the active cell's A1 reference (live,
+  tracks selection) and an editable input showing its formula or value. Editing
+  commits through the facade — `=…` as a formula, numbers as numbers, else text.
+  Self-contained (reads the active cell via `CasualSheetsAPI`, no app context, no
+  autocomplete/name-box-dropdown/insert-function yet — those arrive when the rich
+  `apps/web` formula bar is lifted behind `"full"`).
+
+- 67e0d55: Chrome (`chrome="full"`): add a menu bar, color pickers, and a navigable name box.
+  - **Menu bar** (Edit / Insert / Format / Data) above the toolbar — dropdown menus
+    dispatching Univer commands (undo/redo, insert row/col, bold/italic/underline,
+    sort asc/desc, toggle filter). No logo/title — the host frames the editor.
+  - **Text & fill color pickers** in the toolbar — swatch popovers (set text color,
+    fill color, or reset).
+  - **Name box** in the formula bar — shows the active cell's A1 reference and jumps
+    to a typed cell/range (`B5`, `A1:C3`) on Enter.
+
+  All design-system styled, dark-mode aware, driven through `CasualSheetsAPI`.
+
+- 7816a5d: Chrome polish: more menu items, toolbar controls, and a name-box dropdown.
+  - **Menu bar**: Edit gains Cut/Copy/Paste; Insert gains Delete row/column; Format
+    gains Wrap text / Clear formatting; new **View** menu (Freeze / Unfreeze panes,
+    Toggle gridlines).
+  - **Toolbar**: vertical align (top/middle/bottom), wrap text, clear formatting —
+    with active-state reflection for vertical align + wrap.
+  - **Name box**: a dropdown listing the workbook's defined names; clicking jumps to
+    its range.
+
+  All verified Univer commands, design-system styled, no new app coupling.
+
+- 1495444: Chrome (`chrome="full"` direction): rich toolbar + design-system convergence.
+
+  The built-in toolbar now uses Material Symbols icons (loaded idempotently via
+  Google Fonts when chrome is shown) and the suite's design-system token values
+  (surface-strip / text / border, light + dark). Adds strikethrough and horizontal
+  alignment (left/center/right) alongside undo/redo/bold/italic/underline, grouped
+  Office-style with dividers. No title/logo bar — the host frames the editor.
+
+- 838ce1b: `<CasualSheets chrome="none" | "minimal" | "full">` — the chrome scaffold.
+
+  First slice of the Office-chrome lift (SDK_MIGRATION_PIPELINE Phase 1 step 2).
+  `chrome="none"` (default) keeps the bare grid. `"minimal"` / `"full"` wrap the
+  grid in a flex column with a built-in toolbar (undo / redo / bold / italic /
+  underline) that drives the editor through `CasualSheetsAPI.executeCommand` — no
+  app context, no font dependency, works in any host. The rich Office shell
+  (formula bar, menus, status bar) is lifted from the app behind `"full"` in later
+  slices; until then `"minimal"` and `"full"` render the same toolbar.
+
+- 3d9d0b5: Chrome toolbar now reflects the active cell: bold/italic/underline/strikethrough
+  and alignment buttons light up when active, and the font family/size dropdowns
+  show the current cell's font — kept in sync via a command-execution subscription.
+- 35abbab: feat(chrome): sheet tabs in the built-in chrome
+
+  `<CasualSheets chrome>` now renders a worksheet tab strip above the status bar:
+  switch sheets (click), add a sheet (+), rename (double-click), and delete
+  (right-click → Delete, with the last visible sheet protected). Driven entirely
+  through the FUniver facade and kept live via the sheet-lifecycle events (plus a
+  mutation-level fallback so collab/replay-driven changes refresh too). Closes the
+  most fundamental gap between the SDK chrome and a real multi-sheet editor.
+
+- 91ff777: Chrome: add a minimal status bar to `<CasualSheets chrome="minimal" | "full">`.
+
+  Sits below the grid: Excel-style selection aggregates (Average / Count / Sum)
+  over the numeric cells in the active multi-cell selection, live. Self-contained
+  (reads the selection via `CasualSheetsAPI`). The richer status bar (configurable
+  stats, min/max, zoom, sheet tabs) lifts behind `"full"`.
+
+- f8b05b4: feat(chrome): richer status-bar stats (Numerical Count / Min / Max)
+
+  The built-in chrome status bar now shows Excel's full selection-aggregate set —
+  Average, Count, Numerical Count, Min, Max, Sum. Count is non-empty cells (any
+  type); Numerical Count is numeric cells; the numeric aggregates run over numeric
+  cells only, matching Excel. (A zoom control is deferred to a follow-up batch: the
+  SDK's eager plugin set doesn't yet register Univer's zoom render controller.)
+
+- a090e65: Chrome toolbar: add merge / unmerge and number-format controls (currency,
+  percent, increase/decrease decimals) alongside the existing undo/redo, text
+  styles, and alignment. All single-click, dispatched via Univer commands, with
+  Material Symbols icons.
+- 65124b4: feat(chrome): zoom control in the status bar
+
+  The built-in chrome status bar gains a zoom control on the right: − / level / +,
+  with the level click resetting to 100%. Dispatches `sheet.operation.set-zoom-ratio`
+  (clamped 10–400%) — the operation path, since the higher-level zoom commands bail
+  when Univer's formula-bar editor unit reports visible. Closes the zoom gap that an
+  earlier batch deferred (the block was a test-timing artifact, not a real
+  registration problem — Univer's zoom render controller registers in `onRendered`).
+
+- 53b87fe: feat(collab): `attachCollab` accepts the bare `FUniver` facade, not just `CasualSheetsAPI`
+
+  The first argument is now `CollabAttachable = CasualSheetsAPI | FUniver`. Collab
+  only needs the facade, so a host that holds the raw `FUniver` (e.g. via Univer's
+  own bootstrap) can attach without first wrapping it in a `CasualSheetsAPI`.
+  Existing `attachCollab(api, …)` calls are unaffected.
+
+- ea014be: Formula bar: function autocomplete. Typing a function name after `=` (e.g. `=SU`)
+  shows a dropdown of matching functions; ↑/↓ to navigate, Enter/Tab to complete
+  (inserts `NAME(`), Escape to dismiss. Curated common-function list.
+- f0d5779: feat(sdk): `formula={{ worker }}` for off-main formula compute
+
+  By default `<CasualSheets>` computes formulas on the main thread (fine for typical
+  sheets, zero host setup). Pass a Web Worker to move compute off-thread so paste /
+  sort / fill on large workbooks don't freeze the UI: the SDK registers the formula
+  plugins with `notExecuteFormula` and wires `UniverRPCMainThreadPlugin` to your
+  worker (dynamic-imported, so `@univerjs/rpc` stays a true optional peer — only
+  loaded when a worker is passed; the host owns the worker, the SDK never bundles
+  one). This is the second enabler (with `onBeforeCreateUnit`) for a power host to
+  share the SDK editor core without regressing off-main compute.
+
+- c007f64: perf(chrome): lazy-load the built-in chrome (`chrome="none"` no longer bundles it)
+
+  `<CasualSheets>` now `lazy`-imports its chrome from the new `@casualoffice/sheets/chrome`
+  subpath only when `chrome !== 'none'`. The subpath is externalised in the build, so
+  the chrome stays a separate chunk the consumer's bundler code-splits — bare-grid
+  hosts (the default, and any `chrome="none"` integrator) no longer carry the chrome
+  JS. `dist/sheets.js` drops from ~62 KB to ~24 KB; the chrome ships as `dist/chrome.js`
+  loaded on demand. The bars now appear a tick after first paint (lazy chunk load).
+
+- 161aa91: feat(sdk): `onBeforeCreateUnit` hook to register extra Univer plugins
+
+  `<CasualSheets onBeforeCreateUnit={(univer) => univer.registerPlugin(...)}>` fires
+  after the SDK registers its built-in plugins but before the workbook unit is
+  created — the only point at which a host can add register-time plugins (off-main
+  formula worker via `UniverRPCMainThreadPlugin`, crosshair-highlight, zen-editor,
+  …). Enables a power host to share the SDK editor core while keeping its own extra
+  plugins (Phase 3). NOT semver-covered — it hands over the raw `Univer` instance.
+
+- 3c5a990: `<CasualSheets>` save/exit events — the host-owned persistence contract (Phase 2).
+  - **`onSave(snapshot)`** — fired on Ctrl/Cmd+S inside the editor (the browser save
+    dialog is suppressed). The host persists the snapshot.
+  - **`onExit(snapshot)`** — fired once on unmount with the final snapshot — the
+    host's last chance to persist before the workbook is disposed.
+
+  With the existing `onChange`, these complete the "the SDK emits, the host stores —
+  never localStorage" model. The SDK still writes no storage of its own.
+
 ## 0.9.0
 
 ### Minor Changes

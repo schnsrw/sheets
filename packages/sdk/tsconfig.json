@@ -16,7 +16,8 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@casualoffice/sheets/chrome": ["./src/chrome/index.ts"]
+      "@casualoffice/sheets/chrome": ["./src/chrome/index.ts"],
+      "@casualoffice/sheets/xlsx": ["./src/xlsx/index.ts"]
     }
   },
   "include": ["src/**/*"],

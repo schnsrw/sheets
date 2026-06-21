@@ -6,19 +6,25 @@
  * reaching into Univer directly; `api.univer` is the documented escape hatch and
  * is explicitly NOT covered by semver — everything else here is.
  *
- * Scope of THIS batch (SDK restructure, Phase 1 step 3):
- *   getSnapshot / loadSnapshot / getSelection / executeCommand / univer
+ * Surface:
+ *   getSnapshot / loadSnapshot / getSelection / executeCommand / setTheme /
+ *   importXlsx / univer
  *
- * Deferred to later, clearly-scoped batches (kept off the type until they work,
+ * `importXlsx` lazy-loads the parser via `import('@casualoffice/sheets/xlsx')`
+ * — a BARE subpath, not a relative `import('../xlsx')`. The main tsup config is
+ * `splitting:false`, so a relative dynamic import would be inlined and balloon
+ * the editor entry from ~24KB to ~200KB of ExcelJS for hosts that never open a
+ * file. The subpath is externalised in tsup.config.ts so it stays a separate
+ * chunk the consumer code-splits.
+ *
+ * Deferred to a later, clearly-scoped batch (kept off the type until it works,
  * so the surface never advertises a method that throws):
- *   - importXlsx / exportXlsx — the xlsx I/O batch. importXlsx must NOT be a
- *     plain `import('../xlsx')` here: the main tsup config is `splitting:false`,
- *     so a dynamic import gets inlined and balloons the editor entry from ~11KB
- *     to ~200KB of parser code for hosts that never open a file. The xlsx-I/O
- *     batch wires it as its own chunk (and lifts the export converter out of
- *     apps/web — the SDK xlsx module is import-only today).
- *   - attachCollab — belongs to the storage/collab adapter phase (Phase 2);
- *     the editor ships collab-unaware until then.
+ *   - exportXlsx — needs the export converter lifted out of apps/web first (the
+ *     SDK xlsx module is import-only today); next batch.
+ *
+ * `attachCollab` is NOT a method here — it ships as a standalone
+ * `attachCollab(api, opts)` on the `@casualoffice/sheets/collab` subpath so the
+ * editor stays collab-unaware (and collab-free in the bundle) until opted in.
  */
 
 // Side-effect import: registers the Sheets FUniver mixins
@@ -48,6 +54,13 @@ export interface CasualSheetsAPI {
   /** Replace the workbook with a new snapshot. Disposes the current unit and
    *  mounts `data` as a fresh one. */
   loadSnapshot(data: IWorkbookData): void;
+  /** Parse an `.xlsx` and load it as the active workbook. Accepts a `File` /
+   *  `Blob` (e.g. from an `<input type=file>`), an `ArrayBuffer`, or a
+   *  `Uint8Array`. The ExcelJS parser is lazy-loaded as a separate chunk, so
+   *  hosts that never import a file don't pay for it. When a `File` is passed,
+   *  its name + on-disk size are recorded on the snapshot (surfaced by the
+   *  built-in Properties dialog). Resolves to the loaded snapshot. */
+  importXlsx(input: ArrayBuffer | Uint8Array | Blob): Promise<IWorkbookData>;
   /** The active selection, or `null` when there is none. */
   getSelection(): RangeRef | null;
   /** Dispatch a Univer command by id. Resolves to the command's boolean
@@ -67,6 +80,13 @@ export interface CasualSheetsAPI {
  * correct across `loadSnapshot` swaps without the host re-acquiring the ref.
  */
 export function createCasualSheetsAPI(univerAPI: FUniver): CasualSheetsAPI {
+  // Extracted so importXlsx can reuse the exact same swap semantics.
+  const loadSnapshot = (data: IWorkbookData) => {
+    const current = univerAPI.getActiveWorkbook();
+    if (current) univerAPI.disposeUnit(current.getId());
+    univerAPI.createWorkbook(data);
+  };
+
   return {
     univer: univerAPI,
 
@@ -74,10 +94,37 @@ export function createCasualSheetsAPI(univerAPI: FUniver): CasualSheetsAPI {
       return univerAPI.getActiveWorkbook()?.save() ?? null;
     },
 
-    loadSnapshot(data) {
-      const current = univerAPI.getActiveWorkbook();
-      if (current) univerAPI.disposeUnit(current.getId());
-      univerAPI.createWorkbook(data);
+    loadSnapshot,
+
+    async importXlsx(input) {
+      // Normalise to ArrayBuffer. Blob/File expose arrayBuffer(); a Uint8Array
+      // view is sliced to its exact window so we don't hand the parser a larger
+      // backing buffer.
+      let buffer: ArrayBuffer;
+      if (input instanceof ArrayBuffer) {
+        buffer = input;
+      } else if (input instanceof Uint8Array) {
+        // `.slice` of a (possibly SharedArrayBuffer-backed) view; uploads are
+        // never shared, so narrow to ArrayBuffer for the parser.
+        buffer = input.buffer.slice(
+          input.byteOffset,
+          input.byteOffset + input.byteLength,
+        ) as ArrayBuffer;
+      } else {
+        buffer = await input.arrayBuffer();
+      }
+      // Bare subpath import → separate chunk (see file header + tsup external).
+      const { xlsxToWorkbookData } = await import('@casualoffice/sheets/xlsx');
+      const data = await xlsxToWorkbookData(buffer);
+      // A File carries the original name + size; surface them on the snapshot so
+      // the built-in Properties dialog shows the real file (not the snapshot).
+      if (typeof Blob !== 'undefined' && input instanceof Blob && 'name' in input) {
+        const file = input as File;
+        data.name = file.name.replace(/\.(xlsx|xlsm)$/i, '') || data.name;
+        data.custom = { ...data.custom, sourceBytes: file.size, sourceName: file.name };
+      }
+      loadSnapshot(data);
+      return data;
     },
 
     getSelection() {

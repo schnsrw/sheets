@@ -76,6 +76,11 @@ const mainConfig = defineConfig({
     'yjs',
     '@hocuspocus/provider',
     '@casualoffice/sheets/chrome',
+    // Same reason as /chrome: `sheets`'s `api.importXlsx` / `api.exportXlsx`
+    // lazy `import('@casualoffice/sheets/xlsx')`. Externalising keeps it a bare
+    // subpath the CONSUMER code-splits (splitting:false would otherwise inline
+    // ~200KB of ExcelJS into the editor entry for hosts that never touch a file).
+    '@casualoffice/sheets/xlsx',
   ],
   platform: 'browser',
   target: 'es2020',

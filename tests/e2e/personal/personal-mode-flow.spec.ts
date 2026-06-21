@@ -23,7 +23,7 @@ import { expect, test, type Page } from '@playwright/test';
 // can run either before OR after that one — when it runs second the
 // server is in `single` mode + has the admin, signup is closed, so
 // we fall through to login.
-const USERNAME = `admin${process.pid}`;
+const USERNAME = 'casualadmin';
 const PASSWORD = 'longadminpassword';
 
 async function dismissHomeIfPresent(page: Page) {
@@ -82,12 +82,18 @@ test('signup → save → reload → list → sign out → login → settings', 
     await expect(page.getByText('Welcome. Create your account.')).toBeVisible();
     await page.getByTestId('auth-signup-username').fill(USERNAME);
     await page.getByTestId('auth-signup-password').fill(PASSWORD);
+    // Confirm controlled inputs captured the values before submit (a fast
+    // fill→click can outrun React's onChange → empty/stale password → 401).
+    await expect(page.getByTestId('auth-signup-username')).toHaveValue(USERNAME);
+    await expect(page.getByTestId('auth-signup-password')).toHaveValue(PASSWORD);
     await page.getByTestId('auth-signup-submit').click();
   } else {
     // Single mode + admin already exists → login view.
     await page.getByTestId('auth-login').waitFor({ timeout: 10_000 });
     await page.getByTestId('auth-login-username').fill(USERNAME);
     await page.getByTestId('auth-login-password').fill(PASSWORD);
+    await expect(page.getByTestId('auth-login-username')).toHaveValue(USERNAME);
+    await expect(page.getByTestId('auth-login-password')).toHaveValue(PASSWORD);
     await page.getByTestId('auth-login-submit').click();
   }
 
@@ -147,6 +153,8 @@ test('signup → save → reload → list → sign out → login → settings', 
   // ── 5. Log back in ────────────────────────────────────────────────
   await page.getByTestId('auth-login-username').fill(USERNAME);
   await page.getByTestId('auth-login-password').fill(PASSWORD);
+  await expect(page.getByTestId('auth-login-username')).toHaveValue(USERNAME);
+  await expect(page.getByTestId('auth-login-password')).toHaveValue(PASSWORD);
   await page.getByTestId('auth-login-submit').click();
   await waitForSignedInLanding(page);
 

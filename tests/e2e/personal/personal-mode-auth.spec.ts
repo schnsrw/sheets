@@ -20,7 +20,7 @@ import { expect, test } from '@playwright/test';
  * No file ops in this spec — those live in `personal-mode-flow`.
  */
 
-const ADMIN_USER = `admin${process.pid}`;
+const ADMIN_USER = 'casualadmin';
 const ADMIN_PASSWORD = 'longadminpassword';
 const ADMIN_PASSWORD_NEXT = 'newlongadminpassword';
 

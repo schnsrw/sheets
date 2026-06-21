@@ -25,7 +25,7 @@ import { expect, test, type Page } from '@playwright/test';
  *   pnpm exec playwright test -c playwright.personal.config.ts share-link-password
  */
 
-const USERNAME = `admin${process.pid}`;
+const USERNAME = 'casualadmin';
 const PASSWORD = 'longadminpassword';
 
 async function dismissHomeIfPresent(page: Page) {
@@ -63,11 +63,15 @@ async function signInOrUp(page: Page) {
   if (await signup.count()) {
     await page.getByTestId('auth-signup-username').fill(USERNAME);
     await page.getByTestId('auth-signup-password').fill(PASSWORD);
+    await expect(page.getByTestId('auth-signup-username')).toHaveValue(USERNAME);
+    await expect(page.getByTestId('auth-signup-password')).toHaveValue(PASSWORD);
     await page.getByTestId('auth-signup-submit').click();
   } else {
     await page.getByTestId('auth-login').waitFor({ timeout: 10_000 });
     await page.getByTestId('auth-login-username').fill(USERNAME);
     await page.getByTestId('auth-login-password').fill(PASSWORD);
+    await expect(page.getByTestId('auth-login-username')).toHaveValue(USERNAME);
+    await expect(page.getByTestId('auth-login-password')).toHaveValue(PASSWORD);
     await page.getByTestId('auth-login-submit').click();
   }
   await waitForSignedInLanding(page);

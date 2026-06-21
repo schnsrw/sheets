@@ -1,5 +1,20 @@
 # @casualoffice/sheets
 
+## 0.14.0
+
+### Minor Changes
+
+- 224fc2c: SDK chrome (`chrome="full"` / the iframe embed) now matches the real app's Home-tab toolbar + menus. **Toolbar** gains: font family/size selectors + grow/shrink, clipboard (paste/cut/copy/paste-values), format painter, text & fill color pickers, borders, vertical align + wrap text, a number-format dropdown, and AutoSum. **Menus** gain the full Edit/View/Insert/Format/Data/Help sets (freeze panes, show formulas, gridlines, insert sheet/table/image/hyperlink/comment, number-format submenu, increase/decrease decimals, borders, sort/filter/recalculate, etc.) — all driven purely through the FUniver facade + the same Univer command ids the app uses.
+
+  Two new optional props on the chrome:
+  - `features?: Record<string, boolean>` — hide any control/group (and block its command) when its flag is false. Lets hosts disable features.
+  - `onDialogRequest?: (kind, context?) => void` — controls backed by a dialog the SDK doesn't ship yet (Format Cells, Insert Chart, PivotTable, Find & Replace, …) call this so the host can render its OWN dialog; without it they're omitted (no fake dialog). Built-in dialogs land in a later release.
+
+- 33ded85: The iframe embed now ships the **full feature set** — tables, sort, filter, conditional formatting, data validation, drawing/images, hyperlinks, notes, thread comments, find/replace — matching the real app. Previously the embed ran `lazyPlugins={false}` (the minimal editor) to stay a single file. But the embed's tsup build is `splitting:false` + `noExternal:/.*/`, so the lazy loader's dynamic `import()`s are **inlined** into the one `embed-runtime.js` rather than emitted as chunks — the single-file deploy is preserved. Enabling lazy plugins means the embed eager-loads any feature whose data is already in the opened file (so tables/CF are never silently dropped) and idle-loads the rest, so the toolbar/menu feature actions (Insert ▸ Table, Data ▸ Filter, …) resolve.
+- dfc8e6b: Embed now honors the host's **light/dark theme**. Previously the iframe always rendered light (it never set `appearance`), so it didn't match a dark host. The runtime now reads `?theme=light|dark|system` from the embed URL, resolves `system` against the iframe's `prefers-color-scheme` (and follows live OS changes), and passes `appearance` to `<CasualSheets>` so Univer's canvas/headers/gridlines + the SDK chrome all theme together. Hosts can also push live changes over `casual.command.set.theme`.
+
+  Also fixes a protocol bug: `EmbedHostTransport` posted `casual.command.set.{theme,readonly,locale}` (dotted) but the runtime listened for `setTheme`/`setReadOnly`/`setLocale` (camelCase), so those three host→editor commands were silently dropped. Aligned both sides to the dotted form.
+
 ## 0.13.0
 
 ### Minor Changes

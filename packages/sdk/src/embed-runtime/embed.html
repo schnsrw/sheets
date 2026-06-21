@@ -5,16 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Casual Sheets (embed)</title>
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; background: #fff; overflow: hidden; }
-      #casual-embed-root { width: 100%; height: 100%; }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #fff;
+        overflow: hidden;
+      }
+      #casual-embed-root {
+        width: 100%;
+        height: 100%;
+      }
       /* Preview-mode chrome hiding — v0.5.x ties these to component
          props; v0.5.0 lands the wire end-to-end and uses CSS gates. */
-      [data-view-mode="preview"] [data-toolbar],
-      [data-view-mode="preview"] [data-formula-bar],
-      [data-view-mode="preview"] [data-status-bar],
-      [data-view-mode="preview"] [data-sheet-tabs] { display: none !important; }
+      [data-view-mode='preview'] [data-toolbar],
+      [data-view-mode='preview'] [data-formula-bar],
+      [data-view-mode='preview'] [data-status-bar],
+      [data-view-mode='preview'] [data-sheet-tabs] {
+        display: none !important;
+      }
     </style>
-    <link rel="stylesheet" href="./embed-runtime.css" />
+    <!-- No external stylesheet: tsup's `injectStyle` inlines Univer's CSS
+         into embed-runtime.js, which appends it as a <style> tag at runtime.
+         A <link> here would just 404 (no .css is emitted). -->
   </head>
   <body>
     <div id="casual-embed-root"></div>

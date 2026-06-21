@@ -24,6 +24,7 @@ import { EmbedTransport } from '../embed/EmbedTransport';
 import type { CasualApp } from '../embed/protocol';
 import { CasualSheets } from '../sheets/CasualSheets';
 import { xlsxToWorkbookData } from '../xlsx';
+import { EMBED_LOCALES } from './locale';
 import type { IWorkbookData } from '@univerjs/core';
 
 interface EmbedUrlConfig {
@@ -224,6 +225,13 @@ function EmbeddedSheets({
       key={viewMode}
       initialData={data}
       ui={ui}
+      // Seed the en-US string bundle. Without `locales`, Univer's
+      // LocaleService throws "Locale not initialized" and the workbench
+      // canvas never paints (data still loads, so a snapshot round-trips,
+      // but the grid is blank). The React `<CasualSheets>` host path gets
+      // this from the host's `locales` prop; the iframe has no host to
+      // pass one, so the self-contained runtime bundles a minimal set.
+      locales={EMBED_LOCALES}
       // The embed runtime is bundled as ONE self-contained file (tsup
       // `noExternal: /.*/`). Lazy plugins would emit per-feature dynamic
       // chunks into dist/embed/, breaking that single-file deployment, so the

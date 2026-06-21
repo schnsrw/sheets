@@ -1,0 +1,17 @@
+# The embedded SDK runtime + host transport are copied in at setup time
+# from packages/sdk/dist/* — multi-MB build output, not source.
+# See README.md → "Run it". Only the .gitkeep is tracked.
+embed/sheets/*
+!embed/sheets/.gitkeep
+
+# Compiled host script (tsc emits main.js next to main.ts).
+main.js
+main.js.map
+
+# Playwright transpiles the spec itself — never commit a compiled copy.
+tests/**/*.js
+tests/**/*.js.map
+
+# Playwright artifacts.
+test-results/
+playwright-report/

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Casual Sheets — embed playground</title>
+    <style>
+      :root {
+        --border: #e2e2e6;
+        --bg: #f6f7f9;
+        --fg: #1a1a1c;
+        --muted: #5a5a5a;
+        --accent: #1a73e8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font:
+          14px/1.4 Inter,
+          system-ui,
+          -apple-system,
+          sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100vh;
+      }
+      header {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        background: #fff;
+      }
+      header h1 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .controls .sep {
+        width: 1px;
+        align-self: stretch;
+        background: var(--border);
+        margin: 0 4px;
+      }
+      button,
+      label.file,
+      select {
+        font: inherit;
+        padding: 5px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      button:hover,
+      label.file:hover {
+        border-color: var(--accent);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      label.file input {
+        display: none;
+      }
+      .save {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        min-height: 0;
+      }
+      .frame-wrap {
+        position: relative;
+        border-right: 1px solid var(--border);
+        background: #fff;
+      }
+      iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      aside {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 0;
+        background: #fff;
+      }
+      aside h2 {
+        margin: 0;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+      }
+      #log {
+        margin: 0;
+        padding: 8px 12px;
+        overflow: auto;
+        font:
+          12px/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #log .ts {
+        color: var(--muted);
+      }
+      #log .err {
+        color: #d63a2f;
+      }
+      #log .in {
+        color: #137333;
+      }
+      #log .out {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Casual Sheets — embed playground</h1>
+      <div class="controls">
+        <label class="file"
+          >Open .xlsx…<input
+            id="file"
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        /></label>
+        <button id="save" class="save">Save</button>
+        <span class="sep"></span>
+        <label>
+          View
+          <select id="view-mode">
+            <option value="editor">editor</option>
+            <option value="preview">preview</option>
+          </select>
+        </label>
+        <span class="sep"></span>
+        <button id="cmd-bold" title="Bold (host command)">Bold</button>
+        <button id="cmd-undo" title="Undo (host command)">Undo</button>
+        <button id="cmd-redo" title="Redo (host command)">Redo</button>
+        <span class="sep"></span>
+        <button id="reload" title="Reload the iframe">Reload editor</button>
+      </div>
+    </header>
+    <main>
+      <div class="frame-wrap">
+        <!-- src is set by main.ts so docId / viewMode params stay in one place. -->
+        <iframe
+          id="editor"
+          title="Casual Sheets embedded editor"
+          allow="clipboard-read; clipboard-write"
+        ></iframe>
+      </div>
+      <aside>
+        <h2>Event log</h2>
+        <pre id="log"></pre>
+      </aside>
+    </main>
+    <!--
+      Resolve the bare specifier the host script imports to the SDK's
+      built ESM (copied into ./embed/sheets/ at setup — see README).
+      `dist/embed.js` is self-contained (no react/univer at runtime), so
+      no bundler is needed: the browser's native importmap is enough.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@casualoffice/sheets/embed": "./embed/sheets/host.js"
+        }
+      }
+    </script>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

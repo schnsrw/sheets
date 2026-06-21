@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "baseUrl": ".",
+    // Resolve the bare SDK import to the built type declarations so a plain
+    // `tsc` works without making this example a workspace member. The
+    // runtime resolution is handled by the importmap in index.html.
+    "paths": {
+      "@casualoffice/sheets/embed": ["../../packages/sdk/dist/embed"]
+    }
+  },
+  // Only the host script is compiled (main.ts → main.js, loaded by
+  // index.html). The Playwright spec under tests/ is run by Playwright,
+  // which transpiles its own TS — don't include it here or `tsc` would
+  // emit a stray .js next to it.
+  "include": ["main.ts"]
+}

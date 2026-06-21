@@ -23,6 +23,7 @@ import { createRoot } from 'react-dom/client';
 import { EmbedTransport } from '../embed/EmbedTransport';
 import type { CasualApp } from '../embed/protocol';
 import { CasualSheets } from '../sheets/CasualSheets';
+import { applyReadOnly, getEditable } from '../sheets/read-only';
 import { xlsxToWorkbookData } from '../xlsx';
 import { EMBED_LOCALES } from './locale';
 import type { IWorkbookData } from '@univerjs/core';
@@ -247,6 +248,41 @@ function EmbeddedSheets({
       onSave={(snapshot) => transport.sendSaveNotify({ snapshot, reason: 'shortcut' })}
       onExit={(snapshot) => transport.sendExit({ snapshot })}
       onReady={(api) => {
+        // Expose the imperative API on the iframe window so hosts can
+        // introspect/debug the embedded editor (and e2e can drive it). Mirrors
+        // the React component's `window.__univerAPI` seam.
+        (globalThis as unknown as { __casualEmbedApi?: unknown }).__casualEmbedApi = api;
+        // Debug seam: report the live workbook-editable permission so hosts/e2e
+        // can confirm preview is genuinely read-only (not just chromeless).
+        (
+          globalThis as unknown as { __casualEmbedEditable?: () => boolean | undefined }
+        ).__casualEmbedEditable = () => {
+          const uid = api.getSnapshot()?.id;
+          return uid ? getEditable(api.univer, uid) : undefined;
+        };
+        // Preview = genuinely READ-ONLY. Hiding the chrome (above) isn't
+        // enough — Univer's cell editor still opens on dbl-click / F2. Flip the
+        // workbook's edit permission off so preview can't be typed into. The
+        // mount remounts on viewMode change (key={viewMode}), so editor mode
+        // simply never applies this.
+        //
+        // Defer to a rAF: applied synchronously in onReady the flag loses a
+        // race — sheets-ui initialises WorkbookEditablePermission to `true`
+        // during unit setup AFTER onReady fires, clobbering our `false` (a
+        // behavioural embed test caught preview still accepting keystrokes).
+        // The app's collab view-only path waits a rAF for the same reason
+        // (CollabDriver.tsx), so the permission point exists and we
+        // updatePermissionPoint(false) over the settled default.
+        if (viewMode === 'preview') {
+          requestAnimationFrame(() => {
+            const unitId = api.getSnapshot()?.id;
+            if (unitId)
+              applyReadOnly(api.univer, unitId, () => {
+                const g = globalThis as unknown as { __casualEmbedBlocked?: number };
+                g.__casualEmbedBlocked = (g.__casualEmbedBlocked ?? 0) + 1;
+              });
+          });
+        }
         // Wire host → editor command.execute (Drive's custom toolbar
         // calls this for bold / italic / undo / …). Maps the small
         // protocol union to the Univer command id the FUniver facade

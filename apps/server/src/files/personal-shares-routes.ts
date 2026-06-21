@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type {
   FileRecord,
+  MemberAcl,
+  MemberAclView,
   PersonalAuthStore,
   PublicUser,
   ShareLink,
@@ -32,6 +34,15 @@ import { currentUser } from '../auth/personal-routes.js';
  *   POST   /files/:id/shares/link
  *   PATCH  /files/:id/shares/link/:token
  *   DELETE /files/:id/shares/link/:token
+ *
+ * Member ACL routes (sharing-model §6.2 — MULTI MODE ONLY; single mode
+ * is link-only per §8 Q1, so these 404 there). Also the SAFE
+ * FOUNDATION: an ACL row grants NO access until the enforcement batch
+ * wires `getMemberRole` into the join path.
+ *   GET    /files/:id/shares/members
+ *   POST   /files/:id/shares/member
+ *   PATCH  /files/:id/shares/member/:memberId
+ *   DELETE /files/:id/shares/member/:memberId
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -157,6 +168,113 @@ export function registerPersonalSharesRoutes(
       return reply.code(204).send();
     },
   );
+
+  // ── Member ACL routes (sharing-model §6.2 — MULTI MODE ONLY) ─────────
+  //
+  // Single mode is link-only (§8 Q1: single = one account), so these
+  // routes 404 there — `ownedFileCtx` with `{ multiOnly: true }` shadows
+  // them. INERT FOUNDATION: an ACL row grants no access until the
+  // enforcement batch reads getMemberRole from the join path.
+
+  // ── GET /files/:id/shares/members ───────────────────────────────────
+  // List ACL rows (with username/email + role) for a file.
+  app.get<{ Params: { id: string } }>('/files/:id/shares/members', async (req, reply) => {
+    const ctx = ownedFileCtx(req, reply, store, { multiOnly: true });
+    if (!ctx) return;
+    const members = store.listMemberAcls(ctx.record.id);
+    return reply.send({ members: members.map(toPublicMember) });
+  });
+
+  // ── POST /files/:id/shares/member ───────────────────────────────────
+  // Grant a member a role. Body: { handle, role } where handle is an
+  // email or username (resolved via findMemberByHandle). Refuses to add
+  // yourself (the owner is implicitly admin) and the file owner.
+  app.post<{
+    Params: { id: string };
+    Body: { handle?: unknown; role?: unknown };
+  }>('/files/:id/shares/member', async (req, reply) => {
+    const ctx = ownedFileCtx(req, reply, store, { multiOnly: true });
+    if (!ctx) return;
+    const body = (req.body ?? {}) as { handle?: unknown; role?: unknown };
+
+    if (typeof body.handle !== 'string' || body.handle.trim().length === 0) {
+      return reply.code(400).send({ error: 'invalid-handle' });
+    }
+    if (!isShareRole(body.role)) {
+      return reply.code(400).send({ error: 'invalid-role' });
+    }
+
+    const member = store.findMemberByHandle(body.handle);
+    if (!member) return reply.code(404).send({ error: 'user-not-found' });
+
+    // The owner already has full access (and an admin is implicitly so).
+    // An ACL granting them a lesser role would be confusing + pointless;
+    // reject rather than silently shadow it. Also blocks adding yourself.
+    if (member.id === ctx.user.id || member.id === ctx.record.ownerId) {
+      return reply.code(400).send({ error: 'cannot-add-owner' });
+    }
+
+    const acl = store.setMemberAcl({
+      workbookId: ctx.record.id,
+      memberId: member.id,
+      role: body.role,
+      createdBy: ctx.user.id,
+    });
+    return reply.code(201).send(
+      toPublicMember({
+        ...acl,
+        username: member.username,
+        email: member.email,
+      }),
+    );
+  });
+
+  // ── PATCH /files/:id/shares/member/:memberId ────────────────────────
+  // Change a member's role. Body: { role }.
+  app.patch<{
+    Params: { id: string; memberId: string };
+    Body: { role?: unknown };
+  }>('/files/:id/shares/member/:memberId', async (req, reply) => {
+    const ctx = ownedFileCtx(req, reply, store, { multiOnly: true });
+    if (!ctx) return;
+    const memberId = parseMemberId(req.params.memberId, reply);
+    if (memberId === INVALID) return;
+
+    const body = (req.body ?? {}) as { role?: unknown };
+    if (!isShareRole(body.role)) {
+      return reply.code(400).send({ error: 'invalid-role' });
+    }
+    // Confirm the ACL exists on THIS file before touching it — otherwise
+    // an upsert would silently create a row for a member who was never
+    // granted (and we have no display info for them here).
+    if (store.getMemberRole(ctx.record.id, memberId) === null) {
+      return reply.code(404).send({ error: 'not-found' });
+    }
+    store.setMemberAcl({
+      workbookId: ctx.record.id,
+      memberId,
+      role: body.role,
+      createdBy: ctx.user.id,
+    });
+    const updated = store.listMemberAcls(ctx.record.id).find((m) => m.memberId === memberId);
+    if (!updated) return reply.code(404).send({ error: 'not-found' });
+    return reply.send(toPublicMember(updated));
+  });
+
+  // ── DELETE /files/:id/shares/member/:memberId ───────────────────────
+  app.delete<{ Params: { id: string; memberId: string } }>(
+    '/files/:id/shares/member/:memberId',
+    async (req, reply) => {
+      const ctx = ownedFileCtx(req, reply, store, { multiOnly: true });
+      if (!ctx) return;
+      const memberId = parseMemberId(req.params.memberId, reply);
+      if (memberId === INVALID) return;
+      if (!store.deleteMemberAcl(ctx.record.id, memberId)) {
+        return reply.code(404).send({ error: 'not-found' });
+      }
+      return reply.code(204).send();
+    },
+  );
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -179,13 +297,40 @@ function toPublicLink(link: ShareLink) {
   };
 }
 
+/** Public projection of a member ACL — surfaces the display fields the
+ *  share dialog needs (username/email/role) without leaking internals. */
+function toPublicMember(member: MemberAcl & Pick<MemberAclView, 'username' | 'email'>) {
+  return {
+    memberId: member.memberId,
+    username: member.username,
+    email: member.email,
+    role: member.role,
+    createdAt: member.createdAt,
+    createdBy: member.createdBy,
+  };
+}
+
+/** Parse + validate a `:memberId` path param into a positive integer.
+ *  Sends 400 + returns INVALID on a non-numeric / non-positive value. */
+function parseMemberId(raw: string, reply: FastifyReply): number | typeof INVALID {
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) {
+    reply.code(400).send({ error: 'invalid-member' });
+    return INVALID;
+  }
+  return id;
+}
+
 /** Resolve the signed-in user + the owned (or admin-reachable) file,
  *  or send the right error and return null. Mirrors the files-routes
- *  `requireUser` + `ownedFileOr403` pair in one shot. */
+ *  `requireUser` + `ownedFileOr403` pair in one shot. With
+ *  `{ multiOnly: true }` the route 404s outside multi mode (member ACLs
+ *  are multi-mode only per sharing-model §8 Q1). */
 function ownedFileCtx(
   req: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,
   store: PersonalAuthStore,
+  opts: { multiOnly?: boolean } = {},
 ): { user: PublicUser; record: FileRecord } | null {
   if (store.mode === 'none') {
     reply.code(503).send({ error: 'personal-mode-disabled' });
@@ -194,6 +339,13 @@ function ownedFileCtx(
   const user = currentUser(req, store);
   if (!user) {
     reply.code(401).send({ error: 'unauthenticated' });
+    return null;
+  }
+  // Member ACLs are multi-mode only (sharing-model §8 Q1: single = one
+  // account, link-only). 404 in single mode — never confirm the file
+  // even exists on a route that doesn't apply to the mode.
+  if (opts.multiOnly && store.mode !== 'multi') {
+    reply.code(404).send({ error: 'not-found' });
     return null;
   }
   const record = store.getFile(req.params.id);

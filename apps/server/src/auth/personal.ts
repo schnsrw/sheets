@@ -112,6 +112,38 @@ export type ShareLink = {
   createdBy: number;
 };
 
+/** A persisted member ACL row (sharing-model §6.2 — multi mode only).
+ *  Grants a logged-in member a role on a specific workbook. Like the
+ *  link rows, these are INERT until the enforcement batch wires
+ *  `getMemberRole` into the join path — an ACL grants NO access on its
+ *  own. The PK is `(workbook_id, member_id)`; a member has at most one
+ *  role per workbook (re-adding upserts the role). */
+export type MemberAcl = {
+  workbookId: string;
+  /** `users.id` of the member this ACL grants a role to. */
+  memberId: number;
+  role: ShareRole;
+  createdAt: number;
+  /** `users.id` of the admin/owner who granted the ACL. */
+  createdBy: number;
+};
+
+/** Display projection of a member ACL — joins `users` so the share
+ *  dialog can render the member without a second lookup. */
+export type MemberAclView = MemberAcl & {
+  username: string;
+  email: string | null;
+};
+
+/** Result of resolving a handle (email or username) to an account.
+ *  Used by the member-add route to turn the operator's free-text input
+ *  into a concrete `memberId`. */
+export type MemberLookup = {
+  id: number;
+  username: string;
+  email: string | null;
+};
+
 /** Read shape for the future join-handshake — the minimum a caller
  *  needs to compute an effective role. `getLinkRole` returns this and
  *  bakes in expiry (null when the token has lapsed). */
@@ -769,6 +801,127 @@ export class PersonalAuthStore {
     };
   }
 
+  // ── Member ACLs (sharing-model §6.2 — persistence only, multi mode) ─────
+  //
+  // NOTE: like share links, these rows are INERT until the enforcement
+  // batch wires `getMemberRole` into the join path. An ACL row grants
+  // NO access on its own. `getMemberRole` is surfaced + tested now so
+  // the persistence contract is locked, but it is deliberately NOT
+  // called from `rooms.ts` / the join handshake yet.
+
+  /** Resolve a free-text handle — an email (case-insensitive) OR a
+   *  username (COLLATE NOCASE) — to an account. Prefers an email match
+   *  (sharing-model §5.2: industry default is email), falling back to
+   *  username. Returns null when nothing matches. */
+  findMemberByHandle(handle: string): MemberLookup | null {
+    const trimmed = handle.trim();
+    if (trimmed.length === 0) return null;
+    // Email first — the unique-email index makes this an exact lookup.
+    // `email IS NOT NULL` guards against a NULL-email row matching a
+    // NULL-ish probe (it can't here, but keeps intent explicit).
+    const byEmail = this.db
+      .prepare(
+        'SELECT id, username, email FROM users WHERE email = ? COLLATE NOCASE AND email IS NOT NULL',
+      )
+      .get(trimmed) as { id: number; username: string; email: string | null } | undefined;
+    if (byEmail) {
+      return { id: byEmail.id, username: byEmail.username, email: byEmail.email };
+    }
+    const byUsername = this.db
+      .prepare('SELECT id, username, email FROM users WHERE username = ? COLLATE NOCASE')
+      .get(trimmed) as { id: number; username: string; email: string | null } | undefined;
+    if (byUsername) {
+      return { id: byUsername.id, username: byUsername.username, email: byUsername.email };
+    }
+    return null;
+  }
+
+  /** Upsert a member ACL. Re-adding an existing member overwrites the
+   *  role (and refreshes created_at/created_by — the most recent grant
+   *  wins). Returns the persisted row. */
+  setMemberAcl(opts: {
+    workbookId: string;
+    memberId: number;
+    role: ShareRole;
+    createdBy: number;
+  }): MemberAcl {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO file_member_acls (workbook_id, member_id, role, created_at, created_by)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(workbook_id, member_id)
+         DO UPDATE SET role = excluded.role, created_at = excluded.created_at,
+                       created_by = excluded.created_by`,
+      )
+      .run(opts.workbookId, opts.memberId, opts.role, now, opts.createdBy);
+    return {
+      workbookId: opts.workbookId,
+      memberId: opts.memberId,
+      role: opts.role,
+      createdAt: now,
+      createdBy: opts.createdBy,
+    };
+  }
+
+  /** All member ACLs for a workbook, joined to `users` for display
+   *  (username + email), newest-grant first. */
+  listMemberAcls(workbookId: string): MemberAclView[] {
+    const rows = this.db
+      .prepare(
+        `SELECT a.workbook_id, a.member_id, a.role, a.created_at, a.created_by,
+                u.username, u.email
+           FROM file_member_acls a
+           JOIN users u ON u.id = a.member_id
+          WHERE a.workbook_id = ?
+          ORDER BY a.created_at DESC`,
+      )
+      .all(workbookId) as Array<{
+      workbook_id: string;
+      member_id: number;
+      role: string;
+      created_at: number;
+      created_by: number;
+      username: string;
+      email: string | null;
+    }>;
+    return rows.map((row) => ({
+      workbookId: row.workbook_id,
+      memberId: row.member_id,
+      role: row.role as ShareRole,
+      createdAt: row.created_at,
+      createdBy: row.created_by,
+      username: row.username,
+      email: row.email,
+    }));
+  }
+
+  /**
+   * Resolve a member's effective role on a workbook. Returns null when
+   * no ACL row exists.
+   *
+   * This is the read the future join-handshake will call to decide a
+   * logged-in joiner's role. It is deliberately NOT called from
+   * `rooms.ts` yet: member ACLs grant no access until that separate,
+   * reviewed batch (which also needs a room→workbook mapping) wires
+   * enforcement in. Surfaced + tested now so the persistence contract
+   * is locked.
+   */
+  getMemberRole(workbookId: string, memberId: number): ShareRole | null {
+    const row = this.db
+      .prepare('SELECT role FROM file_member_acls WHERE workbook_id = ? AND member_id = ?')
+      .get(workbookId, memberId) as { role: string } | undefined;
+    return row ? (row.role as ShareRole) : null;
+  }
+
+  /** Revoke a member ACL. Returns false when no row matched. */
+  deleteMemberAcl(workbookId: string, memberId: number): boolean {
+    const result = this.db
+      .prepare('DELETE FROM file_member_acls WHERE workbook_id = ? AND member_id = ?')
+      .run(workbookId, memberId);
+    return result.changes > 0;
+  }
+
   // ── Internals ──────────────────────────────────────────────────────────
 
   private migrate(): void {
@@ -853,6 +1006,31 @@ export class PersonalAuthStore {
       );
 
       CREATE INDEX IF NOT EXISTS idx_share_links_workbook ON share_links(workbook_id);
+
+      -- Member ACLs (sharing-model §6.2). One row per (workbook, member)
+      -- pairing; the member gets at most one role per workbook. Multi
+      -- mode only at the route layer. Like share_links, these rows are
+      -- persisted now but INERT until the enforcement batch reads
+      -- getMemberRole from the join path — an ACL grants no access on
+      -- its own. member_id FKs to users with ON DELETE CASCADE so
+      -- deleting an account cleans up the ACLs granted TO it. created_by
+      -- is a plain column (NO FK): the grant should outlive the grantor
+      -- being deleted — the member keeps their access. workbook_id is
+      -- NOT a hard FK to files(id) (same rationale as share_links: the
+      -- file registry is the ownership boundary checked at the route
+      -- layer).
+      CREATE TABLE IF NOT EXISTS file_member_acls (
+        workbook_id TEXT NOT NULL,
+        member_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        created_by INTEGER NOT NULL,
+        PRIMARY KEY (workbook_id, member_id),
+        FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_member_acls_workbook ON file_member_acls(workbook_id);
+      CREATE INDEX IF NOT EXISTS idx_member_acls_member ON file_member_acls(member_id);
     `);
 
     // Idempotent column migration — a pre-enforcement install created

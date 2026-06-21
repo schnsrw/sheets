@@ -455,6 +455,159 @@ test('share link: delete revokes; second delete is a no-op false', () => {
   }
 });
 
+// ── Member ACLs (sharing-model §6.2 — persistence) ─────────────────────
+
+test('member ACL: set → list → getMemberRole → delete round-trips', () => {
+  const { store, cleanup } = withTempStore('multi');
+  try {
+    const admin = store.createUser('alice', 'longpassword');
+    const bob = store.createUser('bob', 'longpassword');
+    if (!admin.ok || !bob.ok) throw new Error('seed failed');
+    store.updateProfile(bob.user.id, { email: 'bob@example.com' });
+
+    const acl = store.setMemberAcl({
+      workbookId: 'f-abc',
+      memberId: bob.user.id,
+      role: 'edit',
+      createdBy: admin.user.id,
+    });
+    assert.equal(acl.workbookId, 'f-abc');
+    assert.equal(acl.memberId, bob.user.id);
+    assert.equal(acl.role, 'edit');
+    assert.equal(acl.createdBy, admin.user.id);
+
+    // list joins users for display.
+    const list = store.listMemberAcls('f-abc');
+    assert.equal(list.length, 1);
+    assert.equal(list[0]?.memberId, bob.user.id);
+    assert.equal(list[0]?.username, 'bob');
+    assert.equal(list[0]?.email, 'bob@example.com');
+    assert.equal(list[0]?.role, 'edit');
+    assert.deepEqual(store.listMemberAcls('f-other'), []);
+
+    // getMemberRole resolves the row.
+    assert.equal(store.getMemberRole('f-abc', bob.user.id), 'edit');
+
+    // delete revokes; second delete is a no-op false.
+    assert.equal(store.deleteMemberAcl('f-abc', bob.user.id), true);
+    assert.equal(store.getMemberRole('f-abc', bob.user.id), null);
+    assert.equal(store.deleteMemberAcl('f-abc', bob.user.id), false);
+    assert.deepEqual(store.listMemberAcls('f-abc'), []);
+  } finally {
+    cleanup();
+  }
+});
+
+test('member ACL: setMemberAcl upserts — re-adding overwrites the role', () => {
+  const { store, cleanup } = withTempStore('multi');
+  try {
+    const admin = store.createUser('alice', 'longpassword');
+    const bob = store.createUser('bob', 'longpassword');
+    if (!admin.ok || !bob.ok) throw new Error('seed failed');
+
+    store.setMemberAcl({
+      workbookId: 'f-abc',
+      memberId: bob.user.id,
+      role: 'view',
+      createdBy: admin.user.id,
+    });
+    store.setMemberAcl({
+      workbookId: 'f-abc',
+      memberId: bob.user.id,
+      role: 'edit',
+      createdBy: admin.user.id,
+    });
+    // Still a single row, role overwritten.
+    const list = store.listMemberAcls('f-abc');
+    assert.equal(list.length, 1);
+    assert.equal(store.getMemberRole('f-abc', bob.user.id), 'edit');
+  } finally {
+    cleanup();
+  }
+});
+
+test('member ACL: getMemberRole returns null for an unknown member/workbook', () => {
+  const { store, cleanup } = withTempStore('multi');
+  try {
+    const admin = store.createUser('alice', 'longpassword');
+    if (!admin.ok) throw new Error('seed failed');
+    assert.equal(store.getMemberRole('f-abc', 999), null);
+    assert.equal(store.getMemberRole('f-nope', admin.user.id), null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('member lookup: findMemberByHandle resolves email, username, and not-found', () => {
+  const { store, cleanup } = withTempStore('multi');
+  try {
+    const bob = store.createUser('Bob', 'longpassword');
+    if (!bob.ok) throw new Error('seed failed');
+    store.updateProfile(bob.user.id, { email: 'Bob@Example.com' });
+
+    // Username match (case-insensitive).
+    assert.equal(store.findMemberByHandle('bob')?.id, bob.user.id);
+    assert.equal(store.findMemberByHandle('BOB')?.id, bob.user.id);
+    assert.equal(store.findMemberByHandle('Bob')?.username, 'Bob');
+
+    // Email match (case-insensitive), preferred when handle is an email.
+    assert.equal(store.findMemberByHandle('bob@example.com')?.id, bob.user.id);
+    assert.equal(store.findMemberByHandle('BOB@EXAMPLE.COM')?.id, bob.user.id);
+
+    // Returned shape carries email.
+    assert.equal(store.findMemberByHandle('bob')?.email, 'Bob@Example.com');
+
+    // Not found + whitespace-only.
+    assert.equal(store.findMemberByHandle('nobody'), null);
+    assert.equal(store.findMemberByHandle('nobody@example.com'), null);
+    assert.equal(store.findMemberByHandle('   '), null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('member lookup: an email handle resolves to the email owner, not a same-named username', () => {
+  const { store, cleanup } = withTempStore('multi');
+  try {
+    // Usernames can't contain '@' (USERNAME_RE), so a handle and a
+    // username can never be byte-identical when the handle is an email —
+    // but assert the email path is the one that resolves an email-shaped
+    // handle (§5.2: prefer email). carol has the email; dave is a decoy
+    // whose username is the email's local part.
+    const carol = store.createUser('carol', 'longpassword');
+    const dave = store.createUser('shared', 'longpassword');
+    if (!carol.ok || !dave.ok) throw new Error('seed failed');
+    store.updateProfile(carol.user.id, { email: 'shared@example.com' });
+
+    const hit = store.findMemberByHandle('shared@example.com');
+    assert.equal(hit?.id, carol.user.id, 'email handle resolves to the email owner');
+    // The decoy username still resolves on its own bare handle.
+    assert.equal(store.findMemberByHandle('shared')?.id, dave.user.id);
+  } finally {
+    cleanup();
+  }
+});
+
+test('member ACL: deleting the member cascades the ACL row away', () => {
+  const { store, cleanup } = withTempStore('multi');
+  try {
+    const admin = store.createUser('alice', 'longpassword');
+    const bob = store.createUser('bob', 'longpassword');
+    if (!admin.ok || !bob.ok) throw new Error('seed failed');
+    store.setMemberAcl({
+      workbookId: 'f-abc',
+      memberId: bob.user.id,
+      role: 'edit',
+      createdBy: admin.user.id,
+    });
+    assert.equal(store.deleteUser(bob.user.id), true);
+    assert.equal(store.getMemberRole('f-abc', bob.user.id), null);
+    assert.deepEqual(store.listMemberAcls('f-abc'), []);
+  } finally {
+    cleanup();
+  }
+});
+
 test('isShareRole guards the role enum', () => {
   assert.equal(isShareRole('view'), true);
   assert.equal(isShareRole('comment'), true);

@@ -417,3 +417,289 @@ test("share link: mode 'none' shadows the routes with 503", async () => {
     await cleanup();
   }
 });
+
+// ── Member ACL routes (sharing-model §6.2 — MULTI MODE ONLY) ────────────
+
+test('member ACL: add → list → patch → delete by username handle', async () => {
+  const { app, store, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    await signup(app, 'bob', 'longpassword');
+    const fileId = await uploadFile(app, aliceCookie);
+
+    // Empty to start.
+    let r = await app.inject({
+      method: 'GET',
+      url: `/files/${fileId}/shares/members`,
+      headers: { cookie: aliceCookie },
+    });
+    assert.equal(r.statusCode, 200);
+    assert.deepEqual(JSON.parse(r.body), { members: [] });
+
+    // Add bob by username.
+    r = await app.inject({
+      method: 'POST',
+      url: `/files/${fileId}/shares/member`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { handle: 'bob', role: 'edit' },
+    });
+    assert.equal(r.statusCode, 201, r.body);
+    const added = JSON.parse(r.body) as { memberId: number; username: string; role: string };
+    assert.equal(added.username, 'bob');
+    assert.equal(added.role, 'edit');
+    const bobId = added.memberId;
+
+    // List surfaces it with username + role.
+    r = await app.inject({
+      method: 'GET',
+      url: `/files/${fileId}/shares/members`,
+      headers: { cookie: aliceCookie },
+    });
+    const members = JSON.parse(r.body).members as Array<Record<string, unknown>>;
+    assert.equal(members.length, 1);
+    assert.equal(members[0]?.username, 'bob');
+    assert.equal(members[0]?.role, 'edit');
+
+    // Patch role.
+    r = await app.inject({
+      method: 'PATCH',
+      url: `/files/${fileId}/shares/member/${bobId}`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { role: 'view' },
+    });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(JSON.parse(r.body).role, 'view');
+    assert.equal(store.getMemberRole(fileId, bobId), 'view');
+
+    // Delete.
+    r = await app.inject({
+      method: 'DELETE',
+      url: `/files/${fileId}/shares/member/${bobId}`,
+      headers: { cookie: aliceCookie },
+    });
+    assert.equal(r.statusCode, 204);
+    assert.equal(store.getMemberRole(fileId, bobId), null);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: add resolves an email handle', async () => {
+  const { app, store, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    await signup(app, 'bob', 'longpassword');
+    const bobId = store.findMemberByHandle('bob')!.id;
+    store.updateProfile(bobId, { email: 'bob@example.com' });
+    const fileId = await uploadFile(app, aliceCookie);
+
+    const r = await app.inject({
+      method: 'POST',
+      url: `/files/${fileId}/shares/member`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { handle: 'BOB@EXAMPLE.COM', role: 'view' },
+    });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(JSON.parse(r.body).memberId, bobId);
+    assert.equal(JSON.parse(r.body).email, 'bob@example.com');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: unknown handle → 404 user-not-found', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    const fileId = await uploadFile(app, aliceCookie);
+    const r = await app.inject({
+      method: 'POST',
+      url: `/files/${fileId}/shares/member`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { handle: 'ghost', role: 'view' },
+    });
+    assert.equal(r.statusCode, 404);
+    assert.equal(JSON.parse(r.body).error, 'user-not-found');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: cannot add yourself / the owner', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    const fileId = await uploadFile(app, aliceCookie);
+    const r = await app.inject({
+      method: 'POST',
+      url: `/files/${fileId}/shares/member`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { handle: 'alice', role: 'view' },
+    });
+    assert.equal(r.statusCode, 400);
+    assert.equal(JSON.parse(r.body).error, 'cannot-add-owner');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: role + handle validation (400)', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    await signup(app, 'bob', 'longpassword');
+    const fileId = await uploadFile(app, aliceCookie);
+
+    // Bad role.
+    let r = await app.inject({
+      method: 'POST',
+      url: `/files/${fileId}/shares/member`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { handle: 'bob', role: 'admin' },
+    });
+    assert.equal(r.statusCode, 400);
+    assert.equal(JSON.parse(r.body).error, 'invalid-role');
+
+    // Bad handle.
+    for (const handle of [undefined, '', '   ', 123]) {
+      const payload: Record<string, unknown> = { role: 'view' };
+      if (handle !== undefined) payload.handle = handle;
+      r = await app.inject({
+        method: 'POST',
+        url: `/files/${fileId}/shares/member`,
+        headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+        payload,
+      });
+      assert.equal(r.statusCode, 400, `handle=${String(handle)} should 400`);
+      assert.equal(JSON.parse(r.body).error, 'invalid-handle');
+    }
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: patch/delete on a non-existent ACL → 404', async () => {
+  const { app, store, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    await signup(app, 'bob', 'longpassword');
+    const bobId = store.findMemberByHandle('bob')!.id;
+    const fileId = await uploadFile(app, aliceCookie);
+
+    let r = await app.inject({
+      method: 'PATCH',
+      url: `/files/${fileId}/shares/member/${bobId}`,
+      headers: { cookie: aliceCookie, 'content-type': 'application/json' },
+      payload: { role: 'view' },
+    });
+    assert.equal(r.statusCode, 404);
+
+    r = await app.inject({
+      method: 'DELETE',
+      url: `/files/${fileId}/shares/member/${bobId}`,
+      headers: { cookie: aliceCookie },
+    });
+    assert.equal(r.statusCode, 404);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: invalid :memberId path param → 400', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    const fileId = await uploadFile(app, aliceCookie);
+    const r = await app.inject({
+      method: 'DELETE',
+      url: `/files/${fileId}/shares/member/not-a-number`,
+      headers: { cookie: aliceCookie },
+    });
+    assert.equal(r.statusCode, 400);
+    assert.equal(JSON.parse(r.body).error, 'invalid-member');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: non-owner gets 404, admin reaches any file', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    // First account is admin.
+    const adminCookie = await signup(app, 'admin', 'longpassword');
+    const bobCookie = await signup(app, 'bob', 'longpassword');
+    await signup(app, 'carol', 'longpassword');
+    const bobFile = await uploadFile(app, bobCookie);
+
+    // Carol (non-owner, non-admin) → 404, no existence leak.
+    const carolCookie = await signup(app, 'dave', 'longpassword');
+    let r = await app.inject({
+      method: 'GET',
+      url: `/files/${bobFile}/shares/members`,
+      headers: { cookie: carolCookie },
+    });
+    assert.equal(r.statusCode, 404);
+
+    // Admin reaches bob's file and can add carol.
+    r = await app.inject({
+      method: 'POST',
+      url: `/files/${bobFile}/shares/member`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: { handle: 'carol', role: 'edit' },
+    });
+    assert.equal(r.statusCode, 201, r.body);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: anonymous → 401 on every member route', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'multi' });
+  try {
+    for (const route of [
+      ['GET', '/files/x/shares/members'],
+      ['POST', '/files/x/shares/member'],
+      ['PATCH', '/files/x/shares/member/1'],
+      ['DELETE', '/files/x/shares/member/1'],
+    ] as const) {
+      const r = await app.inject({ method: route[0], url: route[1] });
+      assert.equal(r.statusCode, 401, `${route[0]} ${route[1]} should 401, got ${r.statusCode}`);
+    }
+  } finally {
+    await cleanup();
+  }
+});
+
+test('member ACL: single mode 404s the member routes (link-only)', async () => {
+  const { app, cleanup } = await makeApp({ mode: 'single' });
+  try {
+    const aliceCookie = await signup(app, 'alice', 'longpassword');
+    const fileId = await uploadFile(app, aliceCookie);
+    // The link surface still works in single mode...
+    const link = await app.inject({
+      method: 'GET',
+      url: `/files/${fileId}/shares`,
+      headers: { cookie: aliceCookie },
+    });
+    assert.equal(link.statusCode, 200);
+    // ...but member ACLs are multi-only → 404 even for the owner.
+    const r = await app.inject({
+      method: 'GET',
+      url: `/files/${fileId}/shares/members`,
+      headers: { cookie: aliceCookie },
+    });
+    assert.equal(r.statusCode, 404);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("member ACL: mode 'none' shadows the member routes with 503", async () => {
+  const { app, cleanup } = await makeApp({ mode: 'none' });
+  try {
+    const r = await app.inject({ method: 'GET', url: '/files/x/shares/members' });
+    assert.equal(r.statusCode, 503);
+  } finally {
+    await cleanup();
+  }
+});

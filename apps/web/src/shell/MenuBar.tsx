@@ -25,13 +25,7 @@ import {
   saveAsXlsx,
 } from './file-actions';
 import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
-import {
-  getAppliedWatermark,
-  isWatermarkOn,
-  loadWatermarkPref,
-  type WatermarkConfig,
-} from './watermark';
-import { WatermarkDialog } from './WatermarkDialog';
+import { isWatermarkOn, setConfidentialWatermark } from './watermark';
 import { PageSetupDialog } from './PageSetupDialog';
 import { InsertCellsDialog } from './InsertCellsDialog';
 import { PasteSpecialDialog } from './PasteSpecialDialog';
@@ -373,10 +367,6 @@ export function MenuBar() {
   const [showCommandSearch, setShowCommandSearch] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [watermarkOn, setWatermarkOn] = useState(false);
-  const [showWatermark, setShowWatermark] = useState(false);
-  const [watermarkConfig, setWatermarkConfig] = useState<WatermarkConfig>(() =>
-    loadWatermarkPref(),
-  );
   const addToSelectionModeRef = useRef(false);
   const selectionRangesRef = useRef<SheetRange[]>([]);
   const syntheticSelectionRef = useRef(false);
@@ -941,11 +931,6 @@ export function MenuBar() {
     let cancelled = false;
     void isWatermarkOn(api).then((on) => {
       if (!cancelled) setWatermarkOn(on);
-    });
-    // Seed the dialog from the currently-applied config when on, else fall
-    // back to the user's last-chosen preference from localStorage.
-    void getAppliedWatermark(api).then((applied) => {
-      if (!cancelled && applied) setWatermarkConfig(applied);
     });
     return () => {
       cancelled = true;
@@ -1548,11 +1533,13 @@ export function MenuBar() {
         {
           kind: 'item',
           id: 'toggle-watermark',
-          label: watermarkOn ? '✓ Watermark…' : 'Watermark…',
+          label: watermarkOn ? '✓ Confidential watermark' : 'Confidential watermark',
           icon: 'water_drop',
           onClick: () => {
             if (!api) return;
-            setShowWatermark(true);
+            const next = !watermarkOn;
+            setConfidentialWatermark(api, next);
+            setWatermarkOn(next);
           },
         },
         { kind: 'separator', id: 'sep-freeze' },
@@ -2301,21 +2288,6 @@ export function MenuBar() {
       )}
 
       {showGoalSeek && api && <GoalSeekDialog api={api} onClose={() => setShowGoalSeek(false)} />}
-
-      {showWatermark && api && (
-        <WatermarkDialog
-          api={api}
-          initialOn={watermarkOn}
-          initial={watermarkConfig}
-          onClose={() => setShowWatermark(false)}
-          onApplied={(on) => {
-            setWatermarkOn(on);
-            // Re-read the just-persisted preference so the dialog re-opens
-            // with the user's latest text/opacity even after a clear.
-            setWatermarkConfig(loadWatermarkPref());
-          }}
-        />
-      )}
 
       {drillDownResult && (
         <DrillDownDialog result={drillDownResult} onClose={() => setDrillDownResult(null)} />

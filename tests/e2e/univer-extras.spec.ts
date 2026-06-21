@@ -66,17 +66,20 @@ test.describe('Univer extras — graphics + watermark', () => {
     expect(ok).toBe(true);
   });
 
-  test('View → Watermark dialog applies / re-texts / clears the overlay', async ({ page }) => {
+  test('View → Confidential watermark toggles checked state + applies/removes overlay', async ({
+    page,
+  }) => {
     // The watermark renders into the canvas scene (no DOM node to assert) and
     // its config is held in the WatermarkService, persisted via localforage
-    // (IndexedDB) under UNIVER_WATERMARK_STORAGE_KEY. We verify the round trip
-    // the user controls: the dialog's switch + text drive the persisted config
-    // (proving the service actually ran — a DI break would throw at apply time
-    // and never write the key) and the View-menu item flips its checkmark.
+    // (IndexedDB) under UNIVER_WATERMARK_STORAGE_KEY. We verify the two halves
+    // of the round trip the user controls: the menu item flips its checkmark,
+    // and the persisted config flips on/off underneath. Reading the menu label
+    // proves the React state; reading IndexedDB proves the service actually ran
+    // (a DI break would throw at click time and never write the key).
     const persisted = () =>
       page.evaluate(
         () =>
-          new Promise<{ content: string | null; opacity: number | null }>((resolve) => {
+          new Promise<string | null>((resolve) => {
             const req = indexedDB.open('localforage');
             req.onsuccess = () => {
               const db = req.result;
@@ -84,28 +87,23 @@ test.describe('Univer extras — graphics + watermark', () => {
               try {
                 store = db.transaction('keyvaluepairs', 'readonly').objectStore('keyvaluepairs');
               } catch {
-                resolve({ content: null, opacity: null });
+                resolve(null);
                 return;
               }
               const get = store.get('UNIVER_WATERMARK_STORAGE_KEY');
               get.onsuccess = () => {
-                const v = get.result as
-                  | { config?: { text?: { content?: string; opacity?: number } } }
-                  | undefined;
-                resolve({
-                  content: v?.config?.text?.content ?? null,
-                  opacity: v?.config?.text?.opacity ?? null,
-                });
+                const v = get.result as { config?: { text?: { content?: string } } } | undefined;
+                resolve(v?.config?.text?.content ?? null);
               };
-              get.onerror = () => resolve({ content: null, opacity: null });
+              get.onerror = () => resolve(null);
             };
-            req.onerror = () => resolve({ content: null, opacity: null });
+            req.onerror = () => resolve(null);
           }),
       );
 
-    // Open the View menu and reach the watermark item. The menubar button
-    // toggles the popup, so re-open via the popup's own visibility rather
-    // than blindly re-clicking.
+    // Open the View menu and read the watermark item's current label. The
+    // menubar button toggles the popup, so re-open via the popup's own
+    // visibility rather than blindly re-clicking.
     const openViewMenu = async () => {
       const popup = page.getByTestId('menubar-view-popup');
       if (!(await popup.isVisible().catch(() => false))) {
@@ -115,46 +113,21 @@ test.describe('Univer extras — graphics + watermark', () => {
       return page.getByTestId('menu-item-toggle-watermark');
     };
 
-    const dialog = page.getByTestId('watermark-dialog');
-
-    // ── Apply ON with the default text ──────────────────────────────────
+    // Toggle ON.
     let item = await openViewMenu();
+    await expect(item).toContainText('Confidential watermark');
     await expect(item).not.toContainText('✓');
     await item.click();
-    await expect(dialog).toBeVisible();
 
-    // Switch defaults to off on a clean boot; turn it on and apply.
-    await page.getByTestId('watermark-toggle').check();
-    await page.getByTestId('watermark-apply').click();
-    await expect(dialog).toBeHidden();
-
-    await expect.poll(async () => (await persisted()).content).toBe('CONFIDENTIAL');
+    // The service wrote the config (proves the command ran — a DI break would
+    // throw here and never persist) and the menu now shows the checkmark.
+    await expect.poll(async () => await persisted()).toBe('CONFIDENTIAL');
     item = await openViewMenu();
     await expect(item).toContainText('✓');
 
-    // ── Re-open, set custom text + opacity, apply ───────────────────────
-    item = await openViewMenu();
+    // Toggle OFF clears both the checkmark and the persisted config.
     await item.click();
-    await expect(dialog).toBeVisible();
-    // Switch is seeded ON from the applied config.
-    await expect(page.getByTestId('watermark-toggle')).toBeChecked();
-    await page.getByTestId('watermark-text').fill('DRAFT');
-    await page.getByTestId('watermark-opacity').selectOption('0.2');
-    await page.getByTestId('watermark-apply').click();
-    await expect(dialog).toBeHidden();
-
-    await expect.poll(async () => (await persisted()).content).toBe('DRAFT');
-    expect((await persisted()).opacity).toBe(0.2);
-
-    // ── Turn it off → clears the persisted config + the checkmark ───────
-    item = await openViewMenu();
-    await item.click();
-    await expect(dialog).toBeVisible();
-    await page.getByTestId('watermark-toggle').uncheck();
-    await page.getByTestId('watermark-apply').click();
-    await expect(dialog).toBeHidden();
-
-    await expect.poll(async () => (await persisted()).content).toBeNull();
+    await expect.poll(async () => await persisted()).toBeNull();
     item = await openViewMenu();
     await expect(item).not.toContainText('✓');
   });

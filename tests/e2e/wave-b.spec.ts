@@ -70,7 +70,12 @@ test.describe('Insert menu', () => {
 
   test('Insert Comment dispatches show-comment-modal', async ({ page }) => {
     await selectRange(page, 'B2');
-    const fired = await clickMenuItemFiresCommand(page, 'insert', 'insert-comment', 'comment-modal');
+    const fired = await clickMenuItemFiresCommand(
+      page,
+      'insert',
+      'insert-comment',
+      'comment-modal',
+    );
     expect(fired).toBe(true);
   });
 
@@ -111,12 +116,7 @@ test.describe('View menu', () => {
     // dispatches the underlying set-frozen command.
     await page.goto('/');
     await waitForUniver(page);
-    const fired = await clickMenuItemFiresCommand(
-      page,
-      'view',
-      'freeze-row',
-      'set-frozen',
-    );
+    const fired = await clickMenuItemFiresCommand(page, 'view', 'freeze-row', 'set-frozen');
     expect(fired).toBe(true);
   });
 
@@ -166,11 +166,12 @@ test.describe('Toolbar — zoom slider + borders dropdown + undo/redo placement'
     await expect(page.getByTestId('ribbon-dropdown-borders-popover')).toHaveCount(0);
   });
 
-  test('Undo / Redo on the sheet-tabs strip work', async ({ page }) => {
-    // Make a styled change we can undo.
+  test('Undo / Redo on the status bar work', async ({ page }) => {
+    // Make a styled change we can undo. Undo/redo live on the status bar
+    // strip (split out of the sheet-tabs row in the Phase 4 redesign).
     await selectRange(page, 'A1');
     await page.getByTestId('ribbon-btn-bold').click();
-    await page.getByTestId('sheet-tabs').getByTestId('qat-undo').click();
+    await page.getByTestId('statusbar').getByTestId('qat-undo').click();
     // The bold toggle should now reflect false again.
     await expect(page.getByTestId('ribbon-btn-bold')).toHaveAttribute('aria-pressed', 'false');
   });

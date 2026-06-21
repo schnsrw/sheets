@@ -3,9 +3,9 @@ import { waitForUniver } from './_helpers';
 
 /**
  * Polish #4 — responsive layout. Locks in the grid-host always
- * fills the available vertical space + sheet-tabs always sits at
- * the bottom + the toolbar collapses cleanly on the narrow phone
- * breakpoint.
+ * fills the available vertical space + the status bar always sits
+ * at the bottom (with sheet-tabs directly above it) + the toolbar
+ * collapses cleanly on the narrow phone breakpoint.
  *
  * The root bug this guards against: CSS-Grid auto-placement was
  * shifting the grid-host into the wrong track when the toolbar was
@@ -26,7 +26,7 @@ const VIEWPORTS = [
 
 test.describe('Responsive layout — chrome and grid sizing', () => {
   for (const v of VIEWPORTS) {
-    test(`grid-host fills the viewport and sheet-tabs sits at the bottom @ ${v.name} (${v.w}x${v.h})`, async ({
+    test(`grid-host fills the viewport and the status bar sits at the bottom @ ${v.name} (${v.w}x${v.h})`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: v.w, height: v.h });
@@ -38,12 +38,18 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
           const el = document.querySelector(sel) as HTMLElement | null;
           if (!el) return null;
           const r = el.getBoundingClientRect();
-          return { w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) };
+          return {
+            w: Math.round(r.width),
+            h: Math.round(r.height),
+            top: Math.round(r.top),
+            bottom: Math.round(r.bottom),
+          };
         };
         return {
           app: q('[data-testid="app-shell"]'),
           gridHost: q('.grid-host'),
           sheetTabs: q('.sheet-tabs'),
+          statusBar: q('.statusbar'),
           viewportH: window.innerHeight,
         };
       });
@@ -51,6 +57,7 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
       expect(layout.app).not.toBeNull();
       expect(layout.gridHost).not.toBeNull();
       expect(layout.sheetTabs).not.toBeNull();
+      expect(layout.statusBar).not.toBeNull();
 
       // 1. App shell fills the full viewport (100dvh).
       expect(layout.app!.h).toBeGreaterThanOrEqual(layout.viewportH - 1);
@@ -60,10 +67,16 @@ test.describe('Responsive layout — chrome and grid sizing', () => {
       //    at 26 px (3% of an 800 px viewport).
       expect(layout.gridHost!.h).toBeGreaterThan(layout.viewportH * 0.6);
 
-      // 3. Sheet tabs strip is at the bottom — its bottom edge sits
-      //    within 2 px of the viewport bottom.
-      expect(layout.sheetTabs!.bottom).toBeGreaterThanOrEqual(layout.viewportH - 2);
-      expect(layout.sheetTabs!.bottom).toBeLessThanOrEqual(layout.viewportH + 1);
+      // 3. The status bar is the bottom-most strip (the Phase 4 redesign
+      //    split selection stats / zoom / undo out of the sheet-tabs row
+      //    into their own strip below it). Its bottom edge sits within
+      //    2 px of the viewport bottom.
+      expect(layout.statusBar!.bottom).toBeGreaterThanOrEqual(layout.viewportH - 2);
+      expect(layout.statusBar!.bottom).toBeLessThanOrEqual(layout.viewportH + 1);
+
+      // 4. Sheet tabs sit directly above the status bar (no gap).
+      expect(layout.sheetTabs!.bottom).toBeLessThanOrEqual(layout.statusBar!.top + 1);
+      expect(layout.sheetTabs!.bottom).toBeGreaterThanOrEqual(layout.statusBar!.top - 2);
     });
   }
 

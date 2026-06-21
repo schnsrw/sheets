@@ -20,10 +20,16 @@ const rewriteParserWorkerUrl: Plugin = {
   // re-roll the construction. Same trade-off Vite makes for its own
   // worker plugin output.
   async renderChunk(code) {
-    if (!code.includes('parser.worker.ts') && !code.includes('exporter.worker.ts')) return null;
+    if (
+      !code.includes('parser.worker.ts') &&
+      !code.includes('exporter.worker.ts') &&
+      !code.includes('formula.worker.ts')
+    )
+      return null;
     const rewritten = code
       .replace(/["']\.\/parser\.worker\.ts["']/g, `'./parser.worker.js'`)
-      .replace(/["']\.\/exporter\.worker\.ts["']/g, `'./exporter.worker.js'`);
+      .replace(/["']\.\/exporter\.worker\.ts["']/g, `'./exporter.worker.js'`)
+      .replace(/["']\.\/formula\.worker\.ts["']/g, `'./formula.worker.js'`);
     return { code: rewritten };
   },
 };
@@ -154,6 +160,8 @@ const embedRuntimeConfig = defineConfig({
     'embed-runtime': 'src/embed-runtime/index.tsx',
     'parser.worker': 'src/xlsx/parser.worker.ts',
     'exporter.worker': 'src/xlsx/exporter.worker.ts',
+    // Off-main formula compute so a formula-heavy file doesn't hang the iframe.
+    'formula.worker': 'src/embed-runtime/formula.worker.ts',
   },
   outDir: 'dist/embed',
   format: ['esm'],

@@ -1,27 +1,44 @@
 /**
- * Minimal en-US locale bundle for the in-iframe runtime.
+ * en-US locale bundle for the in-iframe runtime.
  *
- * The embed runtime mounts the MINIMAL editor (`lazyPlugins={false}`):
- * render + formula engines, UI, docs/docs-ui, sheets, sheets-ui,
- * sheets-formula-ui, numfmt (+ ui). Univer's `LocaleService` throws
- * `Locale not initialized` and the workbench canvas never paints if the
- * `locales` map is empty — so we MUST seed the string bundle for exactly
- * those plugins. (The React `<CasualSheets>` host path supplies its own
- * `locales` prop; the iframe has no host to pass one, so it bundles this.)
+ * The embed runs the FULL feature set (`lazyPlugins={true}`): the base editor
+ * (render + formula engines, UI, docs/docs-ui, sheets, sheets-ui,
+ * sheets-formula-ui, numfmt) PLUS the lazily-registered feature plugins
+ * (tables, sort, filter, conditional formatting, data validation, drawing,
+ * hyperlinks, notes, thread comments, find/replace). Univer's `LocaleService`
+ * resolves every UI string against this map; without a plugin's strings its UI
+ * renders raw i18n keys (e.g. the comment panel showed
+ * `thread-comment-ui.editor.reply` instead of "Reply"). So we MUST seed strings
+ * for every plugin the runtime can register — matching the reference app's
+ * `apps/web/src/locale.ts` set.
  *
- * Kept narrow on purpose: only the plugins the minimal runtime registers.
- * Adding strings for plugins it never loads is dead weight in the
- * self-contained iframe bundle.
+ * (The React `<CasualSheets>` host path supplies its own `locales` prop; the
+ * iframe has no host to pass one, so it bundles this full set.)
  */
 
 import { LocaleType, Tools } from '@univerjs/core';
 
+import UniverUIEnUS from '@univerjs/ui/locale/en-US';
+import UniverDocsUIEnUS from '@univerjs/docs-ui/locale/en-US';
 import UniverSheetsEnUS from '@univerjs/sheets/locale/en-US';
 import UniverSheetsUIEnUS from '@univerjs/sheets-ui/locale/en-US';
 import UniverSheetsFormulaUIEnUS from '@univerjs/sheets-formula-ui/locale/en-US';
 import UniverSheetsNumfmtUIEnUS from '@univerjs/sheets-numfmt-ui/locale/en-US';
-import UniverDocsUIEnUS from '@univerjs/docs-ui/locale/en-US';
-import UniverUIEnUS from '@univerjs/ui/locale/en-US';
+// Feature-plugin strings — these load lazily, so without their locales the
+// feature UIs (comment panel, table dialog, filter, sort, CF, data validation,
+// images, hyperlinks, notes, find/replace) render raw i18n keys.
+import UniverSheetsTableUIEnUS from '@univerjs/sheets-table-ui/locale/en-US';
+import UniverSheetsSortUIEnUS from '@univerjs/sheets-sort-ui/locale/en-US';
+import UniverSheetsFilterUIEnUS from '@univerjs/sheets-filter-ui/locale/en-US';
+import UniverSheetsCfUIEnUS from '@univerjs/sheets-conditional-formatting-ui/locale/en-US';
+import UniverSheetsDvUIEnUS from '@univerjs/sheets-data-validation-ui/locale/en-US';
+import UniverSheetsDrawingUIEnUS from '@univerjs/sheets-drawing-ui/locale/en-US';
+import UniverDrawingUIEnUS from '@univerjs/drawing-ui/locale/en-US';
+import UniverSheetsHyperLinkUIEnUS from '@univerjs/sheets-hyper-link-ui/locale/en-US';
+import UniverSheetsNoteUIEnUS from '@univerjs/sheets-note-ui/locale/en-US';
+import UniverThreadCommentUIEnUS from '@univerjs/thread-comment-ui/locale/en-US';
+import UniverSheetsThreadCommentUIEnUS from '@univerjs/sheets-thread-comment-ui/locale/en-US';
+import UniverFindReplaceEnUS from '@univerjs/find-replace/locale/en-US';
 
 const enUS = Tools.deepMerge(
   {},
@@ -31,6 +48,18 @@ const enUS = Tools.deepMerge(
   UniverSheetsUIEnUS,
   UniverSheetsFormulaUIEnUS,
   UniverSheetsNumfmtUIEnUS,
+  UniverSheetsTableUIEnUS,
+  UniverSheetsSortUIEnUS,
+  UniverSheetsFilterUIEnUS,
+  UniverSheetsCfUIEnUS,
+  UniverSheetsDvUIEnUS,
+  UniverDrawingUIEnUS,
+  UniverSheetsDrawingUIEnUS,
+  UniverSheetsHyperLinkUIEnUS,
+  UniverSheetsNoteUIEnUS,
+  UniverThreadCommentUIEnUS,
+  UniverSheetsThreadCommentUIEnUS,
+  UniverFindReplaceEnUS,
 );
 
 export const EMBED_LOCALES = {

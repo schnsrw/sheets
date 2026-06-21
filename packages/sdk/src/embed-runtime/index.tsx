@@ -154,6 +154,23 @@ function EmbeddedSheets({
   const [data, setData] = useState<IWorkbookData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Off-main formula compute. Without this the formula engine recalcs on the
+  // MAIN thread, so opening a formula-heavy workbook froze the iframe. Spawn the
+  // bundled worker once and hand it to <CasualSheets> (it wires
+  // UniverRPCMainThreadPlugin). Best-effort: if the Worker can't be created we
+  // fall back to main-thread compute.
+  const [formulaWorker] = useState<Worker | null>(() => {
+    try {
+      return new Worker(new URL('./formula.worker.ts', import.meta.url), {
+        type: 'module',
+        name: 'casual-embed-formula',
+      });
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => () => formulaWorker?.terminate(), [formulaWorker]);
+
   // Theme: track the host's choice (light/dark/system) and resolve `system`
   // live against the iframe's prefers-color-scheme. The host pushes changes
   // over `casual.command.set.theme`; passed to <CasualSheets appearance>,
@@ -275,6 +292,7 @@ function EmbeddedSheets({
       initialData={data}
       chrome={chrome}
       appearance={appearance}
+      formula={formulaWorker ? { worker: formulaWorker } : undefined}
       features={features}
       onDialogRequest={(kind, context) => transport.sendDialogRequest({ kind, context })}
       ui={ui}

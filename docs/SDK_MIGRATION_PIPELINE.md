@@ -6,6 +6,41 @@ target: full editor in the SDK, opt-in storage/collab adapters, a thin `apps/web
 **Direction locked (2026-06-19):** full editor into the SDK · slim `apps/web` onto it ·
 Univer **0.25 first** (Phase 0).
 
+## Status snapshot (2026-06-21) — the arc is functionally complete
+
+A code audit found the per-phase sections below had drifted well behind the
+implementation. Actual state:
+
+- **Phase 0 / 0.5** — ✅ done (Univer 0.25 fork; crosshair + zen-editor wired).
+- **Phase 1** (full editor in the SDK) — ✅ **done.** `packages/sdk/src/sheets/CasualSheets.tsx`
+  renders the complete editor (eager + lazy plugins, snapshot swap, paste-merge /
+  formula-worker host hooks) with `chrome="none|minimal|full"` wired to the
+  `packages/sdk/src/chrome/*` Office shell; `CasualSheetsAPI` exposes get/loadSnapshot,
+  getSelection, executeCommand, setTheme, `univer` (xlsx import/export stay on the
+  `@casualoffice/sheets/xlsx` subpath by design).
+- **Phase 2** (save/exit contract + opt-in collab) — ✅ **done.** `onChange`/`onSave`/`onExit`
+  React hooks + the `embed/` postMessage `sendSaveNotify`/`sendExit` mirror; `collab/attachCollab.ts`
+  is a one-call opt-in returning a detach handle, with the required collab hooks
+  (`onMutationExecutedForCollab`, `fromCollab`, `__splitChunk__`).
+- **Phase 3** (`apps/web` consumes the SDK core) — ✅ **done in practice.** The app mounts
+  `<CasualSheets chrome="none">` and consumes the SDK bootstrap, plugins, formula engine,
+  snapshot/API, and `attachCollab`. **Persistence intentionally stays an app concern via
+  its own tuned mutation subscription — NOT routed through the SDK `onChange`.** The SDK
+  `onChange` is a coarse debounced full-snapshot on every mutation; `apps/web`'s
+  `useAutosave` + `useVersionHistoryCapture` deliberately filter out `fromCollab` replays,
+  `set-selections`/active-sheet noise, and pre-interaction mount churn. Routing them
+  through `onChange` would regress autosave/version-history, so step 2 below is **won't-do**
+  unless the SDK `onChange` first grows mutation-filtering options (no user-facing benefit,
+  deferred).
+- **Phase 4** (design system) — ✅ app shipped (#102); SDK chrome resolves `--cs-chrome-*`
+  to DS tokens with fallbacks now synced to the current DS palette.
+- **Phase 5** (docs + release) — ✅ `docs/INTEGRATION.md` current; `@casualoffice/sheets@0.10.0`
+  published. Remaining options are optional: `importXlsx`/`exportXlsx` as `CasualSheetsAPI`
+  methods (today via the xlsx subpath) and a dedicated embed playground.
+
+The detailed phase sections below are kept for historical context; trust this snapshot
+where they conflict.
+
 ## Working rules (apply to every phase)
 
 - **Small batches → CI checkpoint.** 3–4 commits, push, wait for green CI before piling

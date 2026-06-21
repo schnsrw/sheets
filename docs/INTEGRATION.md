@@ -8,12 +8,12 @@ This guide covers the **React component** path. For the sandboxed `<iframe>` pat
 (cross-origin hosts, signed embeds), see [`SDK_SIGNING_EMBED.md`](./SDK_SIGNING_EMBED.md).
 For the architecture and rationale, see [`SDK_ARCHITECTURE.md`](./SDK_ARCHITECTURE.md).
 
-> 🟢 **Published: `@casualoffice/sheets@0.9.0`** — the new Excalidraw-model editor
-> SDK (full editor, `CasualSheetsAPI`, `onChange`, lazy plugins, light/dark). It's
-> an **early `0.x`** and the restructure continues (Office chrome slots +
-> storage/collab adapters are still landing), so expect additive `0.x` minors.
-> Note the **older `@schnsrw/casual-sheets@0.8.0` is a different, pre-restructure
-> line** without the API below — install `@casualoffice/sheets`, not `@schnsrw`.
+> 🟢 **Published: `@casualoffice/sheets@0.10.0`** — the new Excalidraw-model editor
+> SDK (full editor, `CasualSheetsAPI`, `onChange`/`onSave`/`onExit`, built-in Office
+> chrome slots, `attachCollab`, lazy plugins, light/dark). It's an **early `0.x`** so
+> expect additive `0.x` minors. Note the **older `@schnsrw/casual-sheets@0.8.0` is a
+> different, pre-restructure line** without the API below — install
+> `@casualoffice/sheets`, not `@schnsrw`.
 > See [`RELEASING.md`](./RELEASING.md).
 
 ---

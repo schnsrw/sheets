@@ -428,11 +428,11 @@ export function CasualSheets({
     '--cs-chrome-bg': `var(--color-surface-strip, ${dark ? '#2a2e35' : '#eef1f5'})`,
     '--cs-chrome-fg': `var(--color-text, ${dark ? '#e6e6e6' : '#201f1e'})`,
     '--cs-chrome-muted': `var(--color-text-secondary, ${dark ? '#b0b3ba' : '#605e5c'})`,
-    '--cs-chrome-border': `var(--color-divider, ${dark ? '#32363d' : '#e6e9ee'})`,
-    '--cs-chrome-input-bg': `var(--color-surface, ${dark ? '#23262c' : '#ffffff'})`,
-    '--cs-chrome-hover': `var(--color-hover, ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'})`,
-    '--cs-chrome-active': `var(--color-selected, ${dark ? 'rgba(21,151,186,0.22)' : '#e6f3f7'})`,
-    '--cs-chrome-active-fg': `var(--color-accent, ${dark ? '#7fd3e6' : '#0e7490'})`,
+    '--cs-chrome-border': `var(--color-divider, ${dark ? '#24272d' : '#edeff3'})`,
+    '--cs-chrome-input-bg': `var(--color-surface, ${dark ? '#1b1e23' : '#ffffff'})`,
+    '--cs-chrome-hover': `var(--color-hover, ${dark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.045)'})`,
+    '--cs-chrome-active': `var(--color-selected, ${dark ? 'rgba(34,211,238,0.20)' : 'rgba(14,116,144,0.11)'})`,
+    '--cs-chrome-active-fg': `var(--color-accent, ${dark ? '#22d3ee' : '#0e7490'})`,
   } as CSSProperties;
 
   return (

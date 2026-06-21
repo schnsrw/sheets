@@ -38,6 +38,7 @@ overrides:
   '@univerjs/sheets-crosshair-highlight': link:vendor/univer-revamp/packages/sheets-crosshair-highlight
   '@univerjs/sheets-formula': link:vendor/univer-revamp/packages/sheets-formula
   '@univerjs/sheets-formula-ui': link:vendor/univer-revamp/packages/sheets-formula-ui
+  '@univerjs/sheets-graphics': link:vendor/univer-revamp/packages/sheets-graphics
   '@univerjs/sheets-hyper-link': link:vendor/univer-revamp/packages/sheets-hyper-link
   '@univerjs/sheets-hyper-link-ui': link:vendor/univer-revamp/packages/sheets-hyper-link-ui
   '@univerjs/sheets-note': link:vendor/univer-revamp/packages/sheets-note
@@ -56,6 +57,7 @@ overrides:
   '@univerjs/thread-comment': link:vendor/univer-revamp/packages/thread-comment
   '@univerjs/thread-comment-ui': link:vendor/univer-revamp/packages/thread-comment-ui
   '@univerjs/ui': link:vendor/univer-revamp/packages/ui
+  '@univerjs/watermark': link:vendor/univer-revamp/packages/watermark
 
 importers:
 
@@ -260,6 +262,9 @@ importers:
       '@univerjs/sheets-formula-ui':
         specifier: link:../../vendor/univer-revamp/packages/sheets-formula-ui
         version: link:../../vendor/univer-revamp/packages/sheets-formula-ui
+      '@univerjs/sheets-graphics':
+        specifier: link:../../vendor/univer-revamp/packages/sheets-graphics
+        version: link:../../vendor/univer-revamp/packages/sheets-graphics
       '@univerjs/sheets-hyper-link':
         specifier: link:../../vendor/univer-revamp/packages/sheets-hyper-link
         version: link:../../vendor/univer-revamp/packages/sheets-hyper-link
@@ -314,6 +319,9 @@ importers:
       '@univerjs/ui':
         specifier: link:../../vendor/univer-revamp/packages/ui
         version: link:../../vendor/univer-revamp/packages/ui
+      '@univerjs/watermark':
+        specifier: link:../../vendor/univer-revamp/packages/watermark
+        version: link:../../vendor/univer-revamp/packages/watermark
       echarts:
         specifier: 6.0.0
         version: 6.0.0

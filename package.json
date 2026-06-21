@@ -79,6 +79,7 @@
       "@univerjs/sheets-crosshair-highlight": "link:vendor/univer-revamp/packages/sheets-crosshair-highlight",
       "@univerjs/sheets-formula": "link:vendor/univer-revamp/packages/sheets-formula",
       "@univerjs/sheets-formula-ui": "link:vendor/univer-revamp/packages/sheets-formula-ui",
+      "@univerjs/sheets-graphics": "link:vendor/univer-revamp/packages/sheets-graphics",
       "@univerjs/sheets-hyper-link": "link:vendor/univer-revamp/packages/sheets-hyper-link",
       "@univerjs/sheets-hyper-link-ui": "link:vendor/univer-revamp/packages/sheets-hyper-link-ui",
       "@univerjs/sheets-note": "link:vendor/univer-revamp/packages/sheets-note",
@@ -96,7 +97,8 @@
       "@univerjs/themes": "link:vendor/univer-revamp/packages/themes",
       "@univerjs/thread-comment": "link:vendor/univer-revamp/packages/thread-comment",
       "@univerjs/thread-comment-ui": "link:vendor/univer-revamp/packages/thread-comment-ui",
-      "@univerjs/ui": "link:vendor/univer-revamp/packages/ui"
+      "@univerjs/ui": "link:vendor/univer-revamp/packages/ui",
+      "@univerjs/watermark": "link:vendor/univer-revamp/packages/watermark"
     }
   }
 }

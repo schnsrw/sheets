@@ -24,6 +24,7 @@ import {
   saveAsXlsx,
 } from './file-actions';
 import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
+import { isWatermarkOn, setConfidentialWatermark } from './watermark';
 import { PageSetupDialog } from './PageSetupDialog';
 import { InsertCellsDialog } from './InsertCellsDialog';
 import { PasteSpecialDialog } from './PasteSpecialDialog';
@@ -363,6 +364,7 @@ export function MenuBar() {
   const [insertPivotDefault, setInsertPivotDefault] = useState('A1');
   const [showCommandSearch, setShowCommandSearch] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [watermarkOn, setWatermarkOn] = useState(false);
   const addToSelectionModeRef = useRef(false);
   const selectionRangesRef = useRef<SheetRange[]>([]);
   const syntheticSelectionRef = useRef(false);
@@ -916,6 +918,20 @@ export function MenuBar() {
     return () => {
       disposable.dispose();
       document.removeEventListener('casual-add-selection-a1', onAddSelectionA1);
+    };
+  }, [api]);
+
+  // Seed the View → Confidential watermark toggle from the persisted
+  // WatermarkService config so the checkmark survives a reload (the plugin
+  // re-hydrates the layer from localStorage on boot — see shell/watermark.ts).
+  useEffect(() => {
+    if (!api) return;
+    let cancelled = false;
+    void isWatermarkOn(api).then((on) => {
+      if (!cancelled) setWatermarkOn(on);
+    });
+    return () => {
+      cancelled = true;
     };
   }, [api]);
 
@@ -1487,6 +1503,18 @@ export function MenuBar() {
           label: 'Gridlines',
           icon: 'grid_on',
           onClick: () => api && toggleGridlines(api, true),
+        },
+        {
+          kind: 'item',
+          id: 'toggle-watermark',
+          label: watermarkOn ? '✓ Confidential watermark' : 'Confidential watermark',
+          icon: 'water_drop',
+          onClick: () => {
+            if (!api) return;
+            const next = !watermarkOn;
+            setConfidentialWatermark(api, next);
+            setWatermarkOn(next);
+          },
         },
         { kind: 'separator', id: 'sep-freeze' },
         {

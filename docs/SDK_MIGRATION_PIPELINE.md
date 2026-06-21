@@ -110,15 +110,21 @@ editors), Vue/web-component adapters. The doc editor is **not** Univer-based.
 **Exit criteria:** each wired plugin verified via Playwright (Excel-parity behavior),
 CI green. Crosshair + zen-editor first.
 
-**Status (2026-06-19):** ✅ crosshair-highlight + zen-editor wired (eager, context-menu
-triggers) — `tests/e2e/univer-extras.spec.ts`. ⏸️ graphics/watermark/action-recorder
-**deferred**: not drop-ins. `sheets-graphics` is a render primitive with no standalone
-UI (overlaps our custom sparklines); `watermark` + `action-recorder` target Univer's
-ribbon (which we hide) and need custom-shell triggers + product UX — each becomes its own
-scoped feature PR.
+**Status (2026-06-21):** ✅ crosshair-highlight + zen-editor + **sheets-graphics** +
+**watermark** wired — `tests/e2e/univer-extras.spec.ts`. `sheets-graphics` is a
+dependency-only render primitive (no UI / commands), registered eager in
+`apps/web/src/univer/extra-plugins.ts`. `watermark` ships its render layer +
+`WatermarkService` there too; since the app hides Univer's ribbon, we own the trigger —
+a **View → Confidential watermark** toggle in `apps/web/src/shell/MenuBar.tsx` that drives
+`WatermarkService.updateWatermarkConfig` / `deleteWatermarkConfig` (config persists via
+Univer's `ILocalStorageService`, so it survives reload). Both new packages are in the root
+`pnpm.overrides` block so they resolve to the fork, not npm 0.24.0.
+⏸️ **`action-recorder` remains a scoped follow-up** — it's the largest of the three and
+targets Univer's ribbon: it needs a floating record/replay panel + toolbar entry + macro
+storage UX, so it's its own feature PR, not a drop-in.
 
-**Milestone M0.5:** ✅ crosshair-highlight + zen-editor shipped; the other three scoped
-out to dedicated PRs.
+**Milestone M0.5:** ✅ crosshair-highlight + zen-editor + sheets-graphics + watermark
+shipped; only `action-recorder` scoped out to a dedicated PR.
 
 ## Phase 1 — Promote the full editor into the SDK _(G1, G2)_
 

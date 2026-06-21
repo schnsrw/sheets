@@ -79,8 +79,19 @@ export function AccountMenu() {
       if (!ok) return;
     }
     setOpen(false);
-    await logout();
+    // Clear local auth state FIRST so the gate swaps to the login view
+    // immediately, independent of how long the server round-trip takes. Awaiting
+    // logout() before this made the login view's appearance hostage to network
+    // latency — the source of an intermittent personal-mode e2e failure where
+    // `auth-login` didn't show within the 10s wait on a slow CI runner. The
+    // server session clear is best-effort; on failure the cookie expires or the
+    // next `/auth/status` probe reconciles.
     setUnauthenticated();
+    try {
+      await logout();
+    } catch {
+      /* local state already cleared; nothing actionable here */
+    }
   };
 
   return (

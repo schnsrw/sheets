@@ -132,19 +132,20 @@ function EmbeddedSheets({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<'preview' | 'editor'>(initialViewMode);
-  // Editor mode flips `header: true` so Univer's formula bar (A1 cell
-  // ref, fx button) and menubar render at the top of the iframe —
-  // visually distinct from preview's canvas-only surface. `toolbar` and
-  // `footer` stay off: Univer's ribbon and sheet-tabs slot resolve
-  // services (IRPCChannelService, sheet-drawing) at construction that
-  // the SDK doesn't bundle a worker for, and turning them on lights up
-  // `[redi]: Cannot find "Kb" registered by any injector` and the
-  // canvas never paints. Cells stay editable in editor mode via direct
-  // keyboard input on the focused cell.
-  const ui =
-    viewMode === 'editor'
-      ? { header: true, toolbar: false, footer: false, contextMenu: true }
-      : { header: false, toolbar: false, footer: false, contextMenu: true };
+  // Editor mode renders the SDK's OWN React chrome (`chrome="full"`): the
+  // menu bar (Edit/Insert/Format/Data/View), the rich formatting toolbar,
+  // the formula bar, sheet tabs and status bar — the full native editor, so
+  // hosts embed a complete spreadsheet and only frame/brand it (they do NOT
+  // hand-roll a toolbar). We use the SDK chrome, NOT Univer's built-in `ui`
+  // toolbar/footer: Univer's ribbon + sheet-tabs slots resolve services
+  // (IRPCChannelService, sheet-drawing) the single-file embed doesn't bundle,
+  // which throws `[redi]: Cannot find … registered by any injector`. The SDK
+  // chrome is plain React over the facade, so it has no such dependency.
+  //
+  // Preview = `chrome="none"`: bare canvas, made read-only by the veto in
+  // onReady. Univer's own chrome stays off in both modes.
+  const chrome: 'full' | 'none' = viewMode === 'editor' ? 'full' : 'none';
+  const ui = { header: false, toolbar: false, footer: false, contextMenu: true };
 
   useEffect(() => {
     transport.on({
@@ -225,6 +226,7 @@ function EmbeddedSheets({
     <CasualSheets
       key={viewMode}
       initialData={data}
+      chrome={chrome}
       ui={ui}
       // Seed the en-US string bundle. Without `locales`, Univer's
       // LocaleService throws "Locale not initialized" and the workbench

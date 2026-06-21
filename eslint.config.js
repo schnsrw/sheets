@@ -14,6 +14,12 @@ export default tseslint.config(
       '**/build/**',
       '**/.turbo/**',
       'vendor/**',
+      // Agent git worktrees live here — they're full copies of the repo (incl.
+      // built JS), so linting them double-counts everything and breaks `lint`.
+      '.claude/**',
+      // Standalone embed demo: not a workspace member, own tsconfig, validated
+      // separately (examples/embed-playground/playwright.embed.config.ts).
+      'examples/**',
       'test-results/**',
       'playwright-report/**',
       '**/*.config.js',

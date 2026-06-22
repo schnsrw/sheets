@@ -25,6 +25,7 @@ import {
   saveAsXlsx,
 } from './file-actions';
 import { loadPrintOptions, printActiveSheet, savePrintOptions } from './print';
+import { exportActiveSheetPdf } from './pdf';
 import {
   getAppliedWatermark,
   isWatermarkOn,
@@ -1190,6 +1191,13 @@ export function MenuBar() {
   const handleExportTsv = () =>
     exportAs('tsv', () => saveAsTsv(api!, workbook.meta.name || 'workbook'));
 
+  const handleExportPdf = () => {
+    if (!api) return;
+    const r = exportActiveSheetPdf(api);
+    if (r.ok) toast.success('Exported PDF');
+    else toast.info('Nothing to export yet — add some data first.');
+  };
+
   // Menu structure designed against Office 2024's ribbon + File menu.
   // Every item with a global keyboard binding shows its shortcut on the
   // right of the row; items without one are left bare. Sub-menus are
@@ -1262,6 +1270,13 @@ export function MenuBar() {
           ],
         },
         { kind: 'separator', id: 'sep-print' },
+        {
+          kind: 'item',
+          id: 'export-pdf',
+          label: 'Download as PDF (.pdf)',
+          icon: 'picture_as_pdf',
+          onClick: handleExportPdf,
+        },
         {
           kind: 'item',
           id: 'print',

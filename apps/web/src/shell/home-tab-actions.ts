@@ -122,6 +122,41 @@ export function setFillColor(api: FUniver, color: string) {
   activeRange(api)?.setBackground(color);
 }
 
+/**
+ * Named cell styles — Excel's Good/Bad/Neutral semantic styles + Title/Heading
+ * presets. Each is a composite of fill / font colour / bold / size applied to
+ * the selection via the existing setters. `normal` resets to defaults.
+ */
+export type CellStylePreset =
+  | 'normal'
+  | 'good'
+  | 'bad'
+  | 'neutral'
+  | 'title'
+  | 'heading1'
+  | 'heading2';
+
+const CELL_STYLE_PRESETS: Record<
+  CellStylePreset,
+  { fill?: string; color?: string; bold?: boolean; size?: number }
+> = {
+  normal: { fill: '#ffffff', color: '#000000', bold: false, size: 11 },
+  good: { fill: '#c6efce', color: '#006100', bold: false },
+  bad: { fill: '#ffc7ce', color: '#9c0006', bold: false },
+  neutral: { fill: '#ffeb9c', color: '#9c6500', bold: false },
+  title: { bold: true, size: 24, color: '#1f2937' },
+  heading1: { bold: true, size: 18, color: '#1f2937' },
+  heading2: { bold: true, size: 15, color: '#374151' },
+};
+
+export function applyCellStyle(api: FUniver, preset: CellStylePreset) {
+  const p = CELL_STYLE_PRESETS[preset];
+  if (p.fill !== undefined) setFillColor(api, p.fill);
+  if (p.color !== undefined) setFontColor(api, p.color);
+  if (p.bold !== undefined) setBold(api, p.bold);
+  if (p.size !== undefined) setFontSize(api, p.size);
+}
+
 export function toggleWrap(api: FUniver, currentlyWrapped: boolean) {
   activeRange(api)?.setWrap(!currentlyWrapped);
 }

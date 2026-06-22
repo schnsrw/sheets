@@ -136,7 +136,7 @@ export function KeyboardShortcutsDialog({ onClose }: Props) {
                 fontSize: 13,
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
-                color: '#475569',
+                color: 'var(--color-text-secondary, #475569)',
                 fontWeight: 600,
               }}
             >
@@ -152,7 +152,7 @@ export function KeyboardShortcutsDialog({ onClose }: Props) {
                     justifyContent: 'space-between',
                     padding: '5px 0',
                     fontSize: 13,
-                    color: '#0f172a',
+                    color: 'var(--color-text, #0f172a)',
                     gap: 12,
                   }}
                 >
@@ -162,11 +162,11 @@ export function KeyboardShortcutsDialog({ onClose }: Props) {
                       fontFamily:
                         'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
                       fontSize: 12,
-                      background: '#f1f5f9',
-                      border: '1px solid #e2e8f0',
+                      background: 'var(--color-surface-alt, #f1f5f9)',
+                      border: '1px solid var(--color-border, #e2e8f0)',
                       borderRadius: 4,
                       padding: '2px 7px',
-                      color: '#0f172a',
+                      color: 'var(--color-text, #0f172a)',
                       whiteSpace: 'nowrap',
                     }}
                   >

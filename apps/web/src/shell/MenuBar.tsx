@@ -79,6 +79,7 @@ import {
   type NumberFormatKey,
   type PasteSpecialMode,
 } from './home-tab-actions';
+import { applyReadOnly } from '@casualoffice/sheets/sheets';
 import {
   applyAutoFunction,
   autoFitColumns,
@@ -375,6 +376,9 @@ export function MenuBar() {
   const [showCommandSearch, setShowCommandSearch] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [watermarkOn, setWatermarkOn] = useState(false);
+  const [protectedOn, setProtectedOn] = useState(false);
+  // Disposer returned by applyReadOnly; calling it lifts protection.
+  const unprotectRef = useRef<(() => void) | null>(null);
   const [showWatermark, setShowWatermark] = useState(false);
   const [watermarkConfig, setWatermarkConfig] = useState<WatermarkConfig>(() =>
     loadWatermarkPref(),
@@ -1199,6 +1203,23 @@ export function MenuBar() {
     else toast.info('Nothing to export yet — add some data first.');
   };
 
+  const toggleProtect = () => {
+    if (!api) return;
+    if (unprotectRef.current) {
+      unprotectRef.current();
+      unprotectRef.current = null;
+      setProtectedOn(false);
+      toast.info('Protection removed — the workbook is editable');
+    } else {
+      const unitId = api.getActiveWorkbook()?.getId();
+      if (!unitId) return;
+      // Reuse the SDK's read-only engine (command veto + permission flip).
+      unprotectRef.current = applyReadOnly(api, unitId);
+      setProtectedOn(true);
+      toast.success('Protected — the workbook is read-only');
+    }
+  };
+
   // Menu structure designed against Office 2024's ribbon + File menu.
   // Every item with a global keyboard binding shows its shortcut on the
   // right of the row; items without one are left bare. Sub-menus are
@@ -1997,6 +2018,13 @@ export function MenuBar() {
           label: 'Data validation…',
           icon: 'rule',
           run: openDataValidation,
+        },
+        {
+          kind: 'item',
+          id: 'protect-sheet',
+          label: protectedOn ? '✓ Protect (read-only)' : 'Protect (read-only)',
+          icon: 'lock',
+          onClick: toggleProtect,
         },
         {
           kind: 'item',

@@ -317,13 +317,28 @@ button {
 }
 .toolbar__overflow--left {
   left: 0;
-  background: linear-gradient(to right, var(--color-surface-alt) 60%, rgba(244, 243, 242, 0));
+  /* Fade to the surface colour at 0 alpha (theme-aware). A hardcoded light
+     rgba here left a pale ghost edge in dark mode. */
+  background: linear-gradient(
+    to right,
+    var(--color-surface-alt) 60%,
+    color-mix(in srgb, var(--color-surface-alt) 0%, transparent)
+  );
 }
 .toolbar__overflow--right {
   right: 0;
-  background: linear-gradient(to left, var(--color-surface-alt) 60%, rgba(244, 243, 242, 0));
+  background: linear-gradient(
+    to left,
+    var(--color-surface-alt) 60%,
+    color-mix(in srgb, var(--color-surface-alt) 0%, transparent)
+  );
 }
 .toolbar__overflow:hover {
+  color: var(--color-text);
+}
+.toolbar__overflow:focus-visible {
+  outline: 2px solid var(--color-focus, var(--color-accent, #0e7490));
+  outline-offset: -2px;
   color: var(--color-text);
 }
 
@@ -6016,6 +6031,11 @@ button {
 .mobile-bar__btn:hover,
 .mobile-bar__btn:active {
   background: var(--color-hover);
+  color: var(--color-text);
+}
+.mobile-bar__btn:focus-visible {
+  outline: 2px solid var(--color-focus, var(--color-accent, #0e7490));
+  outline-offset: -2px;
   color: var(--color-text);
 }
 .mobile-bar__btn--on {

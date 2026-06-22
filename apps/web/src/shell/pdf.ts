@@ -56,13 +56,33 @@ export function exportActiveSheetPdf(api: FUniver): PdfResult {
   }
   if (maxRow < 0 || maxCol < 0) return { ok: false, reason: 'empty' };
 
+  // Resolve per-cell style (bold / horizontal align / fill) so the PDF reflects
+  // the sheet's look. `cell.s` is a style id into the workbook style table, or
+  // an inline style object. Univer HorizontalAlign: 1=left, 2=center, 3=right.
+  type RawStyle = { bl?: number; ht?: number; bg?: { rgb?: string } };
+  const wbStyles = (snap?.styles ?? {}) as Record<string, RawStyle>;
+  const HALIGN: Record<number, 'left' | 'center' | 'right'> = { 1: 'left', 2: 'center', 3: 'right' };
+  type CellStyle = { bold: boolean; halign?: 'left' | 'center' | 'right'; fill?: string };
+
   const head = [['', ...Array.from({ length: maxCol + 1 }, (_, c) => colLetter(c))]];
   const body: string[][] = [];
+  const styleGrid: CellStyle[][] = [];
   for (let r = 0; r <= maxRow; r++) {
     const cells: string[] = [String(r + 1)];
-    const row = cellData[r] as Record<string, { v?: unknown }> | undefined;
-    for (let c = 0; c <= maxCol; c++) cells.push(cellText(row?.[c]?.v));
+    const styles: CellStyle[] = [];
+    const row = cellData[r] as Record<string, { v?: unknown; s?: unknown }> | undefined;
+    for (let c = 0; c <= maxCol; c++) {
+      cells.push(cellText(row?.[c]?.v));
+      const sRef = row?.[c]?.s;
+      const st = (typeof sRef === 'string' ? wbStyles[sRef] : (sRef as RawStyle | undefined)) ?? undefined;
+      styles.push({
+        bold: st?.bl === 1,
+        halign: typeof st?.ht === 'number' ? HALIGN[st.ht] : undefined,
+        fill: st?.bg?.rgb,
+      });
+    }
     body.push(cells);
+    styleGrid.push(styles);
   }
 
   const wbName = (wb as { getName?: () => string }).getName?.() ?? 'Workbook';
@@ -87,6 +107,17 @@ export function exportActiveSheetPdf(api: FUniver): PdfResult {
     columnStyles: { 0: { fillColor: [241, 245, 249], textColor: 90, halign: 'right', cellWidth: 30 } },
     theme: 'grid',
     margin: { top: 62, left: 40, right: 40, bottom: 40 },
+    // Apply per-cell bold / alignment / fill from the sheet.
+    didParseCell: (data) => {
+      if (data.section !== 'body') return;
+      const col = data.column.index;
+      if (col === 0) return; // row-number gutter
+      const sg = styleGrid[data.row.index]?.[col - 1];
+      if (!sg) return;
+      if (sg.bold) data.cell.styles.fontStyle = 'bold';
+      if (sg.halign) data.cell.styles.halign = sg.halign;
+      if (sg.fill) data.cell.styles.fillColor = sg.fill;
+    },
   });
 
   const file = `${wbName}-${sName}`.replace(/[^\w.-]+/g, '_');

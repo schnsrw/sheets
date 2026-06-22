@@ -42,7 +42,21 @@ echo "==> restoring fork package.jsons to src/ shape (in case a prior swap is in
 node "$REPO_ROOT/scripts/swap-fork-pkgs.mjs" --restore
 
 echo "==> building fork"
-( cd "$FORK_DIR" && pnpm build )
+# The fork build is a big parallel turbo run (~50 packages). On a loaded CI
+# runner it can OOM/flake on a single package (a different one each time —
+# ui-adapter-vue3, sheets-find-replace, …), failing the whole job for no real
+# reason. turbo caches successful packages, so a retry only rebuilds the ones
+# that failed → fast and reliable. Retry up to 3x before giving up.
+fork_build() { ( cd "$FORK_DIR" && pnpm build ); }
+attempt=1
+until fork_build; do
+  if [ "$attempt" -ge 3 ]; then
+    echo "==> fork build failed after $attempt attempts" >&2
+    exit 1
+  fi
+  echo "==> fork build attempt $attempt failed (likely a transient runner OOM); retrying…" >&2
+  attempt=$((attempt + 1))
+done
 
 echo "==> swapping fork package.json main/exports to use built lib/"
 node "$REPO_ROOT/scripts/swap-fork-pkgs.mjs"

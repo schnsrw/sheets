@@ -43,18 +43,27 @@ The headline gap — **interactive grid ceiling**:
 
 | | Interactive max rows | Max cols | Note |
 | --- | --- | --- | --- |
-| **Casual Sheets** | **8,192** | **1,024** | `snapshot.ts:20-21`; grows on demand via `useWorkbookGrowth.ts` |
+| **Casual Sheets** | was 8,192 → **1,048,576** | was 1,024 → **16,384** | raised to Excel parity in Phase 1 (`snapshot.ts`); grows on demand via `useWorkbookGrowth.ts` |
 | Google Sheets | unbounded | 18,278 | 10M cells total |
 | LibreOffice Calc | 1,048,576 | 16,384 | |
 | Excel | 1,048,576 | 16,384 | |
 
+> **Measured (Phase 1):** the feared "O(rowCount) catastrophe" did not materialize.
+> Declaring a full 1,048,576-row grid + editing the far edge is a one-time ~170 ms;
+> a **pure cell edit at 1M rows is ~1 ms** (cell edits don't rebuild the skeleton).
+> The only costly op is **insert/delete-row** at extreme sizes (~517 ms @1M) — owned
+> by Phase 2 T2.1 (sparse insert/delete). So the ceiling was raised to parity directly
+> and **the planned T1.2 lazy-allocation fork surgery was dropped as unnecessary.**
+
 Nuance (verified, not the scare-version): **imports are not clamped** — `parse-impl.ts:377`
 sets `rowCount` to the real data extent, so a large `.xlsx`/CSV opens (subject to the 100 MB
 cap and Univer's up-front row/col metadata allocation). The 8,192 cap bites on **blank or
-paste-built sheets**, which wall at row 8,192 (`useWorkbookGrowth.ts:59`). The cap exists
-*because* Univer materializes row/column metadata up front (`snapshot.ts:11-19`) — so raising
-it and the lazy-allocation perf work are the same foundation. That coupling is why Phase 1
-(scale) precedes Phase 2 (hardening) precedes everything else.
+paste-built sheets**, which wall at row 8,192 (`useWorkbookGrowth.ts:59`). The cap was set low
+*because* Univer materializes row/column metadata up front (`snapshot.ts:11-19`) — but the
+Phase-1 measurement (see §1.2 table note) showed that allocation is cheap enough to raise the
+ceiling straight to 1,048,576 × 16,384. The residual cost is insert/delete-row at extreme
+sizes, which Phase 2 (T2.1) hardens. Phase 1 still precedes everything else: nothing is worth
+building on a grid that walls at 8,192 rows.
 
 Other realities: client-bound scale (Google offloads to server infra); ~500 active collab
 docs / ~1,500 clients per process, shardable (`docs/CAPACITY_MODEL.md`); native desktop wins
@@ -97,12 +106,14 @@ task checklist. Work proceeds on dedicated branches with PRs and green CI per
 Goal: the grid holds real-world data. Interactive ceiling toward Excel parity, enabled by
 lazy metadata so boot/growth stay fast.
 
-- **T1.1** Raise the interactive ceiling — staged `MAX_ROWS` 8,192 → 65,536 → 1,048,576;
-  `MAX_COLUMNS` 1,024 → 16,384 — each step gated behind perf validation. (`snapshot.ts`,
+- **T1.1** Raise the interactive ceiling to **1,048,576 × 16,384** (Excel parity).
+  ✅ shipped — measurement showed the declared-grid cost is a one-time ~170 ms and pure
+  edits don't rebuild the skeleton, so parity was reached directly. (`snapshot.ts`,
   `useWorkbookGrowth.ts`)
-- **T1.2** Lazy row/column metadata allocation (fork perf item 7) — defer
-  `_rowHeightAccumulation` / `_columnWidthAccumulation` until first layout over ranges with
-  real data. The enabling perf work for T1.1. (`vendor/univer-revamp/.../engine-render`)
+- ~~**T1.2** Lazy row/column metadata allocation (fork perf item 7)~~ — **dropped.** The
+  Phase-1 measurement (declared-grid rebuild ~170 ms one-time; pure edit ~1 ms at 1M)
+  showed the up-front allocation is not a bottleneck. The only costly path, insert/delete-row
+  at extreme sizes, is owned by T2.1. Avoids weeks of risky fork surgery.
 - **T1.3** Large-paste / large-fill growth correctness — pasting / filling N > cap rows must
   extend the sheet, not truncate. (verify against `useWorkbookGrowth.ts` cap + paste command)
 - **T1.4** Large-file open validation — 100k+ row `.xlsx`/CSV fixtures; boot-time budget;

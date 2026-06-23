@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { FUniver } from '@univerjs/core/facade';
 import * as Y from 'yjs';
@@ -45,9 +45,24 @@ export function usePresenceWire(
   // Mirror the collab roster into Univer's UserManagerService so comment
   // authorship + @mention candidates resolve to display names (the service is
   // otherwise empty → authors show the default user). Best-effort, idempotent.
+  //
+  // `peers` gets a fresh array reference on every awareness tick (selection
+  // broadcasts fire ~per-second during collab), so gate on a roster SIGNATURE —
+  // only touch UserManagerService when a name/id actually changes, not on every
+  // cursor move. Keeps this off the hot collab path.
+  const lastRosterRef = useRef<string>('');
   useEffect(() => {
     if (!api || !identity) return;
-    syncCollabUsers(api, { userID: getUserId(), name: identity.name }, peers);
+    const self = { userID: getUserId(), name: identity.name };
+    const key =
+      `${self.userID}:${self.name}|` +
+      peers
+        .map((p) => `${p.userId}:${p.name}`)
+        .sort()
+        .join(',');
+    if (key === lastRosterRef.current) return;
+    lastRosterRef.current = key;
+    syncCollabUsers(api, self, peers);
   }, [api, identity, peers]);
 
   // Subscribe to peer-state changes.

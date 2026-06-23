@@ -147,30 +147,34 @@ Goal: make the now-bigger grid fast. Sequences the deferred items in `UNIVER_FOR
 - **T2.5** Large-file pipeline stages 5–6 — hyperlinks-in-snapshot + Yjs op-log compaction
   (`docs/LARGE_FILE_PIPELINE.md`).
 
-### Phase 3 — Collaboration Depth  *(partial — T3.1/T3.3 blocked)*
+### Phase 3 — Collaboration Depth  *(T3.1/T3.3 unblocked + shipped; T3.2 assignment = fork work)*
 
 Goal: close the Google collaboration-polish gap. Builds on existing collab + presence.
 
-- **T3.4** Hybrid sharing — link roles (viewer / commenter / editor). ✅ **shipped** (#121):
-  `applyCommentOnly` engine-layer veto (cells locked, comments work) wired into CollabDriver;
-  anonymous `?role=comment` works end-to-end. Server-token comment enforcement (per-mutation
-  filtering) + the share-UI 3-way picker remain follow-ups.
+- **T3.4** Hybrid sharing — link roles (viewer / commenter / editor). ✅ **shipped** (#121,
+  #128): `applyCommentOnly` engine-layer veto (cells locked, comments work) wired into
+  CollabDriver; anonymous `?role=comment` works end-to-end; the share dialog's 3-way role
+  picker (Edit / Comment / View) creates comment-only links (#128). Server-token comment
+  enforcement (per-mutation filtering) remains a follow-up.
 - **T3.2** Comments — resolve / reopen. ✅ **shipped** (#123 resolve, #124 reopen): panel
   Resolve button + a "Resolved" section (read from `SheetsThreadCommentModel`) with reopen.
   **Assignment** remains — needs a new `assignee` field on `IThreadComment` (a fork model
-  change), so it's deferred.
-- **T3.1** Comments — @mentions. ⛔ **BLOCKED.** The slice-1 identity foundation (#122)
-  populated `UserManagerService` so authorship/mentions resolve to names — but
-  `setCurrentUser(<custom id>)` **breaks collab cell-sync**: `currentUser$` feeds Univer's
-  permission layer (`sheets-ui/menu/permission-menu-util.ts`), so an unknown current-user id
-  makes peers treat the client as a non-editor and stop applying grid mutations. Bisected to
-  `setCurrentUser` (`addUser` is safe); reverted on main (#125). Re-asserting
-  `WorkbookEditablePermission` after `setCurrentUser` does **not** fix it (tested) — the block
-  is a deeper Univer permission mechanism. Unblocking needs dedicated Univer-internals work
-  (grant the custom user real edit permission) **or** an app/render-layer name resolver that
-  never touches Univer's current user. See #111.
-- **T3.3** Comments — in-app notifications (email via Drive/SMTP deferred). **Blocked** on
-  T3.1 (mentions are the trigger).
+  change), so it's deferred to fork work.
+- **T3.1** Comments — authorship + @mentions. ✅ **shipped** (#129 authorship, #130 mentions),
+  via a **block-avoiding** approach that never touches `setCurrentUser`. The original slice-1
+  (#122) populated `UserManagerService` and broke collab cell-sync: `currentUser$` feeds
+  Univer's permission layer (`sheets-ui/menu/permission-menu-util.ts`), so a custom
+  current-user id makes peers treat the client as a non-editor and stop applying grid mutations
+  (reverted, #125). Instead authorship now rides an out-of-band `casual-comment-authors` Y.Map
+  keyed by comment id (stamped from the local presence identity on the add-comment _command_,
+  which runs only on the author's client) — exactly how charts sync alongside the op-log (#129).
+  @mentions list real collaborators via a host-pluggable `IMentionIOService` override
+  (`CasualMentionIOService`) fed by presence peers, with `docs-mention-ui`'s picker registered
+  in the comment lazy-group (#130). Precise cross-user identity stays with Casual Drive.
+- **T3.3** Comments — @mention surfacing. ✅ **shipped** (#131): a comment (or reply) that
+  @-references the local display name gets a "@You" badge + accent in the comments panel
+  (matched by name, the shared cross-peer identity). Cross-user **delivery** (email/push) is
+  deferred to Casual Drive (identity ownership); a "mentioning me" filter toggle is a follow-up.
 
 ### Phase 4 — Feature Depth
 
@@ -213,7 +217,7 @@ ordered.
 | --- | --- | --- | --- |
 | 1 — Grid Scale | Milestone 1 | #109 | ✅ complete |
 | 2 — Perf Hardening | Milestone 2 | #110 | ✅ complete |
-| 3 — Collab Depth | Milestone 3 | #111 | partial — T3.4 + T3.2(resolve/reopen) shipped; T3.1/T3.3 blocked (Univer permission), T3.2 assignment deferred |
+| 3 — Collab Depth | Milestone 3 | #111 | T3.4 + T3.2(resolve/reopen) + T3.1(authorship/mentions) + T3.3(surfacing) shipped; T3.2 assignment = fork work; cross-user delivery → Drive |
 | 4 — Feature Depth | Milestone 4 | #112 | planned |
 | 5 — Automation | Milestone 5 | #113 | planned |
 | 6 — Mobile | Milestone 6 | #114 | planned |

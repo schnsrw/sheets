@@ -22,7 +22,7 @@ let browser: Browser | null = null;
 test.beforeAll(async () => {
   serverProc = spawn(
     'pnpm',
-    ['--filter', '@sheet/server', 'exec', 'tsx', 'src/index.ts'],
+    ['--filter', '@casualoffice/collab', 'exec', 'tsx', 'src/index.ts'],
     {
       env: { ...process.env, PORT: String(SERVER_PORT), HOST: '127.0.0.1' },
       stdio: ['ignore', 'pipe', 'pipe'],

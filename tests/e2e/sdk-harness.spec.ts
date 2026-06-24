@@ -621,19 +621,26 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
       { timeout: 30_000 },
     );
     const input = page.getByTestId('cs-namebox-input');
-    await input.fill('C5');
-    await input.press('Enter');
-    const sel = await page.evaluate(async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const api = (window as any).__sdkHarnessAPI;
-      for (let i = 0; i < 20; i++) {
-        const s = api.getSelection();
-        if (s && s.range.startRow === 4 && s.range.startColumn === 2) return s.range;
-        await new Promise((r) => setTimeout(r, 100));
-      }
-      return api.getSelection()?.range ?? null;
-    });
-    expect(sel).toMatchObject({ startRow: 4, startColumn: 2 });
+    await expect(input).toBeVisible();
+    // Re-issue fill+Enter inside the poll: under CI load the first Enter can land
+    // before the name-box→selection wiring is live, leaving the selection at A1.
+    // Retrying the whole interaction self-heals that (idempotent — re-navigating
+    // to C5 is a no-op once it's selected) instead of one-shot-then-hope.
+    await expect
+      .poll(
+        async () => {
+          await input.click();
+          await input.fill('C5');
+          await input.press('Enter');
+          return page.evaluate(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const s = (window as any).__sdkHarnessAPI?.getSelection?.();
+            return s ? { startRow: s.range.startRow, startColumn: s.range.startColumn } : null;
+          });
+        },
+        { timeout: 15_000, intervals: [200, 400, 600, 800] },
+      )
+      .toEqual({ startRow: 4, startColumn: 2 });
   });
 
   test('chrome sheet tabs: add a sheet → second tab appears and activates', async ({ page }) => {

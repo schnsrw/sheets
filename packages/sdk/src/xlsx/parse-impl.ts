@@ -8,6 +8,7 @@ import {
   type IWorkbookData,
 } from '@univerjs/core';
 import { excelStyleToUniver } from './style-mapping';
+import { excelRichTextToBody, type ExcelRichRun } from './rich-text';
 import { INITIAL_COLUMNS, INITIAL_ROWS, UNIVER_VERSION } from './_snapshot-constants';
 import { RESOURCES_SHEET } from './constants';
 import { mergeCommentsIntoResources, readCommentsFromXlsx } from './comments-resource';
@@ -269,7 +270,19 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
             cd.v = result as ICellData['v'];
           }
         } else if (raw && typeof raw === 'object' && 'richText' in raw) {
-          cd.v = (raw as { richText: { text: string }[] }).richText.map((t) => t.text).join('');
+          const richText = (raw as { richText: ExcelRichRun[] }).richText;
+          cd.v = richText.map((t) => t.text).join('');
+          // Preserve per-run formatting (bold word inside a cell, etc.) as a
+          // rich-text body so it survives the round-trip instead of flattening
+          // to a plain string. Falls back to v-only when no run is styled.
+          const body = excelRichTextToBody(richText);
+          if (body) {
+            cd.p = {
+              id: '__INTERNAL_EDITOR__DOCS_NORMAL',
+              documentStyle: {},
+              body,
+            } as ICellData['p'];
+          }
         } else if (raw && typeof raw === 'object' && 'text' in raw && 'hyperlink' in raw) {
           const display = (raw as { text: string }).text ?? '';
           cd.v = display;

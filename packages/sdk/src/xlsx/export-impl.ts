@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { CustomRangeType, type IStyleData, type IWorkbookData } from '@univerjs/core';
 import { univerStyleToExcel } from './style-mapping';
+import { bodyToExcelRichText, type RichBody } from './rich-text';
 import { RESOURCES_SHEET } from './constants';
 import { commentBodyToString, readCommentsFromSnapshot, refToRowCol } from './comments-resource';
 import { applyPageSetupToXlsxWorksheet, readPageSetupFromSnapshot } from './page-setup-resource';
@@ -150,6 +151,16 @@ export async function workbookDataToXlsxImpl(
           excelCell.value = { formula, result: cell.v ?? null } as ExcelJS.CellValue;
         } else if (cell.v !== undefined && cell.v !== null) {
           excelCell.value = cell.v as ExcelJS.CellValue;
+        }
+
+        // In-cell rich text (mixed per-character formatting) → ExcelJS
+        // `richText`, so a bold word inside a cell survives the round-trip
+        // instead of degrading to the cell-level style. Only emits when the
+        // body has real per-run formatting; formula cells are left as formulas.
+        if (!cell.f) {
+          const richBody = (cell as ICellSnapshot & { p?: { body?: RichBody } }).p?.body;
+          const richText = bodyToExcelRichText(richBody);
+          if (richText) excelCell.value = { richText } as ExcelJS.CellValue;
         }
 
         // Hyperlink encoded by the parser into `cell.p.body.customRanges`

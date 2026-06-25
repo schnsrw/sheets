@@ -116,7 +116,7 @@ export function SheetTabs() {
   const [hiddenMenuOpen, setHiddenMenuOpen] = useState(false);
 
   return (
-    <div className="sheet-tabs" data-testid="sheet-tabs" role="tablist">
+    <div className="sheet-tabs" data-testid="sheet-tabs" role="tablist" aria-label="Sheet tabs">
       <Tooltip label="Add sheet" side="top">
         <button
           type="button"
@@ -453,10 +453,25 @@ function SheetTabItem({
     <div
       role="tab"
       aria-selected={active}
+      // A role="tab" must be keyboard-reachable. The active tab stays in the
+      // tab order; inactive tabs are reachable via roving focus (Enter/Space
+      // switches, F2 renames) without flooding the Tab sequence with every
+      // sheet. While editing, focus belongs to the inner <input>.
+      tabIndex={editing ? -1 : active ? 0 : -1}
       className={className}
       data-testid={`sheet-tab-${sheet.id}`}
       draggable={!editing}
       onClick={() => !editing && onSwitch()}
+      onKeyDown={(e) => {
+        if (editing) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSwitch();
+        } else if (e.key === 'F2') {
+          e.preventDefault();
+          onStartRename();
+        }
+      }}
       onContextMenu={onContextMenu}
       onDoubleClick={onStartRename}
       onDragStart={(e) => {
@@ -482,6 +497,7 @@ function SheetTabItem({
           type="text"
           className="sheet-tab__input"
           data-testid={`sheet-tab-input-${sheet.id}`}
+          aria-label="Sheet name"
           value={draftName}
           maxLength={31}
           onChange={(e) => onDraftChange(e.target.value)}

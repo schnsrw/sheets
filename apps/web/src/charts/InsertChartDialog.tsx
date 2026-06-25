@@ -223,7 +223,9 @@ export function InsertChartDialog({
                   data-testid={`insert-chart-family-${f.id}`}
                   onClick={() => pickFamily(f.id)}
                 >
-                  <span className="material-symbols-outlined">{f.icon}</span>
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    {f.icon}
+                  </span>
                   <span>{f.label}</span>
                 </button>
               </li>

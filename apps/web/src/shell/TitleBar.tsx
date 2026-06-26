@@ -204,6 +204,7 @@ export function TitleBar() {
               className="titlebar__filename"
               data-testid="titlebar-filename"
               title="Rename"
+              aria-label="Rename file"
               onClick={() => setEditing(true)}
             >
               {filename}

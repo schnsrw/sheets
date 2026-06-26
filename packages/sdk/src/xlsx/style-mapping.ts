@@ -1,5 +1,29 @@
 import type { IStyleData } from '@univerjs/core';
+import { BorderStyleTypes } from '@univerjs/core';
 import type * as ExcelJS from 'exceljs';
+
+// ExcelJS border-style strings ↔ Univer BorderStyleTypes. Covers Excel's full
+// set of line styles so dashed / double / thick / medium / hair / dotted survive
+// the round-trip instead of all collapsing to a thin line. Anything unrecognised
+// falls back to THIN so a border is never dropped entirely.
+const EXCEL_BORDER_TO_UNIVER: Record<string, BorderStyleTypes> = {
+  thin: BorderStyleTypes.THIN,
+  hair: BorderStyleTypes.HAIR,
+  dotted: BorderStyleTypes.DOTTED,
+  dashed: BorderStyleTypes.DASHED,
+  dashDot: BorderStyleTypes.DASH_DOT,
+  dashDotDot: BorderStyleTypes.DASH_DOT_DOT,
+  double: BorderStyleTypes.DOUBLE,
+  medium: BorderStyleTypes.MEDIUM,
+  mediumDashed: BorderStyleTypes.MEDIUM_DASHED,
+  mediumDashDot: BorderStyleTypes.MEDIUM_DASH_DOT,
+  mediumDashDotDot: BorderStyleTypes.MEDIUM_DASH_DOT_DOT,
+  slantDashDot: BorderStyleTypes.SLANT_DASH_DOT,
+  thick: BorderStyleTypes.THICK,
+};
+const UNIVER_BORDER_TO_EXCEL: Record<number, ExcelJS.BorderStyle> = Object.fromEntries(
+  Object.entries(EXCEL_BORDER_TO_UNIVER).map(([excel, univer]) => [univer, excel]),
+) as Record<number, ExcelJS.BorderStyle>;
 
 /**
  * Mappings between ExcelJS and Univer style models.
@@ -100,7 +124,10 @@ export function excelStyleToUniver(cell: ExcelJS.Cell): IStyleData | undefined {
         | { style?: string; color?: { argb?: string } }
         | undefined;
       if (side?.style && side.style !== 'none') {
-        bd[k] = { s: 1, cl: { rgb: normalizeColor(side.color?.argb) ?? '#666666' } };
+        bd[k] = {
+          s: EXCEL_BORDER_TO_UNIVER[side.style] ?? BorderStyleTypes.THIN,
+          cl: { rgb: normalizeColor(side.color?.argb) ?? '#666666' },
+        };
       }
     }
     if (Object.keys(bd).length > 0) s.bd = bd;
@@ -160,7 +187,7 @@ export function univerStyleToExcel(style: IStyleData): Partial<ExcelJS.Style> {
       if (!side) continue;
       const color = side.cl && 'rgb' in side.cl ? toARGB(side.cl.rgb) : undefined;
       (border as Record<string, unknown>)[key] = {
-        style: 'thin',
+        style: UNIVER_BORDER_TO_EXCEL[side.s as number] ?? 'thin',
         ...(color ? { color: { argb: color } } : {}),
       };
     }

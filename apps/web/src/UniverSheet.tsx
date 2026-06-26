@@ -115,13 +115,21 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
   const swapChainRef = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     if (lastRevisionRef.current === revision) return;
-    lastRevisionRef.current = revision;
     const api = apiRef.current;
-    const snapshot = ctx?.snapshotRef.current ?? null;
     if (!api) {
-      console.warn('[open-xlsx] swap aborted: api not ready yet');
+      // The workbook parsed before Univer finished booting (its canvas can take
+      // 1–2s to initialise, while a small file parses in well under a second).
+      // Do NOT advance lastRevisionRef here — leave the revision pending and
+      // wait: `ready` is in this effect's deps, so once handleReady sets it the
+      // effect re-runs with the api available and applies the latest snapshot.
+      // (Previously this advanced the ref and returned, dropping the swap
+      // permanently → a blank grid still bound to the real file, which Ctrl+S
+      // could then overwrite with an empty workbook.)
       return;
     }
+    // api is ready — claim this revision so we don't re-swap it.
+    lastRevisionRef.current = revision;
+    const snapshot = ctx?.snapshotRef.current ?? null;
     if (!snapshot) {
       console.warn('[open-xlsx] swap aborted: snapshotRef empty for revision', revision);
       return;
@@ -141,7 +149,9 @@ export function UniverSheet({ initialSnapshot, revision }: Props) {
           throw err;
         }
       });
-  }, [revision, ctx]);
+    // `ready` is a dep so a swap requested before the api booted (api-not-ready
+    // path above) is re-applied the moment handleReady flips ready→true.
+  }, [revision, ctx, ready]);
 
   return (
     <>

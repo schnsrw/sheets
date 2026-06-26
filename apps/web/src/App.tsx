@@ -331,16 +331,15 @@ export function App() {
   useEffect(() => {
     if (!isDesktop()) return;
     const onFileChanged = (e: Event) => {
-      const { kind, path } =
-        (e as CustomEvent<{ kind: string; path: string }>).detail ?? {};
+      const { kind, path } = (e as CustomEvent<{ kind: string; path: string }>).detail ?? {};
       if (kind !== 'modified') return;
       const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
       if (!bridge?.isDesktop || !bridge.filePath) return;
       if (path !== bridge.filePath) return;
       void (async () => {
-        try {
+        const fp = bridge.filePath!;
+        const loadAndReplace = async () => {
           const buffer = await bridge.loadDocument();
-          const fp = bridge.filePath!;
           const lower = fp.toLowerCase();
           let data: IWorkbookData;
           if (lower.endsWith('.ods')) data = await odsToWorkbookData(buffer);
@@ -351,8 +350,23 @@ export function App() {
           const fileName = fp.split(/[\\/]/).pop() || 'Workbook.xlsx';
           data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab)$/i, '');
           replaceWorkbook(data);
+        };
+        try {
+          await loadAndReplace();
         } catch (err) {
-          console.error('[deskApp] file-changed reload failed', err);
+          // The watcher commonly fires while the external app is still writing
+          // — an atomic save briefly truncates/replaces the file — so the first
+          // read can come back short (see the bridge's short-read guard) or
+          // unparseable. Retry once after a short settle delay, by which point
+          // the write has usually completed, before giving up. Avoids leaving
+          // the user on stale content over a transient mid-write blip.
+          console.warn('[deskApp] file-changed reload failed, retrying once', err);
+          await new Promise((r) => setTimeout(r, 350));
+          try {
+            await loadAndReplace();
+          } catch (err2) {
+            console.error('[deskApp] file-changed reload failed after retry', err2);
+          }
         }
       })();
     };

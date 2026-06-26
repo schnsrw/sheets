@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import ExcelJS from 'exceljs';
 import { waitForUniver } from './_helpers';
 
 /**
@@ -280,4 +281,75 @@ test('desktop bridge fails clearly when a file is truncated mid-read', async ({ 
   expect(err).toContain('the file changed while opening');
   // It must NOT have returned a zero-padded buffer (4 real bytes of 10).
   expect(err).toContain('Only read 4 of 10 bytes');
+});
+
+/**
+ * Reload retry on a transient mid-write. When another app saves the open file,
+ * the watcher often fires while the write is still in flight, so the first
+ * reload reads short (the guard above throws). Rather than leaving the user on
+ * stale content, the reload retries once after a short settle delay — by then
+ * the external write has completed and the reload succeeds. Drives the real app
+ * + bridge: first read is truncated, the retry serves a valid workbook.
+ */
+test('desktop reload retries once when an external save is caught mid-write', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  // The valid workbook served on the successful retry (A1 = "RELOADED").
+  const wb = new ExcelJS.Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'RELOADED';
+  const xlsxBytes = Array.from(new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer));
+
+  await page.addInitScript((bytes: number[]) => {
+    let loadCount = 0; // one per loadDocument (document_size kicks each off)
+    let reads = 0;
+    const invoke = (cmd: string) => {
+      if (cmd === 'document_size') {
+        loadCount += 1;
+        reads = 0;
+        return Promise.resolve(bytes.length);
+      }
+      if (cmd === 'read_document_chunk') {
+        reads += 1;
+        // First reload attempt: a short read then empty → short-read throw.
+        if (loadCount === 1) return Promise.resolve(reads === 1 ? bytes.slice(0, 4) : []);
+        // Retry attempt: serve the whole file.
+        return Promise.resolve(reads === 1 ? bytes : []);
+      }
+      return Promise.resolve(null);
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__TAURI__ = { core: { invoke } };
+  }, xlsxBytes);
+
+  await page.goto('/?desk=1');
+  await waitForUniver(page);
+
+  // Bind a path and fire the external-change event the file watcher would emit.
+  await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__deskApp__.filePath = '/tmp/x.xlsx';
+    window.dispatchEvent(
+      new CustomEvent('deskapp:file-changed', {
+        detail: { kind: 'modified', path: '/tmp/x.xlsx' },
+      }),
+    );
+  });
+
+  // First reload throws (short read); the retry serves the full file and A1
+  // becomes "RELOADED". Without the retry, A1 would stay empty and this fails.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const api = (window as any).__univerAPI;
+          try {
+            return api?.getActiveWorkbook()?.getActiveSheet()?.getRange('A1')?.getValue() ?? null;
+          } catch {
+            return null;
+          }
+        }),
+      { timeout: 10_000 },
+    )
+    .toBe('RELOADED');
 });

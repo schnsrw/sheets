@@ -232,3 +232,52 @@ test('desktop bridge serializes overlapping saves (no interleaved write IPC)', a
     'commit_save_document',
   ]);
 });
+
+/**
+ * Short-read guard on open. The chunked read sizes its buffer to
+ * `document_size`; if the file shrinks/changes mid-read (another process
+ * truncates or replaces it — the external edits the file watcher reports), a
+ * chunk comes back short and the tail would be zero-padded, parsing as a
+ * baffling corruption. The bridge must instead fail with a clear "file changed
+ * while opening" error so the caller can re-open. Drives the REAL bridge with a
+ * truncated read_document_chunk.
+ */
+test('desktop bridge fails clearly when a file is truncated mid-read', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  await page.addInitScript(() => {
+    // document_size says 10 bytes, but the read yields only 4 then 0 — a file
+    // that shrank between sizing and reading.
+    let reads = 0;
+    const invoke = (cmd: string) => {
+      if (cmd === 'document_size') return Promise.resolve(10);
+      if (cmd === 'read_document_chunk') {
+        reads += 1;
+        return Promise.resolve(reads === 1 ? [0x50, 0x4b, 0x03, 0x04] : []);
+      }
+      return Promise.resolve(null);
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__TAURI__ = { core: { invoke } };
+  });
+
+  await page.goto('/?desk=1');
+  await page.waitForFunction(() => !!(window as { __deskApp__?: unknown }).__deskApp__, null, {
+    timeout: 30_000,
+  });
+
+  const err = await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const b: any = (window as any).__deskApp__;
+    try {
+      await b.loadDocument('/tmp/book.xlsx');
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    }
+  });
+
+  expect(err).toContain('the file changed while opening');
+  // It must NOT have returned a zero-padded buffer (4 real bytes of 10).
+  expect(err).toContain('Only read 4 of 10 bytes');
+});

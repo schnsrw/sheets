@@ -142,6 +142,19 @@ if (typeof window !== 'undefined' && isDesktop()) {
       await inv('commit_save_document', { path });
     }
 
+    // Serialize writes so two overlapping saves — a fast double Ctrl+S, or a
+    // Ctrl+S while a large save is still streaming chunks — can't interleave
+    // their begin/write/commit IPC against the shared per-path temp file and
+    // corrupt it. Each write waits for the previous to settle; the chain
+    // survives a failed write (caught) so one rejected save doesn't wedge
+    // every later one. The error still propagates to the caller that issued it.
+    let writeChain: Promise<unknown> = Promise.resolve();
+    function serializedWrite(path: string, buf: ArrayBuffer): Promise<void> {
+      const run = writeChain.then(() => chunkedWrite(path, buf));
+      writeChain = run.catch(() => undefined);
+      return run;
+    }
+
     async function updateWindowTitleFromPath(newPath: string) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -266,7 +279,7 @@ if (typeof window !== 'undefined' && isDesktop()) {
           // write — the legacy behaviour).
           const seqAtStart = baselineSeq ?? editSeq;
           try {
-            await chunkedWrite(filePath, bytes);
+            await serializedWrite(filePath, bytes);
           } catch (err) {
             console.error('[deskApp] save failed for', filePath, err);
             throw err;
@@ -287,7 +300,7 @@ if (typeof window !== 'undefined' && isDesktop()) {
         if (!newPath) return null;
         const seqAtStart = baselineSeq ?? editSeq;
         try {
-          await chunkedWrite(newPath, bytes);
+          await serializedWrite(newPath, bytes);
         } catch (err) {
           console.error('[deskApp] saveAs failed for', newPath, err);
           throw err;

@@ -171,3 +171,64 @@ test('desktop bridge stays dirty when an edit lands between serialize and write'
   // The clean save (baseline === current) clears it → a false transition appended.
   expect(out.afterClean).toEqual([true, false]);
 });
+
+/**
+ * Concurrent-write serialization. Two overlapping saves — a fast double Ctrl+S,
+ * or Ctrl+S while a large save is still streaming — must NOT interleave their
+ * begin/write/commit IPC against the shared per-path temp file (that would
+ * corrupt it). The bridge chains writes so each completes before the next
+ * starts. Drives the REAL bridge with a deliberately slow write_save_chunk to
+ * force overlap, then asserts the recorded IPC order never interleaves.
+ */
+test('desktop bridge serializes overlapping saves (no interleaved write IPC)', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  await page.addInitScript(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec: any = { order: [] as string[] };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__deskTest = rec;
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const invoke = async (cmd: string) => {
+      if (cmd === 'document_size') return 0;
+      if (
+        cmd === 'begin_save_document' ||
+        cmd === 'write_save_chunk' ||
+        cmd === 'commit_save_document'
+      ) {
+        rec.order.push(cmd);
+        // Slow the chunk write so a second save would overlap if unserialized.
+        if (cmd === 'write_save_chunk') await delay(60);
+      }
+      return null;
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__TAURI__ = { core: { invoke } };
+  });
+
+  await page.goto('/?desk=1');
+  await page.waitForFunction(() => !!(window as { __deskApp__?: unknown }).__deskApp__, null, {
+    timeout: 30_000,
+  });
+
+  const order = await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const b: any = (window as any).__deskApp__;
+    b.filePath = '/tmp/book.xlsx';
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]).buffer; // non-empty
+    // Fire two saves without awaiting the first — they race unless serialized.
+    await Promise.all([b.save(bytes), b.save(bytes)]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window as any).__deskTest.order as string[];
+  });
+
+  // Two full, non-interleaved cycles back to back.
+  expect(order).toEqual([
+    'begin_save_document',
+    'write_save_chunk',
+    'commit_save_document',
+    'begin_save_document',
+    'write_save_chunk',
+    'commit_save_document',
+  ]);
+});

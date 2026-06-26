@@ -1014,6 +1014,12 @@ export function MenuBar() {
       await loadSpreadsheetFile(file, api, workbook.replaceWorkbook, (phase) =>
         loading.set({ phase }),
       );
+      // Desktop: the opened file came from the browser picker, which has no
+      // real filesystem path, and it replaced the workbook in-window. Unbind
+      // the previously-open file so the next Save can't overwrite it with this
+      // content — save() falls through to saveAs() (prompts for a location).
+      const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
+      if (bridge?.isDesktop) bridge.filePath = null;
       // Give Univer's mount one frame to settle before dropping the
       // overlay — otherwise a fast open shows a blink of the empty
       // grid before the new unit paints.

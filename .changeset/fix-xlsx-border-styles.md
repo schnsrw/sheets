@@ -2,4 +2,8 @@
 '@casualoffice/sheets': patch
 ---
 
-Preserve Excel border line styles on xlsx import/export. The style mapping previously hardcoded every border to a thin line, so dashed, double, thick, medium, hair, dotted, and the dash-dot variants all collapsed to thin on open — and again on save. Borders now map both directions between Excel's line styles and Univer's `BorderStyleTypes`, so the full set survives the round-trip (unrecognized styles still fall back to thin so a border is never dropped).
+Improve xlsx style fidelity for Excel users. Three formatting properties that were dropped on import/export now round-trip:
+
+- **Border line styles** — the mapping hardcoded every border to thin, so dashed, double, thick, medium, hair, dotted, and the dash-dot variants all collapsed to a thin line. They now map both directions between Excel's line styles and Univer's `BorderStyleTypes` (unrecognized styles still fall back to thin so a border is never dropped).
+- **Strikethrough** — `font.strike` now maps to/from Univer's `st`.
+- **Text rotation** — angled and stacked (`vertical`) cell text now maps to/from Univer's `tr`, preserving the angle and direction.

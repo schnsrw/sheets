@@ -237,6 +237,17 @@ if (typeof window !== 'undefined' && isDesktop()) {
           offset += chunk.byteLength;
           if (chunk.byteLength === 0) break;
         }
+        // A short read means the file shrank/changed under us mid-read (another
+        // process truncated or replaced it — the same external edits the file
+        // watcher reports). The buffer is sized to `total`, so the tail would be
+        // zero-padded and parse as a baffling corruption; fail clearly instead
+        // so the caller can re-open rather than open a silently-mangled file.
+        if (offset < total) {
+          throw new Error(
+            `Only read ${offset} of ${total} bytes from ${path} — the file changed while ` +
+              'opening. Try opening it again.',
+          );
+        }
         // Magic-byte sniff for ZIP-based formats. .xlsx / .xlsm / .ods
         // are all renamed zips and must start with PK\003\004.
         // CSV/TSV/TAB are plain text and skip the check.

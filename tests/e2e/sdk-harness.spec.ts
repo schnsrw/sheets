@@ -686,9 +686,15 @@ test.describe('SDK editor (CasualSheets) via /sdk-harness', () => {
       { timeout: 30_000 },
     );
     const tab = page.getByTestId('casual-sheets-tabs').getByRole('tab').first();
-    await tab.dblclick();
     const input = page.getByTestId('cs-tab-rename-input');
-    await expect(input).toBeVisible();
+    // Background idle-plugin-load command bursts re-render the chrome just after
+    // the harness signals ready and can swallow the first double-click before
+    // the rename input mounts. Retry the dblclick→input step (rather than racing
+    // a single dblclick) until the inline editor is actually up.
+    await expect(async () => {
+      await tab.dblclick();
+      await expect(input).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await input.fill('Budget');
     await input.press('Enter');
     const name = await page.evaluate(async () => {

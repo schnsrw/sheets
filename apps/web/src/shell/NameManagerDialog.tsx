@@ -14,36 +14,63 @@ import { Icon } from './Icon';
  * `SYNCED_MUTATIONS`, so changes propagate cross-peer in co-edit and
  * round-trip through xlsx (defined-names section).
  *
- * v1 is workbook-scoped only (no per-sheet scope picker, no comments
- * column). The dialog re-reads the live list on each mutation so the
- * UI stays consistent with the source of truth — no incremental diff
+ * Names can be workbook-scoped or scoped to a single worksheet (Excel's
+ * "Scope" column) via the FDefinedName builder's `setScopeToWorksheet` /
+ * `setScopeToWorkbook`. The dialog re-reads the live list on each mutation so
+ * the UI stays consistent with the source of truth — no incremental diff
  * bookkeeping.
  */
+
+// Sentinel localSheetId meaning "whole workbook" (SCOPE_WORKBOOK_VALUE_DEFINED_NAME
+// in the fork). Hard-coded to avoid importing @univerjs/sheets into the shell.
+const WORKBOOK_SCOPE = 'AllDefaultWorkbook';
 
 type Props = {
   api: FUniver;
   onClose: () => void;
 };
 
+type SheetRef = { id: string; name: string };
+
 type Entry = {
   name: string;
   ref: string;
+  /** localSheetId, or WORKBOOK_SCOPE for a workbook-scoped name. */
+  scope: string;
 };
 
 export function NameManagerDialog({ api, onClose }: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [editing, setEditing] = useState<{ originalName: string | null; name: string; ref: string } | null>(null);
+  const [sheets, setSheets] = useState<SheetRef[]>([]);
+  const [editing, setEditing] = useState<{
+    originalName: string | null;
+    name: string;
+    ref: string;
+    scope: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = () => {
     const wb = api.getActiveWorkbook();
     if (!wb) {
       setEntries([]);
+      setSheets([]);
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list = (wb as any).getDefinedNames?.() as
-      | Array<{ getName: () => string; getFormulaOrRefString: () => string }>
+    const wbAny = wb as any;
+    setSheets(
+      (wbAny.getSheets?.() ?? []).map((s: { getSheetId(): string; getSheetName(): string }) => ({
+        id: s.getSheetId(),
+        name: s.getSheetName(),
+      })),
+    );
+    const list = wbAny.getDefinedNames?.() as
+      | Array<{
+          getName: () => string;
+          getFormulaOrRefString: () => string;
+          getLocalSheetId?: () => string | undefined;
+        }>
       | undefined;
     if (!list) {
       setEntries([]);
@@ -51,17 +78,24 @@ export function NameManagerDialog({ api, onClose }: Props) {
     }
     setEntries(
       list
-        .map((d) => ({ name: d.getName(), ref: d.getFormulaOrRefString() }))
+        .map((d) => ({
+          name: d.getName(),
+          ref: d.getFormulaOrRefString(),
+          scope: d.getLocalSheetId?.() ?? WORKBOOK_SCOPE,
+        }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     );
   };
 
   useEffect(refresh, [api]);
 
+  const scopeLabel = (scope: string): string =>
+    scope === WORKBOOK_SCOPE ? 'Workbook' : (sheets.find((s) => s.id === scope)?.name ?? scope);
+
   const startCreate = () =>
-    setEditing({ originalName: null, name: '', ref: '' });
+    setEditing({ originalName: null, name: '', ref: '', scope: WORKBOOK_SCOPE });
   const startEdit = (e: Entry) =>
-    setEditing({ originalName: e.name, name: e.name, ref: e.ref });
+    setEditing({ originalName: e.name, name: e.name, ref: e.ref, scope: e.scope });
   const cancelEdit = () => {
     setEditing(null);
     setError(null);
@@ -88,25 +122,26 @@ export function NameManagerDialog({ api, onClose }: Props) {
     }
     const wb = api.getActiveWorkbook();
     if (!wb) return;
+    const scope = editing.scope;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wbAny = wb as any;
+      // Apply the chosen scope to a builder (workbook or a specific sheet).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const withScope = (b: any) => {
+        if (scope === WORKBOOK_SCOPE) return b.setScopeToWorkbook();
+        const fws = wbAny.getSheetBySheetId(scope);
+        return fws ? b.setScopeToWorksheet(fws) : b;
+      };
       if (editing.originalName == null) {
-        // Create
-        wbAny.insertDefinedName(name, ref);
-      } else if (editing.originalName === name) {
-        // Same name, different ref — update via builder.
-        const existing = wbAny.getDefinedName(editing.originalName);
-        if (existing) {
-          const param = existing.toBuilder().setRef(ref).build();
-          wbAny.updateDefinedNameBuilder(param);
-        }
+        // Create via the builder so the scope is honoured.
+        const param = withScope(wbAny.newDefinedNameBuilder().setName(name).setRef(ref)).build();
+        wbAny.insertDefinedNameBuilder(param);
       } else {
-        // Rename — Univer doesn't expose rename directly; the
-        // builder pattern lets us set a new name on the same id.
+        // Update (rename / re-point / re-scope) on the same id.
         const existing = wbAny.getDefinedName(editing.originalName);
         if (existing) {
-          const param = existing.toBuilder().setName(name).setRef(ref).build();
+          const param = withScope(existing.toBuilder().setName(name).setRef(ref)).build();
           wbAny.updateDefinedNameBuilder(param);
         }
       }
@@ -219,6 +254,21 @@ export function NameManagerDialog({ api, onClose }: Props) {
               spellCheck={false}
             />
           </label>
+          <label className="name-manager__field">
+            <span>Scope</span>
+            <select
+              data-testid="name-manager-scope-select"
+              value={editing.scope}
+              onChange={(e) => setEditing({ ...editing, scope: e.target.value })}
+            >
+              <option value={WORKBOOK_SCOPE}>Workbook</option>
+              {sheets.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
           {error && (
             <div className="name-manager__error" data-testid="name-manager-error">
               {error}
@@ -227,8 +277,8 @@ export function NameManagerDialog({ api, onClose }: Props) {
         </div>
       ) : entries.length === 0 ? (
         <div className="name-manager__empty">
-          No named ranges yet. Click <strong>New</strong> to create one — e.g.
-          {' '}<code>SalesQ3</code> referring to{' '}<code>Sheet1!$B$2:$B$100</code>.
+          No named ranges yet. Click <strong>New</strong> to create one — e.g. <code>SalesQ3</code>{' '}
+          referring to <code>Sheet1!$B$2:$B$100</code>.
         </div>
       ) : (
         <table className="name-manager__table">
@@ -236,15 +286,19 @@ export function NameManagerDialog({ api, onClose }: Props) {
             <tr>
               <th>Name</th>
               <th>Refers to</th>
+              <th>Scope</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
             {entries.map((e) => (
-              <tr key={e.name} data-testid="name-manager-row">
+              <tr key={`${e.scope}:${e.name}`} data-testid="name-manager-row">
                 <td className="name-manager__name">{e.name}</td>
                 <td className="name-manager__ref">
                   <code>{e.ref}</code>
+                </td>
+                <td className="name-manager__scope" data-testid="name-manager-scope">
+                  {scopeLabel(e.scope)}
                 </td>
                 <td className="name-manager__actions">
                   <button

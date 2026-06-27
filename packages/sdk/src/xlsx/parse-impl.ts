@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import {
+  CellValueType,
   CustomRangeType,
   LocaleType,
   type ICellData,
@@ -356,6 +357,19 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
           else if (!style.n) style.n = { pattern: 'yyyy-mm-dd' };
         } else if (typeof raw === 'number' || typeof raw === 'boolean' || typeof raw === 'string') {
           cd.v = raw;
+        }
+
+        // Tag the value type so consumers that read `t` directly classify
+        // imported cells the same way Univer tags natively-entered ones. Univer's
+        // getCellValueType() infers from `v` as a fallback, but some evaluators
+        // (e.g. the conditional-formatting number-rule calculate unit) read `t`
+        // raw — without this, an imported numeric cell never matches a `cellIs`
+        // rule, so highlight rules wouldn't paint. Formula cells get tagged from
+        // their cached result's type.
+        if (cd.v !== undefined) {
+          if (typeof cd.v === 'number') cd.t = CellValueType.NUMBER;
+          else if (typeof cd.v === 'boolean') cd.t = CellValueType.BOOLEAN;
+          else if (typeof cd.v === 'string') cd.t = CellValueType.STRING;
         }
 
         const styleId = internStyle(style);

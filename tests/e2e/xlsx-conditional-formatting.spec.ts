@@ -16,6 +16,8 @@ declare global {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       workbookDataToXlsx: (data: any) => Promise<Blob>;
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    __composeCfStyle__?: (row: number, col: number) => any;
   }
 }
 
@@ -90,4 +92,75 @@ test('conditional formatting highlight rules survive import + round-trip', async
   ];
   expect(out.imported).toEqual(expected);
   expect(out.round).toEqual(expected);
+});
+
+/**
+ * Render-on-import: a rule that round-trips in the resource is not enough — it
+ * must actually MATCH + PAINT when the file opens. The CF number-rule evaluator
+ * keys off the cell's `t` (CellValueType) directly, so an imported numeric cell
+ * that lacked `t` never matched a `cellIs` rule — the highlight stayed blank no
+ * matter how long you waited or how much you scrolled. parse-impl now tags
+ * imported cells with their value type. We read the result through the CF
+ * service's `composeStyle` (the highlight is canvas-drawn, not in cell data),
+ * asserting a matching cell composes the red fill while a non-matching cell
+ * composes nothing — immediately on open, without any interaction.
+ */
+test('imported conditional formatting paints on open without interaction', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  // A1..A5 = 50,100,150,200,250 → only A3:A5 (>100) should highlight.
+  for (let r = 1; r <= 5; r++) ws.getCell(`A${r}`).value = r * 50;
+  ws.addConditionalFormatting({
+    ref: 'A1:A5',
+    rules: [
+      {
+        type: 'cellIs',
+        operator: 'greaterThan',
+        formulae: ['100'],
+        priority: 1,
+        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFF0000' } } },
+      },
+    ],
+  });
+  const bytes = Array.from(new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer));
+
+  await page.goto('/');
+  await waitForUniver(page);
+
+  // Write the fixture and open it through the real File → Open picker so the
+  // workbook-swap path (UniverSheet revision effect) runs, exactly as a user's
+  // open would.
+  const fixture = '/tmp/casual-sheets-cf-render.xlsx';
+  const fs = await import('node:fs');
+  fs.writeFileSync(fixture, Buffer.from(bytes));
+
+  await page.getByTestId('menubar-file').click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByTestId('menu-item-open').click(),
+  ]);
+  await chooser.setFiles(fixture);
+
+  // The matching cell A5 (row 4, col 0, value 250 > 100) must compose the red
+  // fill — poll because the CF recompute the pump triggers is async, but assert
+  // WITHOUT any scroll/click that would itself force a recompute.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const s = window.__composeCfStyle__?.(4, 0);
+          return (s?.style?.bg?.rgb ?? null) as string | null;
+        }),
+      { timeout: 10_000, message: 'A5 should compose the imported red CF fill on open' },
+    )
+    .toBe('#ff0000');
+
+  // The non-matching cell A1 (row 0, col 0, value 50) composes no CF style.
+  const a1 = await page.evaluate(() => {
+    const s = window.__composeCfStyle__?.(0, 0);
+    return s?.style?.bg?.rgb ?? null;
+  });
+  expect(a1).toBeNull();
 });

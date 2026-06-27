@@ -44,6 +44,7 @@ import { RemoveDuplicatesDialog } from './RemoveDuplicatesDialog';
 import { TextToColumnsDialog } from './TextToColumnsDialog';
 import { SubtotalsDialog } from './SubtotalsDialog';
 import { AdvancedFilterDialog } from './AdvancedFilterDialog';
+import { ScenarioManagerDialog } from './ScenarioManagerDialog';
 import { MacrosDialog } from './MacrosDialog';
 import { InsertSparklineDialog } from '../sparklines/InsertSparklineDialog';
 import { useSparklines } from '../sparklines/sparklines-context';
@@ -454,6 +455,7 @@ export function MenuBar() {
   const [showNameManager, setShowNameManager] = useState(false);
   const [showGoalSeek, setShowGoalSeek] = useState(false);
   const [iterativeCalc, setIterativeCalc] = useState(false);
+  const [showScenarioManager, setShowScenarioManager] = useState(false);
   const [showGoToSpecial, setShowGoToSpecial] = useState(false);
   const [showRemoveDuplicates, setShowRemoveDuplicates] = useState(false);
   const [showTextToColumns, setShowTextToColumns] = useState(false);
@@ -2266,6 +2268,13 @@ export function MenuBar() {
         },
         {
           kind: 'item',
+          id: 'scenario-manager',
+          label: 'Scenario Manager…',
+          icon: 'tune',
+          onClick: () => setShowScenarioManager(true),
+        },
+        {
+          kind: 'item',
           id: 'iterative-calc',
           label: iterativeCalc ? '✓ Iterative calculation' : 'Iterative calculation',
           icon: 'sync',
@@ -2660,6 +2669,9 @@ export function MenuBar() {
       )}
 
       {showGoalSeek && api && <GoalSeekDialog api={api} onClose={() => setShowGoalSeek(false)} />}
+      {showScenarioManager && api && (
+        <ScenarioManagerDialog api={api} onClose={() => setShowScenarioManager(false)} />
+      )}
       {showGoToSpecial && api && (
         <GoToSpecialDialog api={api} onClose={() => setShowGoToSpecial(false)} />
       )}

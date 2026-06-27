@@ -2,6 +2,7 @@ import { CustomRangeType, IMentionIOService, type IWorkbookData } from '@univerj
 import type { FUniver } from '@univerjs/core/facade';
 import { ISheetClipboardService } from '@univerjs/sheets-ui';
 import { SheetTableService } from '@univerjs/sheets-table';
+import { ConditionalFormattingService } from '@univerjs/sheets-conditional-formatting';
 import { ensurePluginByName, type LazyPluginGroup } from '@casualoffice/sheets/univer';
 import {
   setMentionProvider,
@@ -45,6 +46,10 @@ declare global {
     __setMentionProvider__?: (candidates: MentionCandidate[]) => void;
     /** Test hook: resolve the live IMentionIOService and return candidate labels. */
     __mentionList__?: (search?: string) => Promise<string[] | null>;
+    /** Test hook: compose the conditional-formatting style for a cell on the
+     *  active sheet — proves an imported CF rule actually painted (the highlight
+     *  is canvas-drawn, not in cell data). Returns `null` when no rule matches. */
+    __composeCfStyle__?: (row: number, col: number) => unknown;
   }
 }
 
@@ -198,6 +203,19 @@ export function installDevHelpers(api: FUniver): () => void {
   window.__setMentionProvider__ = (candidates) => {
     setMentionProvider((search) => filterMentionCandidates(candidates, search));
   };
+  window.__composeCfStyle__ = (row, col) => {
+    const wb = api.getActiveWorkbook();
+    if (!wb) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const injector = (api as any)._injector as { get: (token: unknown) => unknown } | undefined;
+    if (!injector) return null;
+    const svc = injector.get(ConditionalFormattingService) as
+      | { composeStyle: (u: string, s: string, r: number, c: number) => unknown }
+      | undefined;
+    const ws = wb.getActiveSheet();
+    if (!svc?.composeStyle || !ws) return null;
+    return svc.composeStyle(wb.getId(), ws.getSheetId(), row, col);
+  };
   window.__mentionList__ = async (search = '') => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const injector = (api as any)._injector;
@@ -222,5 +240,6 @@ export function installDevHelpers(api: FUniver): () => void {
     delete window.__parseHtmlClipboard__;
     delete window.__setMentionProvider__;
     delete window.__mentionList__;
+    delete window.__composeCfStyle__;
   };
 }

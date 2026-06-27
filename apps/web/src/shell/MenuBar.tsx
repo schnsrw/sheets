@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { FUniver } from '@univerjs/core/facade';
 import { Icon } from './Icon';
+import { openExternal } from './openExternal';
 import { activeSheet, rangeFromA1, sheetId as facadeSheetId } from '../univer-facade';
 import { PropertiesDialog } from './PropertiesDialog';
 import { FormatCellsDialog } from './FormatCellsDialog';
@@ -2400,7 +2401,7 @@ export function MenuBar() {
           id: 'github',
           label: 'View on GitHub',
           icon: 'open_in_new',
-          onClick: () => window.open('https://github.com/CasualOffice/sheets', '_blank'),
+          onClick: () => openExternal('https://github.com/CasualOffice/sheets'),
         },
       ],
     },

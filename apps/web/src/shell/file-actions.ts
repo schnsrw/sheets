@@ -11,6 +11,7 @@ import { renderChartToPng, pixelsForChart } from '../charts/render-to-png';
 import { recordRecentFile } from '../recent-files/store';
 import type { PivotModel } from '../pivots/types';
 import { discardAutosaveAfterExplicitSave } from '../autosave/useAutosave';
+import { clearDesktopRecovery } from '../recovery/desktop-recovery';
 import {
   csvToWorkbookData,
   odsToWorkbookData,
@@ -232,6 +233,8 @@ export async function saveAsXlsx(
   // The on-disk file now supersedes the autosave slot — drop it so a
   // crash after a successful save doesn't re-prompt with stale state.
   void discardAutosaveAfterExplicitSave();
+  // Same for the desktop crash-recovery sidecar (no-op on web / untitled).
+  void clearDesktopRecovery();
 }
 
 /**

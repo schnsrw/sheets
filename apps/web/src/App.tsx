@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { IWorkbookData, ICommandInfo, IExecutionOptions } from '@univerjs/core';
 import { ICommandService } from '@univerjs/core';
 import { xlsxToWorkbookData } from './xlsx';
-import { odsToWorkbookData, csvToWorkbookData, tsvToWorkbookData } from './ods';
+import { odsToWorkbookData, csvToWorkbookData, tsvToWorkbookData, psvToWorkbookData } from './ods';
 import { isDesktop } from './desk-bridge-bootstrap';
 import { TitleBar } from './shell/TitleBar';
 import { Toolbar } from './shell/Toolbar';
@@ -281,6 +281,7 @@ export function App() {
       if (lower.endsWith('.ods')) format = 'ods';
       else if (lower.endsWith('.csv')) format = 'csv';
       else if (lower.endsWith('.tsv') || lower.endsWith('.tab')) format = 'tsv';
+      else if (lower.endsWith('.psv')) format = 'psv';
       const startedAt = Date.now();
       try {
         setLoading({ fileName, phase: 'reading', startedAt });
@@ -291,9 +292,10 @@ export function App() {
         if (format === 'ods') data = await odsToWorkbookData(buffer);
         else if (format === 'csv') data = await csvToWorkbookData(buffer);
         else if (format === 'tsv') data = await tsvToWorkbookData(buffer);
+        else if (format === 'psv') data = await psvToWorkbookData(buffer);
         else data = await xlsxToWorkbookData(buffer);
         if (cancelled) return;
-        data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab)$/i, '');
+        data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab|psv)$/i, '');
         setLoading({ fileName, phase: 'mounting', startedAt });
         replaceWorkbook(data, format);
         setLoading(null);
@@ -348,6 +350,7 @@ export function App() {
           else if (lower.endsWith('.csv')) data = await csvToWorkbookData(buffer);
           else if (lower.endsWith('.tsv') || lower.endsWith('.tab'))
             data = await tsvToWorkbookData(buffer);
+          else if (lower.endsWith('.psv')) data = await psvToWorkbookData(buffer);
           else data = await xlsxToWorkbookData(buffer);
           const fileName = fp.split(/[\\/]/).pop() || 'Workbook.xlsx';
           data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab)$/i, '');

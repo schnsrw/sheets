@@ -16,6 +16,7 @@ import {
   csvToWorkbookData,
   odsToWorkbookData,
   tsvToWorkbookData,
+  psvToWorkbookData,
   workbookDataToDelimited,
   workbookDataToOds,
 } from '../ods';
@@ -88,9 +89,10 @@ export async function openSpreadsheetFile(
   if (lower.endsWith('.ods')) data = await odsToWorkbookData(buf);
   else if (lower.endsWith('.csv')) data = await csvToWorkbookData(buf);
   else if (lower.endsWith('.tsv') || lower.endsWith('.tab')) data = await tsvToWorkbookData(buf);
+  else if (lower.endsWith('.psv')) data = await psvToWorkbookData(buf);
   else data = await xlsxToWorkbookData(buf);
   console.info('[open] parsed', { id: data.id, sheets: Object.keys(data.sheets ?? {}).length });
-  data.name = file.name.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab)$/i, '');
+  data.name = file.name.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab|psv)$/i, '');
   // Stamp the real on-disk size of the uploaded file so File → Properties
   // can show it. Without this the dialog falls back to measuring the
   // uncompressed JSON snapshot, which runs ~4–6× larger than the zipped
@@ -102,13 +104,14 @@ export async function openSpreadsheetFile(
 /** Back-compat alias — older callers reference openXlsx by name. */
 export const openXlsx = openSpreadsheetFile;
 
-export type WorkbookFormat = 'xlsx' | 'ods' | 'csv' | 'tsv';
+export type WorkbookFormat = 'xlsx' | 'ods' | 'csv' | 'tsv' | 'psv';
 
 function inferFormat(filename: string): WorkbookFormat {
   const lower = filename.toLowerCase();
   if (lower.endsWith('.ods')) return 'ods';
   if (lower.endsWith('.csv')) return 'csv';
   if (lower.endsWith('.tsv') || lower.endsWith('.tab')) return 'tsv';
+  if (lower.endsWith('.psv')) return 'psv';
   return 'xlsx';
 }
 
@@ -550,7 +553,7 @@ export function pickXlsxFile(): Promise<File | null> {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept =
-      '.xlsx,.xlsm,.ods,.csv,.tsv,.tab,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12,application/vnd.oasis.opendocument.spreadsheet,text/csv,text/tab-separated-values';
+      '.xlsx,.xlsm,.ods,.csv,.tsv,.tab,.psv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12,application/vnd.oasis.opendocument.spreadsheet,text/csv,text/tab-separated-values';
     input.style.display = 'none';
 
     let settled = false;

@@ -6,7 +6,7 @@ import type { IWorkbookData } from '@univerjs/core';
  * Ctrl+S writes back in the same format the user opened (Excel and LibreOffice
  * both behave this way). `null` means "started blank" — Save defaults to xlsx.
  */
-export type WorkbookFormat = 'xlsx' | 'ods' | 'csv' | 'tsv';
+export type WorkbookFormat = 'xlsx' | 'ods' | 'csv' | 'tsv' | 'psv';
 
 /**
  * Small react-state shape carried per active workbook. The full

@@ -31,7 +31,7 @@ import {
 } from '@univerjs/core';
 import { INITIAL_COLUMNS, INITIAL_ROWS, UNIVER_VERSION } from '../snapshot';
 
-type TabularFormat = 'ods' | 'csv' | 'tsv';
+type TabularFormat = 'ods' | 'csv' | 'tsv' | 'psv';
 const DEFINED_NAMES_RESOURCE = 'SHEET_DEFINED_NAME_PLUGIN';
 const NOTE_RESOURCE = 'SHEET_NOTE_PLUGIN';
 let hyperlinkIdCounter = 0;
@@ -62,7 +62,9 @@ function buildHyperlinkBody(display: string, url: string, id: string): ICellData
   } as any;
 }
 
-function getHyperlinkFromCell(cell: { p?: ICellData['p'] }): { url: string; display?: string } | undefined {
+function getHyperlinkFromCell(cell: {
+  p?: ICellData['p'];
+}): { url: string; display?: string } | undefined {
   const body = cell.p?.body;
   const ranges = body?.customRanges ?? [];
   for (const cr of ranges) {
@@ -174,18 +176,24 @@ function parseDimensionStylesFromContentXml(xml: string): DimensionMeta {
     const family = style.getAttribute('style:family');
     if (!name || !family) continue;
     if (family === 'table-column') {
-      const props = Array.from(style.children).find((child) => child.localName === 'table-column-properties');
+      const props = Array.from(style.children).find(
+        (child) => child.localName === 'table-column-properties',
+      );
       const width = parsePixelSize(props?.getAttribute('style:column-width') ?? null);
       if (width !== undefined) columnStyleSizes.set(name, width);
     }
     if (family === 'table-row') {
-      const props = Array.from(style.children).find((child) => child.localName === 'table-row-properties');
+      const props = Array.from(style.children).find(
+        (child) => child.localName === 'table-row-properties',
+      );
       const height = parsePixelSize(props?.getAttribute('style:row-height') ?? null);
       if (height !== undefined) rowStyleSizes.set(name, height);
     }
   }
 
-  for (const table of Array.from(doc.getElementsByTagName('*')).filter((el) => el.localName === 'table')) {
+  for (const table of Array.from(doc.getElementsByTagName('*')).filter(
+    (el) => el.localName === 'table',
+  )) {
     const sheetName = table.getAttribute('table:name');
     if (!sheetName) continue;
 
@@ -198,7 +206,7 @@ function parseDimensionStylesFromContentXml(xml: string): DimensionMeta {
         const width = styleName ? columnStyleSizes.get(styleName) : undefined;
         const hidden = child.getAttribute('table:visibility');
         for (let i = 0; i < repeated; i++) {
-          if (width !== undefined || hidden && hidden !== 'visible') {
+          if (width !== undefined || (hidden && hidden !== 'visible')) {
             columnsBySheetName[sheetName] ??= {};
             columnsBySheetName[sheetName][colIndex] = {
               ...(width !== undefined ? { w: width } : {}),
@@ -215,7 +223,7 @@ function parseDimensionStylesFromContentXml(xml: string): DimensionMeta {
         const height = styleName ? rowStyleSizes.get(styleName) : undefined;
         const hidden = child.getAttribute('table:visibility');
         for (let i = 0; i < repeated; i++) {
-          if (height !== undefined || hidden && hidden !== 'visible') {
+          if (height !== undefined || (hidden && hidden !== 'visible')) {
             rowsBySheetName[sheetName] ??= {};
             rowsBySheetName[sheetName][rowIndex] = {
               ...(height !== undefined ? { h: height } : {}),
@@ -251,9 +259,15 @@ function parseCellStylesFromContentXml(xml: string): CellStyleMeta {
     if (!name) continue;
 
     const parsed: IStyleData = {};
-    const textProps = Array.from(style.children).find((child) => child.localName === 'text-properties');
-    const paraProps = Array.from(style.children).find((child) => child.localName === 'paragraph-properties');
-    const cellProps = Array.from(style.children).find((child) => child.localName === 'table-cell-properties');
+    const textProps = Array.from(style.children).find(
+      (child) => child.localName === 'text-properties',
+    );
+    const paraProps = Array.from(style.children).find(
+      (child) => child.localName === 'paragraph-properties',
+    );
+    const cellProps = Array.from(style.children).find(
+      (child) => child.localName === 'table-cell-properties',
+    );
 
     if (textProps?.getAttribute('fo:font-weight') === 'bold') parsed.bl = 1;
     const fontColor = normalizeColor(textProps?.getAttribute('fo:color'));
@@ -275,7 +289,9 @@ function parseCellStylesFromContentXml(xml: string): CellStyleMeta {
     if (Object.keys(parsed).length > 0) stylesByName[name] = parsed;
   }
 
-  for (const table of Array.from(doc.getElementsByTagName('*')).filter((el) => el.localName === 'table')) {
+  for (const table of Array.from(doc.getElementsByTagName('*')).filter(
+    (el) => el.localName === 'table',
+  )) {
     const sheetName = table.getAttribute('table:name');
     if (!sheetName) continue;
 
@@ -305,7 +321,10 @@ function parseCellStylesFromContentXml(xml: string): CellStyleMeta {
   return { stylesByName, refsBySheetName };
 }
 
-function readFreezeSettings(buffer: ArrayBuffer, format: TabularFormat): Record<string, FreezeMeta> {
+function readFreezeSettings(
+  buffer: ArrayBuffer,
+  format: TabularFormat,
+): Record<string, FreezeMeta> {
   if (format !== 'ods') return {};
   try {
     const cfb = XLSX.CFB.read(new Uint8Array(buffer), { type: 'array' });
@@ -426,7 +445,9 @@ function buildOdsCellStyles(
   contentXml: string,
 ): { nextXml: string; changed: boolean } {
   const doc = new DOMParser().parseFromString(contentXml, 'application/xml');
-  const automaticStyles = Array.from(doc.getElementsByTagName('*')).find((el) => el.localName === 'automatic-styles');
+  const automaticStyles = Array.from(doc.getElementsByTagName('*')).find(
+    (el) => el.localName === 'automatic-styles',
+  );
   if (!automaticStyles) return { nextXml: contentXml, changed: false };
 
   const existingDataStyleByCellStyle = new Map<string, string | undefined>();
@@ -435,7 +456,10 @@ function buildOdsCellStyles(
     if (style.getAttribute('style:family') !== 'table-cell') continue;
     const styleName = style.getAttribute('style:name');
     if (!styleName) continue;
-    existingDataStyleByCellStyle.set(styleName, style.getAttribute('style:data-style-name') ?? undefined);
+    existingDataStyleByCellStyle.set(
+      styleName,
+      style.getAttribute('style:data-style-name') ?? undefined,
+    );
   }
 
   const styleNameByKey = new Map<string, string>();
@@ -443,14 +467,20 @@ function buildOdsCellStyles(
   let changed = false;
 
   const createStyleNode = (styleName: string, style: IStyleData, dataStyleName?: string) => {
-    const node = doc.createElementNS('urn:oasis:names:tc:opendocument:xmlns:style:1.0', 'style:style');
+    const node = doc.createElementNS(
+      'urn:oasis:names:tc:opendocument:xmlns:style:1.0',
+      'style:style',
+    );
     node.setAttribute('style:name', styleName);
     node.setAttribute('style:family', 'table-cell');
     node.setAttribute('style:parent-style-name', 'Default');
     if (dataStyleName) node.setAttribute('style:data-style-name', dataStyleName);
 
     if (style.bg || style.vt) {
-      const props = doc.createElementNS('urn:oasis:names:tc:opendocument:xmlns:style:1.0', 'style:table-cell-properties');
+      const props = doc.createElementNS(
+        'urn:oasis:names:tc:opendocument:xmlns:style:1.0',
+        'style:table-cell-properties',
+      );
       if (style.bg && typeof style.bg === 'object' && 'rgb' in style.bg && style.bg.rgb) {
         props.setAttribute('fo:background-color', style.bg.rgb);
       }
@@ -461,7 +491,10 @@ function buildOdsCellStyles(
     }
 
     if (style.ht) {
-      const props = doc.createElementNS('urn:oasis:names:tc:opendocument:xmlns:style:1.0', 'style:paragraph-properties');
+      const props = doc.createElementNS(
+        'urn:oasis:names:tc:opendocument:xmlns:style:1.0',
+        'style:paragraph-properties',
+      );
       if (style.ht === 1) props.setAttribute('fo:text-align', 'left');
       if (style.ht === 2) props.setAttribute('fo:text-align', 'center');
       if (style.ht === 3) props.setAttribute('fo:text-align', 'right');
@@ -469,7 +502,10 @@ function buildOdsCellStyles(
     }
 
     if (style.bl || style.cl) {
-      const props = doc.createElementNS('urn:oasis:names:tc:opendocument:xmlns:style:1.0', 'style:text-properties');
+      const props = doc.createElementNS(
+        'urn:oasis:names:tc:opendocument:xmlns:style:1.0',
+        'style:text-properties',
+      );
       if (style.bl === 1) props.setAttribute('fo:font-weight', 'bold');
       if (style.cl && typeof style.cl === 'object' && 'rgb' in style.cl && style.cl.rgb) {
         props.setAttribute('fo:color', style.cl.rgb);
@@ -504,7 +540,9 @@ function buildOdsCellStyles(
           continue;
         }
 
-        const cell = (sheet.cellData as Record<number, Record<number, { s?: string | IStyleData }>>)?.[rowIndex]?.[colIndex];
+        const cell = (
+          sheet.cellData as Record<number, Record<number, { s?: string | IStyleData }>>
+        )?.[rowIndex]?.[colIndex];
         const styleRef = cell?.s;
         const style =
           typeof styleRef === 'string'
@@ -522,7 +560,9 @@ function buildOdsCellStyles(
         }
 
         const existingStyleName = cellEl.getAttribute('table:style-name') ?? undefined;
-        const dataStyleName = existingStyleName ? existingDataStyleByCellStyle.get(existingStyleName) : undefined;
+        const dataStyleName = existingStyleName
+          ? existingDataStyleByCellStyle.get(existingStyleName)
+          : undefined;
         const key = JSON.stringify({
           bl: style.bl,
           cl: style.cl,
@@ -627,10 +667,7 @@ function patchOdsHiddenDimensions(buffer: ArrayBuffer, data: IWorkbookData): Arr
 }
 
 function escapeXmlText(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function escapeXmlAttr(value: string): string {
@@ -703,7 +740,13 @@ function mergeNotesFromOds(
 
   const noteData: Record<
     string,
-    Record<number, Record<number, { id: string; row: number; col: number; width: number; height: number; note: string }>>
+    Record<
+      number,
+      Record<
+        number,
+        { id: string; row: number; col: number; width: number; height: number; note: string }
+      >
+    >
   > = {};
   let counter = 0;
 
@@ -741,10 +784,7 @@ function writeNotesToOds(wb: XLSX.WorkBook, data: IWorkbookData): void {
   const res = data.resources?.find((r) => r.name === NOTE_RESOURCE);
   if (!res?.data) return;
 
-  let parsed: Record<
-    string,
-    Record<number, Record<number, { note?: string }>>
-  >;
+  let parsed: Record<string, Record<number, Record<number, { note?: string }>>>;
   try {
     parsed = JSON.parse(res.data);
   } catch {
@@ -781,6 +821,10 @@ function readWorkbook(buffer: ArrayBuffer, format: TabularFormat): XLSX.WorkBook
     const text = new TextDecoder().decode(new Uint8Array(buffer));
     return XLSX.read(text, { type: 'string', FS: '\t' });
   }
+  if (format === 'psv') {
+    const text = new TextDecoder().decode(new Uint8Array(buffer));
+    return XLSX.read(text, { type: 'string', FS: '|' });
+  }
   if (format === 'csv') {
     const text = new TextDecoder().decode(new Uint8Array(buffer));
     return XLSX.read(text, { type: 'string' });
@@ -798,6 +842,10 @@ export async function csvToWorkbookData(buffer: ArrayBuffer): Promise<IWorkbookD
 
 export async function tsvToWorkbookData(buffer: ArrayBuffer): Promise<IWorkbookData> {
   return tabularToWorkbookData(buffer, 'tsv');
+}
+
+export async function psvToWorkbookData(buffer: ArrayBuffer): Promise<IWorkbookData> {
+  return tabularToWorkbookData(buffer, 'psv');
 }
 
 async function tabularToWorkbookData(
@@ -1026,14 +1074,16 @@ export async function workbookDataToOds(data: IWorkbookData): Promise<Blob> {
 
     const columnData = (wsd.columnData ?? {}) as Record<string, { w?: number; hd?: number }>;
     const colEntries = Object.entries(columnData)
-      .filter(([, meta]) => typeof meta?.w === 'number' && meta.w > 0 || meta?.hd === 1)
+      .filter(([, meta]) => (typeof meta?.w === 'number' && meta.w > 0) || meta?.hd === 1)
       .sort((a, b) => Number(a[0]) - Number(b[0]));
     if (colEntries.length > 0) {
       const cols: Array<{ wpx?: number; wch?: number; hidden?: boolean }> = [];
       for (const [cKey, meta] of colEntries) {
         const c = Number(cKey);
         cols[c] = {
-          ...(typeof meta?.w === 'number' && meta.w > 0 ? { wpx: meta.w, wch: Math.max(0, meta.w / 7) } : {}),
+          ...(typeof meta?.w === 'number' && meta.w > 0
+            ? { wpx: meta.w, wch: Math.max(0, meta.w / 7) }
+            : {}),
           ...(meta?.hd === 1 ? { hidden: true } : {}),
         };
         if (c > maxCol) maxCol = c;
@@ -1043,14 +1093,16 @@ export async function workbookDataToOds(data: IWorkbookData): Promise<Blob> {
 
     const rowData = (wsd.rowData ?? {}) as Record<string, { h?: number; hd?: number }>;
     const rowEntries = Object.entries(rowData)
-      .filter(([, meta]) => typeof meta?.h === 'number' && meta.h > 0 || meta?.hd === 1)
+      .filter(([, meta]) => (typeof meta?.h === 'number' && meta.h > 0) || meta?.hd === 1)
       .sort((a, b) => Number(a[0]) - Number(b[0]));
     if (rowEntries.length > 0) {
       const rows: Array<{ hpx?: number; hpt?: number; hidden?: boolean }> = [];
       for (const [rKey, meta] of rowEntries) {
         const r = Number(rKey);
         rows[r] = {
-          ...(typeof meta?.h === 'number' && meta.h > 0 ? { hpx: meta.h, hpt: pxToPoints(meta.h) } : {}),
+          ...(typeof meta?.h === 'number' && meta.h > 0
+            ? { hpx: meta.h, hpt: pxToPoints(meta.h) }
+            : {}),
           ...(meta?.hd === 1 ? { hidden: true } : {}),
         };
         if (r > maxRow) maxRow = r;

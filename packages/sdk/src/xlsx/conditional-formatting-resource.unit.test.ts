@@ -4,6 +4,8 @@ import ExcelJS from 'exceljs';
 
 import {
   applyConditionalFormattingToXlsxWorksheet,
+  CONDITIONAL_FORMATTING_RESOURCE,
+  readConditionalFormattingFromSnapshot,
   readConditionalFormattingFromXlsx,
 } from './conditional-formatting-resource.js';
 
@@ -139,4 +141,34 @@ test('unmappable rules (beginsWith, duplicateValues) are skipped, not corrupted'
     out.map((r) => r.subType),
     ['rank'],
   );
+});
+
+test('a foreign rule with no style does not throw the export', async () => {
+  // A resource payload from another tool / future version may omit `style`.
+  // Export must tolerate it (cfStyleToDxf guards null) rather than aborting save.
+  const snapshot = {
+    resources: [
+      {
+        name: CONDITIONAL_FORMATTING_RESOURCE,
+        data: JSON.stringify({
+          'sheet-1': [
+            {
+              cfId: 'x',
+              ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+              stopIfTrue: false,
+              rule: { type: 'highlightCell', subType: 'number', operator: 'greaterThan', value: 5 },
+            },
+          ],
+        }),
+      },
+    ],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  const map = readConditionalFormattingFromSnapshot(snapshot);
+  const rules = map['sheet-1'] ?? [];
+  assert.equal(rules.length, 1);
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  assert.doesNotThrow(() => applyConditionalFormattingToXlsxWorksheet(ws, rules));
 });

@@ -174,7 +174,10 @@ function dxfToCfStyle(style: any): CfStyle {
   return out;
 }
 
-function cfStyleToDxf(style: CfStyle): Record<string, unknown> {
+function cfStyleToDxf(rawStyle: CfStyle | undefined | null): Record<string, unknown> {
+  // A foreign / partially-formed resource payload may carry a rule with no
+  // style; tolerate it rather than throwing and aborting the whole export.
+  const style = rawStyle ?? {};
   const out: Record<string, unknown> = {};
   const font: Record<string, unknown> = {};
   if (style.bl === 1) font.bold = true;

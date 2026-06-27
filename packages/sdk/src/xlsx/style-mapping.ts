@@ -70,6 +70,13 @@ const H_ALIGN_TO_EXCEL: Record<number, string> = {
   3: 'right',
 };
 
+// Cell indentation. Excel's `indent` is a level (each unit ≈ 3 spaces, OOXML);
+// Univer's `pd.l` is left padding in px (replacing the 2px default). One level
+// ≈ ~10px is a faithful approximation; the same constants run both directions
+// so the level round-trips exactly.
+const DEFAULT_LEFT_PADDING_PX = 2;
+const INDENT_STEP_PX = 10;
+
 // Univer VerticalAlign: 0 = default, 1 = TOP, 2 = MIDDLE, 3 = BOTTOM
 const V_ALIGN_FROM_EXCEL: Record<string, number> = {
   top: 1,
@@ -113,6 +120,13 @@ export function excelStyleToUniver(cell: ExcelJS.Cell): IStyleData | undefined {
     const rot = cell.alignment.textRotation as number | 'vertical' | undefined;
     if (rot === 'vertical') s.tr = { a: 0, v: 1 };
     else if (typeof rot === 'number' && rot !== 0) s.tr = { a: rot };
+    // Indentation. Excel stores a level (each ≈ 3 spaces per OOXML); Univer
+    // renders left padding in px (pd.l replaces the default). Map level → px so
+    // indented/outline data keeps its hierarchy instead of flattening.
+    const indent = cell.alignment.indent;
+    if (typeof indent === 'number' && indent > 0) {
+      s.pd = { l: DEFAULT_LEFT_PADDING_PX + indent * INDENT_STEP_PX };
+    }
   }
 
   if (cell.numFmt) s.n = { pattern: cell.numFmt };
@@ -182,6 +196,10 @@ export function univerStyleToExcel(style: IStyleData): Partial<ExcelJS.Style> {
     if (style.tr.v === 1) alignment.textRotation = 'vertical';
     else if (typeof style.tr.a === 'number' && style.tr.a !== 0)
       alignment.textRotation = style.tr.a;
+  }
+  if (typeof style.pd?.l === 'number') {
+    const level = Math.round((style.pd.l - DEFAULT_LEFT_PADDING_PX) / INDENT_STEP_PX);
+    if (level > 0) alignment.indent = level;
   }
   if (Object.keys(alignment).length > 0) out.alignment = alignment;
 

@@ -9,6 +9,10 @@ import {
   applyDataValidationToXlsxWorksheet,
   readDataValidationFromSnapshot,
 } from './data-validation-resource';
+import {
+  applyConditionalFormattingToXlsxWorksheet,
+  readConditionalFormattingFromSnapshot,
+} from './conditional-formatting-resource';
 import { applyTablesToXlsxWorksheet, readTablesFromSnapshot } from './tables-resource';
 import {
   applyPassthroughToXlsxBuffer,
@@ -100,6 +104,8 @@ export async function workbookDataToXlsxImpl(
   // Excel keeps its list / whole / date / etc. constraints — and the
   // round-trip via our pipeline doesn't quietly drop them.
   const dataValidationBySheet = readDataValidationFromSnapshot(data);
+  // Conditional-formatting highlight rules — same round-trip motivation.
+  const conditionalFormattingBySheet = readConditionalFormattingFromSnapshot(data);
   // Tables (xlsx ListObjects) round-trip through a passthrough
   // sidecar — Univer doesn't model them as first-class objects, so we
   // re-add via ExcelJS's `addTable` on save.
@@ -244,6 +250,10 @@ export async function workbookDataToXlsxImpl(
     // without any rules to avoid touching ExcelJS's lazy model.
     const dvRules = dataValidationBySheet[sheetId];
     if (dvRules?.length) applyDataValidationToXlsxWorksheet(ws, dvRules);
+
+    // Conditional-formatting highlight rules.
+    const cfRules = conditionalFormattingBySheet[sheetId];
+    if (cfRules?.length) applyConditionalFormattingToXlsxWorksheet(ws, cfRules);
 
     // Tables (xlsx ListObjects). Re-added before extras.hyperlinks so
     // any link written into a table cell still overrides the table's

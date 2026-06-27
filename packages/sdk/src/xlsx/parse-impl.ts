@@ -17,6 +17,10 @@ import {
   mergeDataValidationIntoResources,
   readDataValidationFromXlsx,
 } from './data-validation-resource';
+import {
+  mergeConditionalFormattingIntoResources,
+  readConditionalFormattingFromXlsx,
+} from './conditional-formatting-resource';
 import { mergeTablesIntoResources, readTablesFromXlsx } from './tables-resource';
 import {
   capturePassthroughFromBuffer,
@@ -256,6 +260,9 @@ export async function workbookFromExcelJs(buffer: ArrayBuffer): Promise<Imported
   // panel + enforced on edit), not just sitting in our sidecar.
   const xlsxDv = readDataValidationFromXlsx(wb, (excelId) => `sheet-${excelId}`);
   resources = mergeDataValidationIntoResources(resources, xlsxDv);
+
+  const xlsxCf = readConditionalFormattingFromXlsx(wb, (excelId) => `sheet-${excelId}`);
+  resources = mergeConditionalFormattingIntoResources(resources, xlsxCf);
 
   // xlsx ListObjects → passthrough table sidecar. Round-trips via
   // `ws.addTable(...)` on save so the table definition survives even

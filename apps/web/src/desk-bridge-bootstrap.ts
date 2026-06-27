@@ -117,6 +117,9 @@ if (typeof window !== 'undefined' && isDesktop()) {
         currentEditSeq?(): number;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getProfile?: () => Promise<any>;
+        writeRecovery?(bytes: ArrayBuffer): Promise<void>;
+        readRecovery?(): Promise<ArrayBuffer | null>;
+        clearRecovery?(): Promise<void>;
       }
     | undefined;
 
@@ -351,6 +354,28 @@ if (typeof window !== 'undefined' && isDesktop()) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async getProfile(): Promise<any> {
         return await inv('get_profile');
+      },
+      // Crash-recovery sidecars, keyed by the bound filePath. The editor
+      // serializes a debounced snapshot of unsaved edits and hands the opaque
+      // bytes here; the Rust side writes them atomically and refuses empty
+      // snapshots (mirrored below). A clean Save clears the sidecar; if the app
+      // is killed mid-edit it survives, and the next open offers to restore it.
+      // No-op while untitled (no path to key the sidecar on).
+      async writeRecovery(bytes: ArrayBuffer): Promise<void> {
+        if (!filePath || bytes.byteLength === 0) return;
+        await inv('write_recovery', {
+          path: filePath,
+          bytes: Array.from(new Uint8Array(bytes)),
+        });
+      },
+      async readRecovery(): Promise<ArrayBuffer | null> {
+        if (!filePath) return null;
+        const raw = await inv('read_recovery', { path: filePath });
+        return raw == null ? null : asArrayBuffer(raw);
+      },
+      async clearRecovery(): Promise<void> {
+        if (!filePath) return;
+        await inv('clear_recovery', { path: filePath });
       },
     };
   } else {
@@ -635,6 +660,15 @@ declare global {
       /** Idempotent: fade out + remove the cold-start boot overlay.
        *  Defined only in top-level desktop mode; safe to optional-chain. */
       dismissBoot?: () => void;
+      /** Crash-recovery sidecar I/O, keyed by the bound filePath. The editor
+       *  writes a debounced snapshot of unsaved edits via `writeRecovery`,
+       *  clears it on a clean Save via `clearRecovery`, and on open checks
+       *  `readRecovery` — a non-null result means the previous session ended
+       *  (crash/kill) with unsaved changes the user can restore. All three
+       *  no-op while untitled (no path to key on) and on web (no bridge). */
+      writeRecovery?(bytes: ArrayBuffer): Promise<void>;
+      readRecovery?(): Promise<ArrayBuffer | null>;
+      clearRecovery?(): Promise<void>;
     };
   }
 }

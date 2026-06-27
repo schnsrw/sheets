@@ -51,6 +51,8 @@ import { SparklinesProvider } from './sparklines/sparklines-context';
 import { SparklineLayer } from './sparklines/SparklineLayer';
 import { useAutosave } from './autosave/useAutosave';
 import { AutosaveRestoreBanner } from './autosave/AutosaveRestoreBanner';
+import { useDesktopRecoveryWriter } from './recovery/desktop-recovery';
+import { DesktopRecoveryBanner } from './recovery/DesktopRecoveryBanner';
 import { FileSourceProvider, useFileSource } from './file-source';
 import { AuthProvider, PersonalAuthGate } from './auth';
 import { useAuth } from './auth/auth-context';
@@ -591,6 +593,7 @@ export function App() {
                                 <BootDismissDriver />
                                 <FileDropDriver />
                                 <AutosaveDriver />
+                                <DesktopRecoveryDriver />
                                 <TouchPanDriver />
                                 <VersionHistoryDriver />
                                 <PreviewDriver />
@@ -612,6 +615,7 @@ export function App() {
                                             <TitleBar />
                                             <Toolbar />
                                             <AutosaveRestoreBanner />
+                                            <DesktopRecoveryBanner />
                                             <PreviewBanner />
                                             {formulaBarVisible && <FormulaBar />}
                                             <div className="grid-row">
@@ -842,6 +846,12 @@ function BootDismissDriver(): ReactNode {
 /** Effect-only — drives the IDB autosave loop. No-op in collab rooms. */
 function AutosaveDriver(): ReactNode {
   useAutosave();
+  return null;
+}
+
+/** Effect-only — desktop crash-recovery sidecar writer (no-op on web). */
+function DesktopRecoveryDriver(): ReactNode {
+  useDesktopRecoveryWriter();
   return null;
 }
 

@@ -53,6 +53,42 @@ test.describe('Name Manager', () => {
     await expect(page.getByTestId('name-manager-row')).toHaveCount(0);
   });
 
+  test('Create a worksheet-scoped name', async ({ page }) => {
+    await page.goto('/');
+    await waitForUniver(page);
+
+    const sheetName = await page.evaluate(() => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ws = api.getActiveWorkbook()!.getActiveSheet() as any;
+      return ws.getSheetName() as string;
+    });
+
+    await page.keyboard.press('Control+F3');
+    await page.getByTestId('name-manager-new').click();
+    await page.getByTestId('name-manager-name-input').fill('LocalRange');
+    await page.getByTestId('name-manager-ref-input').fill(`${sheetName}!$A$1:$A$5`);
+    // Scope it to the active sheet (not Workbook).
+    await page.getByTestId('name-manager-scope-select').selectOption({ label: sheetName });
+    await page.getByTestId('name-manager-save').click();
+
+    // The row shows the sheet name in the Scope column.
+    const scopeCell = page.getByTestId('name-manager-scope').first();
+    await expect(scopeCell).toHaveText(sheetName);
+
+    // Univer stored it as sheet-scoped (localSheetId = the sheet's id, not the
+    // workbook sentinel).
+    const scoped = await page.evaluate((name) => {
+      const api = window.__univerAPI!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wb = api.getActiveWorkbook() as any;
+      const sheetId = wb.getActiveSheet().getSheetId();
+      const dn = wb.getDefinedName(name);
+      return dn?.getLocalSheetId?.() === sheetId;
+    }, 'LocalRange');
+    expect(scoped).toBe(true);
+  });
+
   test('Create rejects blank name', async ({ page }) => {
     await page.goto('/');
     await waitForUniver(page);

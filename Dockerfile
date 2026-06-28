@@ -25,8 +25,12 @@ RUN corepack enable && corepack prepare pnpm@10.33.4 --activate
 WORKDIR /repo
 
 # Copy lockfile + workspace manifest first so Docker can cache the dep
-# install across source-only changes.
+# install across source-only changes. `patches/` carries the pnpm
+# `patchedDependencies` files (e.g. exceljs@4.4.0) referenced from
+# package.json — without it `pnpm install --frozen-lockfile` aborts with
+# ENOENT on the patch path.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches patches
 
 # The fork's `link:` overrides in package.json resolve to
 # vendor/univer-revamp/packages/<name>. The host CI runs
@@ -101,8 +105,11 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 # Copy lockfile + manifests + workspace config — required for `pnpm install
-# --prod` to resolve the workspace graph cleanly.
+# --prod` to resolve the workspace graph cleanly. `patches/` must come along
+# too — package.json's `pnpm.patchedDependencies` points at it and the prod
+# install fails ENOENT without it.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches patches
 
 # Same fork copy as in the deps stage — runtime needs the package.jsons
 # + lib/ outputs at vendor/univer-revamp/packages/* so the override

@@ -219,3 +219,49 @@ export function filterAllowedCount(
   if (!f) return allCount;
   return f.allowedValues.length ? f.allowedValues.length : allCount;
 }
+
+/** What's being dragged in the Fields pane — a not-yet-placed source field
+ *  from the field list, or an already-placed chip in a zone. */
+export type DragPayload =
+  | { from: 'list'; column: number }
+  | { from: 'zone'; zone: ZoneId; index: number };
+
+/** The source column held by a placed chip (Values address by index since a
+ *  column can repeat there). */
+function columnInZone(model: PivotModel, zone: ZoneId, index: number): number | null {
+  const arr =
+    zone === 'values' ? model.values : zone === 'filters' ? (model.filters ?? []) : model[zone];
+  return arr[index]?.column ?? null;
+}
+
+/**
+ * Resolve a drag-and-drop drop onto a zone into a model change.
+ *
+ * - From the field list → assign the column to the target zone (same as the
+ *   click "+" menu).
+ * - From another zone → move the field (remove from source, add to target).
+ *   Dropping onto the same zone is a no-op here — within-zone reorder is the
+ *   chip's ▲▼ buttons (a remove+re-add would discard a Values entry's
+ *   aggregation). Moving the last Values field out is also a no-op so the
+ *   pivot never goes value-less (matches the remove-button guard).
+ *
+ * `optsFor(column)` supplies the per-column defaults (Sum vs Count for a new
+ * Values entry; the full distinct set for a new report filter) — kept as a
+ * callback so this stays pure + unit-testable without source access.
+ */
+export function applyDrop(
+  model: PivotModel,
+  payload: DragPayload,
+  targetZone: ZoneId,
+  optsFor: (column: number) => { defaultAgg?: PivotAggregation; allowedValues?: string[] },
+): PivotModel {
+  if (payload.from === 'list') {
+    return addFieldToZone(model, payload.column, targetZone, optsFor(payload.column));
+  }
+  if (payload.zone === targetZone) return model;
+  const column = columnInZone(model, payload.zone, payload.index);
+  if (column == null) return model;
+  if (payload.zone === 'values' && model.values.length <= 1) return model;
+  const removed = removeFieldFromZone(model, payload.zone, payload.index);
+  return addFieldToZone(removed, column, targetZone, optsFor(column));
+}

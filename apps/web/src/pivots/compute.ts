@@ -407,7 +407,40 @@ function computeMatrix(source: SourceMatrix, model: PivotModel): PivotComputeRes
   grid.push(['Grand Total', ...valueCellsFor(filteredRecords)]);
   rowMeta.push({ kind: 'grand-total' });
 
+  // "Show Values As → % of Grand Total" for the cross-tab layout: every value
+  // cell of a flagged field becomes its share of that field's overall grand
+  // total (the bottom-right cell — last row's grand-total column for the field).
+  applyMatrixShowAsPercent(grid, colMeta, values, multiValue ? 2 : 1);
+
   return { grid, rowMeta, colMeta };
+}
+
+/** Cross-tab analogue of {@link applyShowAsPercent}: divide every value cell of
+ *  each `pctOfGrandTotal` field by that field's overall grand total (the bottom
+ *  row's grand-total column). Mutates `grid` in place; header rows are skipped. */
+function applyMatrixShowAsPercent(
+  grid: PivotGrid,
+  colMeta: PivotColMeta[],
+  values: PivotValueField[],
+  headerRows: number,
+): void {
+  const lastRow = grid.length - 1;
+  if (lastRow < headerRows) return;
+  values.forEach((v, vi) => {
+    if (v.showAs !== 'pctOfGrandTotal') return;
+    const gtCol = colMeta.findIndex((m) => m.kind === 'grand-total' && m.valueIndex === vi);
+    if (gtCol < 0) return;
+    const denom = Number(grid[lastRow][gtCol]);
+    const cols = colMeta
+      .map((m, i) => (m.kind !== 'label' && m.valueIndex === vi ? i : -1))
+      .filter((i) => i >= 0);
+    for (let r = headerRows; r < grid.length; r++) {
+      for (const c of cols) {
+        const n = Number(grid[r][c]);
+        grid[r][c] = denom && Number.isFinite(n) ? `${((n / denom) * 100).toFixed(1)}%` : '0.0%';
+      }
+    }
+  });
 }
 
 /** Coerce a cell value to its string bucket key (null/empty → ''). */

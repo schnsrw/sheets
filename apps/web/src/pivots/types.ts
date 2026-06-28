@@ -27,7 +27,20 @@ export const PIVOT_AGG_LABELS: Record<PivotAggregation, string> = {
 };
 
 /** Pivot field reference — column index within the source range. */
-export type PivotFieldRef = { column: number };
+/** Date grouping for a (date) row field — buckets records by the derived
+ *  period instead of the raw date. 'none' keys by the raw value. */
+export type DateGrouping = 'none' | 'year' | 'quarter' | 'month';
+
+export const PIVOT_DATE_GROUP_LABELS: Record<DateGrouping, string> = {
+  none: 'No grouping',
+  year: 'Years',
+  quarter: 'Quarters',
+  month: 'Months',
+};
+
+/** Pivot field reference — column index within the source range, plus an
+ *  optional date grouping applied when bucketing rows. */
+export type PivotFieldRef = { column: number; grouping?: DateGrouping };
 
 /** Pivot value field — a column to aggregate + the aggregation. */
 /** How a value field is displayed. 'normal' = the raw aggregate;

@@ -2565,6 +2565,7 @@ export function MenuBar() {
             source,
             target,
             rowFieldColumns,
+            rowGrouping,
             colFieldColumns,
             valueFields,
             filters,
@@ -2591,7 +2592,11 @@ export function MenuBar() {
               // range too. The dialog already gives us the in-range index, which
               // matches what compute.ts expects. The array is outer-first; an
               // empty array means Grand-Total-only.
-              rows: rowFieldColumns.map((column) => ({ column })),
+              // Date grouping applies to the primary (outermost) row field.
+              rows: rowFieldColumns.map((column, i) => ({
+                column,
+                grouping: i === 0 ? rowGrouping : undefined,
+              })),
               // A non-empty cols list switches compute.ts to the cross-tab
               // / matrix layout (value fans out one block per distinct
               // column-field value). Empty keeps the classic row layout.

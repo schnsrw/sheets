@@ -3,7 +3,9 @@ import { Dialog } from '../shell/Dialog';
 import type { FUniver } from '@univerjs/core/facade';
 import {
   PIVOT_AGG_LABELS,
+  PIVOT_DATE_GROUP_LABELS,
   PIVOT_SHOW_AS_LABELS,
+  type DateGrouping,
   type PivotAggregation,
   type PivotFilter,
   type PivotShowAs,
@@ -19,6 +21,8 @@ type Props = {
     target: { row: number; column: number };
     /** Outermost row field first; an empty array means Grand-Total-only. */
     rowFieldColumns: number[];
+    /** Date grouping for the primary (outermost) row field. */
+    rowGrouping: DateGrouping;
     /** Column fields → cross-tab / matrix layout. Empty means no column
      *  field (the classic single-column-per-value layout). P2 ships a
      *  single column field; the array shape leaves room for nesting. */
@@ -56,6 +60,8 @@ export function InsertPivotDialog({ api, defaultSourceA1, onCancel, onConfirm }:
   // grouping. -1 means "no sub-row". A full drag-and-drop field list
   // (Excel's PivotTable Fields pane) is still deferred.
   const [subRowField, setSubRowField] = useState<number>(-1);
+  // Optional date grouping for the primary row field (Year/Quarter/Month).
+  const [rowGrouping, setRowGrouping] = useState<DateGrouping>('none');
   // P2 — optional column field → cross-tab / matrix layout. -1 means
   // "no column field" (classic row-only layout). When set, the value
   // field fans out across one column per distinct value of this field.
@@ -175,6 +181,7 @@ export function InsertPivotDialog({ api, defaultSourceA1, onCancel, onConfirm }:
       source,
       target,
       rowFieldColumns,
+      rowGrouping,
       colFieldColumns,
       valueFields: valueFields.map((v) => ({
         column: v.column,
@@ -283,6 +290,22 @@ export function InsertPivotDialog({ api, defaultSourceA1, onCancel, onConfirm }:
               {headers.map((h, i) => (
                 <option key={i} value={i}>
                   {h}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="insert-pivot__field">
+            <span className="insert-pivot__field-label">Group dates by</span>
+            <select
+              className="insert-pivot__select"
+              data-testid="insert-pivot-row-grouping"
+              value={rowGrouping}
+              onChange={(e) => setRowGrouping(e.target.value as DateGrouping)}
+              disabled={headers.length === 0}
+            >
+              {(Object.keys(PIVOT_DATE_GROUP_LABELS) as DateGrouping[]).map((g) => (
+                <option key={g} value={g}>
+                  {PIVOT_DATE_GROUP_LABELS[g]}
                 </option>
               ))}
             </select>

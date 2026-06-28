@@ -75,6 +75,7 @@
   },
   "peerDependencies": {
     "@univerjs/core": "^0.25.0",
+    "@univerjs/data-validation": "^0.25.0",
     "@univerjs/design": "^0.25.0",
     "@univerjs/docs": "^0.25.0",
     "@univerjs/docs-mention-ui": "^0.25.0",
@@ -121,6 +122,9 @@
   },
   "peerDependenciesMeta": {
     "@univerjs/core": {
+      "optional": true
+    },
+    "@univerjs/data-validation": {
       "optional": true
     },
     "@univerjs/design": {
@@ -258,6 +262,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@univerjs/core": "0.25.0",
+    "@univerjs/data-validation": "0.25.0",
     "@univerjs/design": "0.25.0",
     "@univerjs/docs": "0.25.0",
     "@univerjs/docs-mention-ui": "0.25.0",

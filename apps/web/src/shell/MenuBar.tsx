@@ -61,6 +61,7 @@ import { GoToSpecialDialog } from './GoToSpecialDialog';
 import { RemoveDuplicatesDialog } from './RemoveDuplicatesDialog';
 import { CustomListSortDialog } from './CustomListSortDialog';
 import { ColorSortDialog } from './ColorSortDialog';
+import { EvaluateFormulaDialog } from './EvaluateFormulaDialog';
 import { TextToColumnsDialog } from './TextToColumnsDialog';
 import { SubtotalsDialog } from './SubtotalsDialog';
 import { AdvancedFilterDialog } from './AdvancedFilterDialog';
@@ -480,6 +481,7 @@ export function MenuBar() {
   const [showRemoveDuplicates, setShowRemoveDuplicates] = useState(false);
   const [showCustomListSort, setShowCustomListSort] = useState(false);
   const [showColorSort, setShowColorSort] = useState(false);
+  const [showEvaluateFormula, setShowEvaluateFormula] = useState(false);
   const [showTextToColumns, setShowTextToColumns] = useState(false);
   const [showSubtotals, setShowSubtotals] = useState(false);
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
@@ -2476,6 +2478,14 @@ export function MenuBar() {
             outlineActions.ungroupSelection();
           },
         },
+        { kind: 'separator', id: 'sep-formula-audit' },
+        {
+          kind: 'item',
+          id: 'evaluate-formula',
+          label: 'Evaluate Formula…',
+          icon: 'troubleshoot',
+          onClick: () => setShowEvaluateFormula(true),
+        },
       ],
     },
     help: {
@@ -2751,6 +2761,9 @@ export function MenuBar() {
       )}
       {showColorSort && api && (
         <ColorSortDialog api={api} onClose={() => setShowColorSort(false)} />
+      )}
+      {showEvaluateFormula && api && (
+        <EvaluateFormulaDialog api={api} onClose={() => setShowEvaluateFormula(false)} />
       )}
       {showTextToColumns && api && (
         <TextToColumnsDialog api={api} onClose={() => setShowTextToColumns(false)} />

@@ -1,4 +1,10 @@
-import type { PivotAggregation, PivotModel, PivotValueField } from './types';
+import type {
+  DateGrouping,
+  PivotAggregation,
+  PivotFieldRef,
+  PivotModel,
+  PivotValueField,
+} from './types';
 import { PIVOT_AGG_LABELS } from './types';
 
 /**
@@ -160,7 +166,7 @@ export function computePivot(source: SourceMatrix, model: PivotModel): PivotComp
 
   // Build the nested bucket tree. Each level keys by the value of the
   // corresponding row field; leaves hold the contributing record list.
-  const root = buildTree(filteredRecords, rowFieldCols);
+  const root = buildTree(filteredRecords, model.rows);
 
   // Walk the tree in compact-layout order. For each row-field level we
   // emit either a subtotal row (intermediate levels) or a leaf row
@@ -377,7 +383,7 @@ function computeMatrix(source: SourceMatrix, model: PivotModel): PivotComputeRes
     return { grid, rowMeta, colMeta };
   }
 
-  const root = buildTree(filteredRecords, rowFieldCols);
+  const root = buildTree(filteredRecords, model.rows);
   const walk = (node: TreeNode, keyPath: string[], depth: number): void => {
     const keys = [...node.children.keys()].sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true }),
@@ -409,18 +415,61 @@ function keyOf(v: PivotCell): string {
   return v == null ? '' : String(v);
 }
 
+/** Excel serial number → {year, month(0-11)} (UTC), inverting the 1900
+ *  leap-bug offset our importer applies (parse-impl `excelSerialFromDate`). */
+function partsFromSerial(serial: number): { y: number; m: number } {
+  const base = Date.UTC(1900, 0, 1);
+  let days = Math.floor(serial) - 1;
+  if (serial >= 60) days -= 1; // undo Excel's fictitious 1900-02-29
+  const d = new Date(base + days * 86_400_000);
+  return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
+}
+
+/** Resolve a cell value to {year, month(0-11)}, handling both shapes dates take
+ *  in this app: an Excel serial number (imported xlsx) and a date string like
+ *  "2025/01/10" or "2025-01-10" (a DATE() formula / typed date). Returns null
+ *  when the value isn't a recognisable date. */
+function dateParts(value: PivotCell): { y: number; m: number } | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return partsFromSerial(value);
+  const s = typeof value === 'string' ? value.trim() : '';
+  if (s === '') return null;
+  if (/^\d+(\.\d+)?$/.test(s)) return partsFromSerial(Number(s)); // numeric string → serial
+  const ymd = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(s);
+  if (ymd) return { y: Number(ymd[1]), m: Number(ymd[2]) - 1 };
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) {
+    const d = new Date(t);
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
+  }
+  return null;
+}
+
+/** Bucket a row-field value for date grouping. 'none' (or a value that isn't a
+ *  recognisable date) returns the raw key; year/quarter/month derive a period
+ *  key. Keys sort lexicographically into chronological order (e.g. "2025-01" <
+ *  "2025-02", "2025-Q1" < "2025-Q2"). */
+export function dateGroupKey(value: PivotCell, grouping: DateGrouping): string {
+  if (grouping === 'none') return keyOf(value);
+  const parts = dateParts(value);
+  if (!parts) return keyOf(value);
+  const { y, m } = parts;
+  if (grouping === 'year') return String(y);
+  if (grouping === 'quarter') return `${y}-Q${Math.floor(m / 3) + 1}`;
+  return `${y}-${String(m + 1).padStart(2, '0')}`; // month
+}
+
 type TreeNode = {
   records: PivotCell[][];
   children: Map<string, TreeNode>;
 };
 
-function buildTree(records: PivotCell[][], rowFieldCols: number[]): TreeNode {
+function buildTree(records: PivotCell[][], rowFields: PivotFieldRef[]): TreeNode {
   const root: TreeNode = { records: [], children: new Map() };
   for (const rec of records) {
     let node = root;
     node.records.push(rec);
-    for (const col of rowFieldCols) {
-      const key = rec[col] == null ? '' : String(rec[col]);
+    for (const field of rowFields) {
+      const key = dateGroupKey(rec[field.column], field.grouping ?? 'none');
       let child = node.children.get(key);
       if (!child) {
         child = { records: [], children: new Map() };

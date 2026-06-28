@@ -2634,10 +2634,20 @@ export function MenuBar() {
         <PageSetupDialog
           initial={loadPrintOptions()}
           onCancel={() => setShowPageSetup(false)}
-          onPrint={(options) => {
+          onPrint={async (options) => {
             savePrintOptions(options);
             setShowPageSetup(false);
             if (!api) return;
+            // Desktop (WebKitGTK): printing via a hidden iframe's
+            // window.print() is unreliable in the Tauri webview, so route Print
+            // through the host print-to-PDF (the user prints the saved PDF from
+            // their OS viewer). Web keeps the real print dialog.
+            if (isDesktop()) {
+              const r = await exportActiveSheetPdf(api);
+              if (r.ok) toast.success('Saved PDF to print');
+              else if (r.reason === 'empty') toast.info('Nothing to print — add some data first.');
+              return;
+            }
             const result = printActiveSheet(api, options);
             if (result.ok) return;
             // Soft-guard refusal (#50): one big HTML table OOMs the

@@ -606,8 +606,20 @@ if (typeof window !== 'undefined' && isDesktop()) {
         typeof window.matchMedia === 'function'
           ? window.matchMedia('(prefers-color-scheme: dark)')
           : null;
-      const resolve = (mode: 'system' | 'light' | 'dark'): 'light' | 'dark' =>
-        mode === 'system' ? (mq?.matches ? 'dark' : 'light') : mode;
+      // Match the launcher CSS, which is the theme the user actually sees:
+      // `:root[data-theme='system']` defaults to the DARK token set and only
+      // flips light under `@media (prefers-color-scheme: light)`. So `system`
+      // is dark UNLESS the OS explicitly reports a light preference. WebKitGTK
+      // frequently reports neither (matchMedia('dark') === false even in a dark
+      // session); defaulting those cases to light rendered the grid light while
+      // the launcher chrome was dark. Mirror the launcher's dark-default.
+      const resolve = (mode: 'system' | 'light' | 'dark'): 'light' | 'dark' => {
+        if (mode === 'light' || mode === 'dark') return mode;
+        return typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light'
+          : 'dark';
+      };
 
       const reapply = () => {
         const resolved = resolve(themeMode);

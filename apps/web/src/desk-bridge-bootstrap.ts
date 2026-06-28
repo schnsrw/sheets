@@ -741,8 +741,15 @@ if (typeof window !== 'undefined' && isDesktop()) {
         // settle. Reveal the window now that the overlay is painted; the shell
         // also reveals it on page-load as a fallback.
         try {
+          // `.show()` returns a Promise; a sync try/catch won't catch an async
+          // rejection (e.g. the window:show ACL denying it), which then surfaces
+          // as an unhandled rejection (and pops the error banner). Swallow it —
+          // the shell also reveals the window on page-load, so this is best-effort.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).__TAURI__?.window?.getCurrentWindow?.()?.show?.();
+          void (window as any).__TAURI__?.window
+            ?.getCurrentWindow?.()
+            ?.show?.()
+            ?.catch?.(() => {});
         } catch {
           /* not in the desktop shell — no-op */
         }

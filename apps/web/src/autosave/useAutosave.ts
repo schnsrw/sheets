@@ -8,6 +8,7 @@ import {
 import { useUniverAPI } from '../use-univer';
 import { useWorkbook } from '../use-workbook';
 import { useCollab } from '../collab/collab-context';
+import { isDesktop } from '../desk-bridge-bootstrap';
 import { timeIt } from '../perf';
 import { runWhenIdle, type IdleHandle } from '../idle';
 import { clearAutosave, writeAutosave } from './store';
@@ -39,6 +40,12 @@ export function useAutosave(): void {
   useEffect(() => {
     if (!api) return;
     if (collab.roomId) return; // covered by the room server
+    // Desktop (Casual Office shell): crash-recovery is handled by
+    // `useDesktopRecoveryWriter`, which writes a sidecar next to the file ON
+    // DISK via the bridge. Caching the whole workbook in IndexedDB too would be
+    // redundant and contradicts the app's "files stay on disk, no browser
+    // storage" promise — so skip the IDB autosave entirely on desktop.
+    if (isDesktop()) return;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const injector = (api as any)._injector as { get: (t: unknown) => unknown } | undefined;

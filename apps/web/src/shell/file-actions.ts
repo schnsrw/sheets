@@ -22,6 +22,7 @@ import {
 } from '../ods';
 import { selectFileSource } from '../file-source';
 import type { SaveResult } from '../file-source';
+import { isDesktop } from '../desk-bridge-bootstrap';
 
 /**
  * File-level imperative actions. Pure functions — the caller owns React state
@@ -139,16 +140,20 @@ export async function loadSpreadsheetFile(
   // (`data.__pendingHyperlinks`) + per-link AddHyperLinkCommand replay
   // is gone — that was O(N) awaited round-trips per open.
 
-  // Capture into the recent-files list so the landing screen can
-  // surface this file next visit. Fire-and-forget — IDB failures are
-  // non-fatal for the open path.
-  void recordRecentFile({
-    name: file.name,
-    sourceFormat: format,
-    data,
-    size: file.size,
-    openedAt: Date.now(),
-  }).catch((err) => console.warn('[recent-files] capture failed', err));
+  // Capture into the recent-files list so the landing screen can surface this
+  // file next visit. Fire-and-forget — IDB failures are non-fatal for the open
+  // path. Skipped on desktop: recents there are owned by the Rust shell
+  // (recent.json), and this store also keeps the full workbook `data` in IDB,
+  // which would cache file content in browser storage on a local-only app.
+  if (!isDesktop()) {
+    void recordRecentFile({
+      name: file.name,
+      sourceFormat: format,
+      data,
+      size: file.size,
+      openedAt: Date.now(),
+    }).catch((err) => console.warn('[recent-files] capture failed', err));
+  }
 }
 
 export type SaveOptions = {

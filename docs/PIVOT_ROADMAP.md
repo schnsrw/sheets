@@ -107,12 +107,20 @@ pivot's output switches the pane to that pivot (via `findPivotAtCell`),
 Excel-style; clicking away leaves it on the last one. e2e:
 `pivot-fields-autofollow.spec.ts`.
 
-**Slice 3b (next) — drag-and-drop between zones.** Layered on the same
-`fields-model` ops (the drop reducer is just `addFieldToZone` /
-`moveWithinZone`). Click-to-assign stays as the reliable / accessible path;
-DnD is the polish layer. Note: HTML5 DnD is flaky to e2e in Playwright, so the
-plan is unit-tested drop logic + a tolerant drag spec rather than relying on a
-brittle native-drag test.
+**Slice 3b — drag-and-drop between zones (shipped).** Field-list items and
+placed chips are draggable; dropping onto a zone assigns / moves the field via
+a pure `applyDrop` reducer (built on `addFieldToZone` / `removeFieldFromZone`).
+Within-zone reorder stays on the chip ▲▼ buttons (a DnD remove+re-add would
+discard a Values entry's aggregation); moving the last Values field out is a
+no-op. Click-to-assign remains as the reliable / accessible path. `applyDrop`
+is unit-tested; the native drag is e2e-tested (`pivot-fields-dnd.spec.ts`),
+stable under Playwright's `dragTo`.
+
+**The Fields pane is now feature-complete** for everyday use: field list + four
+zones, click-assign + drag-and-drop, remove / reorder, Values agg +
+Show-Values-As, Rows date-grouping, working report filters, and auto-follow.
+What remains for full Excel parity is the **live, refreshable pivot object**
+below (a larger, separate effort).
 
 **Live, refreshable pivot object.** Today a pivot is materialised cells + a
 model resource; "refresh" re-runs compute. A true live object (auto-refresh on

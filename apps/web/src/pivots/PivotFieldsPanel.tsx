@@ -34,6 +34,7 @@ import {
 import {
   ZONE_LABELS,
   addFieldToZone,
+  applyDrop,
   axisOf,
   filterAllowedCount,
   hasValues,
@@ -44,6 +45,7 @@ import {
   toggleFilterValue,
   updateRowGrouping,
   updateValueField,
+  type DragPayload,
   type ZoneId,
 } from './fields-model';
 
@@ -59,7 +61,8 @@ import {
  * editing, Rows date-grouping, and a per-value checklist on report filters
  * (Filters zone) that actually narrows the source records. The pane also
  * auto-follows the active selection — clicking into a pivot switches to it.
- * Drag-and-drop between zones is the remaining slice.
+ * Fields and chips are draggable: drop a field-list item or a chip onto a
+ * zone to assign / move it (within-zone reorder stays on the chip ▲▼ buttons).
  */
 
 type SourceView = {
@@ -172,6 +175,26 @@ export function PivotFieldsPanel() {
 
   const placed = model ? placedColumns(model) : new Set<number>();
 
+  // Per-column defaults for drag-and-drop / click assignment: numeric
+  // columns default to Sum in Values, text to Count; a new report filter
+  // starts with every value allowed.
+  const optsFor = (col: number) => ({
+    defaultAgg: source.isNumeric(col) ? ('sum' as const) : ('count' as const),
+    allowedValues: source.distinct(col),
+  });
+
+  // A field (from the list or another zone) was dropped on a zone.
+  const onZoneDrop = (zone: ZoneId, raw: string) => {
+    if (!model || !raw) return;
+    let payload: DragPayload;
+    try {
+      payload = JSON.parse(raw) as DragPayload;
+    } catch {
+      return;
+    }
+    commit(applyDrop(model, payload, zone, optsFor));
+  };
+
   return (
     <aside className="side-panel pivot-fields-panel" data-testid="pivot-fields-panel">
       <header className="side-panel__header">
@@ -232,7 +255,20 @@ export function PivotFieldsPanel() {
                   const badge =
                     ax === 'rows' ? 'R' : ax === 'cols' ? 'C' : ax === 'filters' ? '▽' : '';
                   return (
-                    <li key={col} className="pivot-fields-panel__field">
+                    <li
+                      key={col}
+                      className="pivot-fields-panel__field"
+                      draggable
+                      data-testid={`pivot-fields-field-${col}`}
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData(
+                          'text/plain',
+                          JSON.stringify({ from: 'list', column: col }),
+                        );
+                      }}
+                    >
+                      <Icon name="drag_indicator" size="sm" className="pivot-fields-panel__grip" />
                       <span
                         className={`pivot-fields-panel__field-dot${
                           placed.has(col) ? ' pivot-fields-panel__field-dot--on' : ''
@@ -298,6 +334,7 @@ export function PivotFieldsPanel() {
               <Zone
                 zone="filters"
                 model={model}
+                onDrop={onZoneDrop}
                 renderChip={(col, i) => {
                   const all = source.distinct(col);
                   const allowed = filterAllowedCount(model, i, all.length);
@@ -371,6 +408,7 @@ export function PivotFieldsPanel() {
               <Zone
                 zone="cols"
                 model={model}
+                onDrop={onZoneDrop}
                 renderChip={(col, i) => (
                   <Chip
                     key={`c-${i}`}
@@ -386,6 +424,7 @@ export function PivotFieldsPanel() {
               <Zone
                 zone="rows"
                 model={model}
+                onDrop={onZoneDrop}
                 renderChip={(col, i) => (
                   <Chip
                     key={`r-${i}`}
@@ -417,6 +456,7 @@ export function PivotFieldsPanel() {
               <Zone
                 zone="values"
                 model={model}
+                onDrop={onZoneDrop}
                 renderChip={(col, i) => (
                   <Chip
                     key={`v-${i}`}
@@ -486,16 +526,21 @@ export function PivotFieldsPanel() {
   );
 }
 
-/** One drop zone (Filters / Columns / Rows / Values) with its chips. */
+/** One drop zone (Filters / Columns / Rows / Values) with its chips. A
+ *  drag-and-drop target: dropping a field-list item or another zone's chip
+ *  here re-applies the pivot via `onDrop`. */
 function Zone({
   zone,
   model,
   renderChip,
+  onDrop,
 }: {
   zone: ZoneId;
   model: PivotModel;
   renderChip: (column: number, index: number) => React.ReactNode;
+  onDrop: (zone: ZoneId, raw: string) => void;
 }) {
+  const [over, setOver] = useState(false);
   const entries: number[] =
     zone === 'values'
       ? model.values.map((v) => v.column)
@@ -504,7 +549,25 @@ function Zone({
         : model[zone].map((e) => e.column);
 
   return (
-    <section className="pivot-fields-panel__zone" data-testid={`pivot-fields-zone-${zone}`}>
+    <section
+      className={`pivot-fields-panel__zone${over ? ' pivot-fields-panel__zone--over' : ''}`}
+      data-testid={`pivot-fields-zone-${zone}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!over) setOver(true);
+      }}
+      onDragLeave={(e) => {
+        // Only clear when the pointer actually leaves the zone, not when it
+        // crosses onto a child element.
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        onDrop(zone, e.dataTransfer.getData('text/plain'));
+      }}
+    >
       <h4 className="pivot-fields-panel__zone-title">{ZONE_LABELS[zone]}</h4>
       <div className="pivot-fields-panel__zone-body">
         {entries.length === 0 ? (
@@ -536,8 +599,17 @@ function Chip({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="pivot-fields-panel__chip" data-testid={`pivot-fields-chip-${zone}-${index}`}>
+    <div
+      className="pivot-fields-panel__chip"
+      data-testid={`pivot-fields-chip-${zone}-${index}`}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', JSON.stringify({ from: 'zone', zone, index }));
+      }}
+    >
       <div className="pivot-fields-panel__chip-head">
+        <Icon name="drag_indicator" size="sm" className="pivot-fields-panel__grip" />
         <span className="pivot-fields-panel__chip-label" title={label}>
           {label}
         </span>

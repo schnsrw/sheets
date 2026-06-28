@@ -2175,6 +2175,25 @@ button {
   padding: var(--space-2);
   min-height: 64px;
   background: var(--color-surface);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+/* Drop-target highlight while a field/chip is dragged over the zone. */
+.pivot-fields-panel__zone--over {
+  border-color: var(--color-accent, #107c41);
+  border-style: dashed;
+  background: var(--color-accent-soft, rgba(16, 124, 65, 0.08));
+}
+/* Drag grip on field-list rows + chips. */
+.pivot-fields-panel__grip {
+  flex: 0 0 auto;
+  color: var(--color-text-disabled);
+  cursor: grab;
+}
+.pivot-fields-panel__field,
+.pivot-fields-panel__chip {
+  cursor: grab;
 }
 .pivot-fields-panel__zone-body {
   display: flex;

@@ -19,6 +19,7 @@ import { test } from 'node:test';
 
 import {
   addFieldToZone,
+  applyDrop,
   axisOf,
   filterAllowedCount,
   hasValues,
@@ -185,4 +186,54 @@ test('filterAllowedCount treats an empty list as "all"', () => {
   assert.equal(filterAllowedCount(m, 0, ALL.length), 4, 'empty = all');
   const narrowed = toggleFilterValue(m, 0, 'North', false, ALL);
   assert.equal(filterAllowedCount(narrowed, 0, ALL.length), 3);
+});
+
+// optsFor stub: numeric-ish defaults for the drop reducer.
+const optsFor = (col: number) => ({
+  defaultAgg: 'sum' as const,
+  allowedValues: col === 2 ? ['x', 'y'] : [],
+});
+
+test('applyDrop from the list assigns to the target zone', () => {
+  const m = applyDrop(baseModel(), { from: 'list', column: 2 }, 'cols', optsFor);
+  assert.deepEqual(
+    m.cols.map((c) => c.column),
+    [2],
+  );
+});
+
+test('applyDrop moving a chip across zones removes from source, adds to target', () => {
+  // baseModel rows=[0]; drag the Rows chip (index 0) to Columns.
+  const m = applyDrop(baseModel(), { from: 'zone', zone: 'rows', index: 0 }, 'cols', optsFor);
+  assert.equal(m.rows.length, 0, 'left Rows');
+  assert.deepEqual(
+    m.cols.map((c) => c.column),
+    [0],
+    'now in Columns',
+  );
+});
+
+test('applyDrop onto the same zone is a no-op (reorder is the buttons)', () => {
+  const m = baseModel();
+  assert.equal(applyDrop(m, { from: 'zone', zone: 'rows', index: 0 }, 'rows', optsFor), m);
+});
+
+test('applyDrop refuses to move the last Values field out', () => {
+  const m = baseModel(); // values has exactly one entry
+  assert.equal(applyDrop(m, { from: 'zone', zone: 'values', index: 0 }, 'rows', optsFor), m);
+});
+
+test('applyDrop moving a non-last Values field to Rows works', () => {
+  let m = addFieldToZone(baseModel(), 2, 'values', { defaultAgg: 'count' }); // 2 values now
+  m = applyDrop(m, { from: 'zone', zone: 'values', index: 0 }, 'rows', optsFor);
+  assert.equal(m.values.length, 1, 'one value removed');
+  assert.ok(
+    m.rows.some((r) => r.column === 1),
+    'value column 1 landed on Rows',
+  );
+});
+
+test('applyDrop is a no-op for a bad chip index', () => {
+  const m = baseModel();
+  assert.equal(applyDrop(m, { from: 'zone', zone: 'cols', index: 5 }, 'rows', optsFor), m);
 });

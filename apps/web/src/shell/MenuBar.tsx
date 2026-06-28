@@ -59,6 +59,7 @@ import { NameManagerDialog } from './NameManagerDialog';
 import { GoalSeekDialog } from './GoalSeekDialog';
 import { GoToSpecialDialog } from './GoToSpecialDialog';
 import { RemoveDuplicatesDialog } from './RemoveDuplicatesDialog';
+import { CustomListSortDialog } from './CustomListSortDialog';
 import { TextToColumnsDialog } from './TextToColumnsDialog';
 import { SubtotalsDialog } from './SubtotalsDialog';
 import { AdvancedFilterDialog } from './AdvancedFilterDialog';
@@ -476,6 +477,7 @@ export function MenuBar() {
   const [showScenarioManager, setShowScenarioManager] = useState(false);
   const [showGoToSpecial, setShowGoToSpecial] = useState(false);
   const [showRemoveDuplicates, setShowRemoveDuplicates] = useState(false);
+  const [showCustomListSort, setShowCustomListSort] = useState(false);
   const [showTextToColumns, setShowTextToColumns] = useState(false);
   const [showSubtotals, setShowSubtotals] = useState(false);
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
@@ -2257,6 +2259,13 @@ export function MenuBar() {
         },
         {
           kind: 'item',
+          id: 'sort-custom-list',
+          label: 'Sort by custom list…',
+          icon: 'format_list_numbered',
+          onClick: () => setShowCustomListSort(true),
+        },
+        {
+          kind: 'item',
           id: 'data-validation',
           label: 'Data validation…',
           icon: 'rule',
@@ -2728,6 +2737,9 @@ export function MenuBar() {
       {showRemoveDuplicates && api && (
         <RemoveDuplicatesDialog api={api} onClose={() => setShowRemoveDuplicates(false)} />
       )}
+      {showCustomListSort && api && (
+        <CustomListSortDialog api={api} onClose={() => setShowCustomListSort(false)} />
+      )}
       {showTextToColumns && api && (
         <TextToColumnsDialog api={api} onClose={() => setShowTextToColumns(false)} />
       )}
@@ -2825,6 +2837,9 @@ function MenuItemButton({
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  // Cap height + scroll when even a top-anchored menu is taller than the
+  // viewport (otherwise its lower items render off-screen, unclickable).
+  const [maxH, setMaxH] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -2840,8 +2855,18 @@ function MenuItemButton({
     if (!isOpen) return;
     const pop = popRef.current;
     if (!pop) return;
-    const h = pop.offsetHeight;
     const margin = 8;
+    const avail = window.innerHeight - margin * 2;
+    // scrollHeight is the full content height even once maxHeight clips it.
+    const h = pop.scrollHeight;
+    if (h > avail) {
+      // Taller than the viewport: pin to the top and let it scroll so every
+      // item is reachable (submenus still fly out to the side).
+      setMaxH(avail);
+      setPos((cur) => (cur.top === margin ? cur : { ...cur, top: margin }));
+      return;
+    }
+    setMaxH(null);
     setPos((cur) => {
       if (cur.top + h <= window.innerHeight - margin) return cur;
       const top = Math.max(margin, window.innerHeight - h - margin);
@@ -2891,7 +2916,11 @@ function MenuItemButton({
           className="menu"
           role="menu"
           data-testid={`menubar-${id}-popup`}
-          style={{ top: pos.top, left: pos.left }}
+          style={{
+            top: pos.top,
+            left: pos.left,
+            ...(maxH != null ? { maxHeight: maxH, overflowY: 'auto' as const } : null),
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {children}

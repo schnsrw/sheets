@@ -47,6 +47,12 @@ import UniverSheetsTableUIEnUS from '@univerjs/sheets-table-ui/locale/en-US';
 import UniverSheetsSortUIEnUS from '@univerjs/sheets-sort-ui/locale/en-US';
 import UniverSheetsFilterUIEnUS from '@univerjs/sheets-filter-ui/locale/en-US';
 import UniverSheetsCfUIEnUS from '@univerjs/sheets-conditional-formatting-ui/locale/en-US';
+// The DV *UI* package ships only the panel chrome (`sheets-data-validation-ui.*`).
+// Validator titles, operator names, rule names and error messages live in the
+// base `@univerjs/data-validation` + `@univerjs/sheets-data-validation` packages;
+// without them the DV Type/Operator selectors and cell errors render raw i18n keys.
+import UniverDvEnUS from '@univerjs/data-validation/locale/en-US';
+import UniverSheetsDvEnUS from '@univerjs/sheets-data-validation/locale/en-US';
 import UniverSheetsDvUIEnUS from '@univerjs/sheets-data-validation-ui/locale/en-US';
 import UniverSheetsDrawingUIEnUS from '@univerjs/sheets-drawing-ui/locale/en-US';
 import UniverDrawingUIEnUS from '@univerjs/drawing-ui/locale/en-US';
@@ -68,6 +74,8 @@ const enUS = Tools.deepMerge(
   UniverSheetsSortUIEnUS,
   UniverSheetsFilterUIEnUS,
   UniverSheetsCfUIEnUS,
+  UniverDvEnUS,
+  UniverSheetsDvEnUS,
   UniverSheetsDvUIEnUS,
   UniverDrawingUIEnUS,
   UniverSheetsDrawingUIEnUS,
